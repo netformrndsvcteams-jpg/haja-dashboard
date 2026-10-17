@@ -618,6 +618,17 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .inp.bad,.sel.bad{border-color:#ff9a9a;background:#fff4f4}
 .srct{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}.srct.pp{background:#e6f3ff;color:#0f6fc2}.srct.lc{background:#fff3d6;color:#8a5a00}
 .ppst{margin-left:auto;display:flex;gap:8px;align-items:center}
+.prog.go div{cursor:pointer;border-radius:12px;padding:4px 2px 6px;transition:background .15s}.prog.go div:hover{background:#eef7fe}.prog.go div:hover i{box-shadow:0 0 0 2px var(--sky)}
+.bhint{background:#fff8e6;border:1px solid #f6e3b0;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:14px;color:#6b5200}.bhint.free{background:#effaf1;border-color:#cdeed5;color:#1d6b35}
+.labrow{display:grid;grid-template-columns:1fr auto 110px auto 1fr;gap:10px;align-items:end;margin-bottom:6px}.labrow .field{margin-bottom:0}.labrow .op{font-size:18px;color:var(--ink3);padding-bottom:10px}
+.amtw{position:relative;display:block}.amtw .inp{width:100%;min-width:0;padding-right:34px;text-align:right}.amtw em{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-style:normal;color:var(--ink3);font-size:13px}
+.labtot{height:44px;display:flex;align-items:center;justify-content:flex-end;padding:0 14px;border-radius:12px;background:#fff1e6;color:#d0591a;font-weight:800;font-size:17px}
+.exrow{display:grid;grid-template-columns:150px 1fr 150px auto 32px;gap:8px;align-items:center;margin-bottom:8px;padding-bottom:8px;border-bottom:1px dashed var(--line)}
+.exrow .sel,.exrow .inp{height:40px;min-width:0}.exrow .rc{white-space:nowrap}.exrow .tgl.our{grid-column:1/-1;font-size:12.5px;justify-content:flex-start;display:flex;gap:6px}
+.exrow .rclist{grid-column:1/-1;display:flex;gap:10px;flex-wrap:wrap;font-size:12.5px}.exrow .rclist a{color:var(--sky);text-decoration:none}
+.xbtn{width:32px;height:32px;border-radius:10px;border:1px solid var(--line2);background:#fff;color:var(--ink3);font-size:18px;cursor:pointer}
+.btn-dash{width:100%;justify-content:center;border:1.5px dashed #f2c48f;background:#fffaf3;color:#d0591a;height:42px;border-radius:12px;font-weight:700;cursor:pointer}
+.ctot{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line2);border-radius:12px;padding:12px 16px;margin-top:10px}.ctot b{color:#d0591a;font-size:19px}
 .settabs{margin-top:14px;display:inline-flex}.settools{display:flex;gap:10px;align-items:center;margin-bottom:12px}.settools .inp{max-width:300px}
 .d2.warn{color:var(--warn-tx)}
 </style>
@@ -993,7 +1004,7 @@ function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.
    ════════════════════════════════════════════ */
 const WY = 5; // 기본 보증기간(년)
 const costOf = r => (r.mat||0)-(r.ret||0)+(r.lab||0)+(r.rst||0)-(r.sh||0);
-const ourOf  = r => { const t=r.b&&r.b[0]; if(t==='당사 부담'||t==='당사 대납'||t==='공동 부담') return (r.lab||0)+(r.rst||0)-(r.sh||0); if(t==='과거 이력') return r.lab||0; return 0; };
+const ourOf  = r => { if(r.ourAmt!=null) return r.ourAmt; const t=r.b&&r.b[0]; if(t==='당사 부담'||t==='당사 대납'||t==='공동 부담') return (r.lab||0)+(r.rst||0)-(r.sh||0); if(t==='과거 이력') return r.lab||0; return 0; };
 const addDays = (d,n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); return x; };
 const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const pct = (a,b,dg=1)=> b? (a/b*100).toFixed(dg)+'%' : '—';
@@ -2069,14 +2080,14 @@ async function nextId(){
 /* ── 집계 함수 교체 (실제 날짜 사용) ── */
 function allRecs(){
   const live = ITEMS.filter(i=>i.st>=6 && i.b && i.b[0]!=='부담 미정').map(i=>({
-    id:i.id, site:i.site, date:i.rcvAt, part:i.part, b:i.b, hd:i.hd, mat:i.mat||0, lab:i.lab||0, rst:i.rst||0, sh:i.sh||0,
+    id:i.id, site:i.site, date:i.rcvAt, part:i.part, b:i.b, hd:i.hd, mat:i.mat||0, lab:costParts(i).lab+costParts(i).etc, rst:costParts(i).rst, sh:i.sh||0, ourAmt:ourPay(i),
     paidDate: i.st===7 && i.paid ? (i.paidAt||i.stAt) : null, live:i.st }));
   return HIST.concat(live);
 }
 function anaRecs(){
   return ITEMS.filter(i=>SITES[i.site] && SITES[i.site].comp).map(i=>{ const s=SITES[i.site], d=i.rcvAt;
-    return {id:i.id, site:i.site, date:d, part:i.part, ph:i.ph, cz:i.cz||null, dmg:(i.dmg||[]).map(x=>x[0]), mat:i.mat||0, lab:i.lab||0, rst:i.rst||0, sh:i.sh||0, st:i.st, live:1,
-      gong:s.gong, m:d.getMonth()+1, se:SEASON(d.getMonth()+1), yr:gYear(i.site,d), cost:(i.mat||0)+(i.lab||0)+(i.rst||0)}; });
+    return {id:i.id, site:i.site, date:d, part:i.part, ph:i.ph, cz:i.cz||null, dmg:(i.dmg||[]).map(x=>x[0]), mat:i.mat||0, lab:costParts(i).lab+costParts(i).etc, rst:costParts(i).rst, sh:i.sh||0, st:i.st, live:1,
+      gong:s.gong, m:d.getMonth()+1, se:SEASON(d.getMonth()+1), yr:gYear(i.site,d), cost:(i.mat||0)+costParts(i).lab+costParts(i).etc+costParts(i).rst}; });
 }
 
 /* ── 부담 판정 ── */
@@ -2101,8 +2112,7 @@ function detail(id){
   const wOpts = sel => [...new Set([...bldsOf(s), ...WORKERS, sel].filter(Boolean))].map(w=>`<option value="${esc(w)}" ${sel===w?'selected':''}>${esc(w)}${isBld(it.site,w)?' (시공소장)':''}</option>`).join('');
   const photos = it.photos||[];
   const kinds = ['처리 전','처리 후','2차 피해','기타'];
-  const total=(it.mat||0)+(it.lab||0)+(it.rst||0);
-  const isAdj = it.b && it.b[1]==='조정';
+    const isAdj = it.b && it.b[1]==='조정';
   openDrawer(`
     <div class="dh"><button class="x" aria-label="닫기">×</button>
       <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}</div>
@@ -2110,7 +2120,7 @@ function detail(id){
       <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'—'}${yr?` · 보증 ${yr}년차`:''}${wE?` · 만료 ${fmtD(wE)}`:''}${wX?' · <b style="color:var(--warn-tx)">접수일 기준 보증기간 경과</b>':''}${s.wait?' · <b style="color:var(--yel)">확인 대기 현장</b>':''}</div>
     </div>
     <div class="db">
-      <div class="dsec"><h4>진행</h4>${progHtml(it)}
+      <div class="dsec"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 바로 이동합니다</span></h4>${progHtml(it)}${missNote(it)}
         ${st<7?`<p class="cap" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · 이 단계 ${it.dIn}일째 · 기한 ${SLA[st]}일 ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
       </div>
 
@@ -2120,28 +2130,22 @@ function detail(id){
         <dt>시공소장</dt><dd>${bldsOf(s).map(b=>{ const m=mgrOf(b); return esc(b)+(m&&m.phone?` <span class="cap">${esc(m.phone)}</span>`:''); }).join(', ')||'—'} <span class="cap">(보증 책임자)</span></dd>
         ${con&&(con.contactName||con.contactPhone)?`<dt>시공사 담당</dt><dd>${esc(con.contactName||'')} <span class="cap">${esc(con.contactPhone||'')}</span></dd>`:''}
         ${s.addr?`<dt>주소</dt><dd>${esc(s.addr)}</dd>`:''}
-        <dt>처리소장</dt><dd>${st<=2?`<select class="sel" id="selHd" style="min-width:200px"><option value="">선택</option>${wOpts(it.hd)}</select>`:esc(it.hd||'미배정')+(swapped(it)?' <span class="tg tg-swap">교체</span>':'')}</dd>
-        ${st===2||it.visitAt?`<dt>방문 예정일</dt><dd>${st<=2?`<input type="date" class="inp" id="visitAt" value="${it.visitAt||''}" style="min-width:0;width:180px">`:it.visitAt.replace(/-/g,'.')}</dd>`:''}
+        <dt>처리소장</dt><dd>${st<7?`<select class="sel" id="selHd" style="min-width:200px"><option value="">선택</option>${wOpts(it.hd)}</select>`:esc(it.hd||'미배정')+(swapped(it)?' <span class="tg tg-swap">교체</span>':'')}</dd>
+        ${st<7||it.visitAt?`<dt>방문 예정일</dt><dd>${st<7?`<input type="date" class="inp" id="visitAt" value="${it.visitAt||''}" style="min-width:0;width:180px">`:it.visitAt.replace(/-/g,'.')}</dd>`:''}
         </dl><div id="swapMsg"></div>
       </div>
 
-      <div class="dsec"><h4>사진 <span class="cap" style="font-weight:400">${photos.length}장 · 자동 압축(긴 변 ${PHOTO_MAX}px)</span></h4>
-        ${photos.length?`<div class="pgrid">${photos.map(p=>`<a href="https://drive.google.com/thumbnail?id=${p.id}&sz=w1600" target="_blank" rel="noopener" title="${esc(p.kind)} · ${esc(p.by||'')} · ${p.at?fmtD(new Date(p.at)):''}"><img src="https://drive.google.com/thumbnail?id=${p.id}&sz=w320" alt="" loading="lazy"><em>${esc(p.kind)}</em></a>`).join('')}</div>`:'<p class="cap">아직 사진이 없습니다</p>'}
-        <div class="pup"><div class="seg sm">${kinds.map(k=>`<button class="${PH_KIND===k?'on':''}" data-kind="${k}">${k}</button>`).join('')}</div>
-          <label class="btn btn-line sm">＋ 사진 추가<input type="file" id="phFile" accept="image/*" multiple hidden></label></div>
-      </div>
-
-      ${st>=3?`<div class="dsec"><h4>보수 결과</h4>
-        <div class="field"><label>하자 원인 ${st===3?'(4단계로 넘기려면 필수)':''}</label>
-          ${st<=4?`<select class="sel" id="selCz"><option value="">선택</option>${CAUSES.map(c=>`<option ${it.cz===c?'selected':''}>${c}</option>`).join('')}</select>`:`<p>${esc(it.cz||'—')}</p>`}
+      ${true?`<div class="dsec"><h4>보수 결과</h4>
+        <div class="field"><label>하자 원인</label>
+          ${st<7?`<select class="sel" id="selCz"><option value="">선택</option>${CAUSES.map(c=>`<option ${it.cz===c?'selected':''}>${c}</option>`).join('')}</select>`:`<p>${esc(it.cz||'—')}</p>`}
           <p class="cap" style="margin-top:6px">사용자 과실은 원인으로만 기록합니다 — 부담은 보증 기준을 따릅니다</p></div>
         <div class="field"><label>2차 피해 ${it.dmg.length?`${it.dmg.length}건`:''}</label>
-          ${it.dmg.length?`<ul class="dmg-list">${it.dmg.map((d,k)=>`<li><b>${esc(d[0])}</b> · ${esc(d[1])}${d[2]?` · 복구 ${esc(d[2])}`:''}${st<=4?` <button class="lkb" data-deldmg="${k}">삭제</button>`:''}</li>`).join('')}</ul>`:'<p class="cap">없음</p>'}
-          ${st<=4?`<div class="dmgadd"><select class="sel" id="dT">${DMGS.map(d=>`<option>${d}</option>`).join('')}</select><input class="inp" id="dL" placeholder="위치 (예: 101동 1401호 천장)"><input class="inp" id="dF" placeholder="복구 내용 (예: 도배)"><button class="btn btn-line sm" id="dAdd">추가</button></div>`:''}
+          ${it.dmg.length?`<ul class="dmg-list">${it.dmg.map((d,k)=>`<li><b>${esc(d[0])}</b> · ${esc(d[1])}${d[2]?` · 복구 ${esc(d[2])}`:''}${st<7?` <button class="lkb" data-deldmg="${k}">삭제</button>`:''}</li>`).join('')}</ul>`:'<p class="cap">없음</p>'}
+          ${st<7?`<div class="dmgadd"><select class="sel" id="dT">${DMGS.map(d=>`<option>${d}</option>`).join('')}</select><input class="inp" id="dL" placeholder="위치 (예: 101동 1401호 천장)"><input class="inp" id="dF" placeholder="복구 내용 (예: 도배)"><button class="btn btn-line sm" id="dAdd">추가</button></div>`:''}
         </div></div>`:''}
 
-      ${st>=4?`<div class="dsec"><h4>비용부담</h4>
-        ${st<=5?`<div class="bopt">
+      ${true?`<div class="dsec"><h4>비용부담</h4>
+        ${st<7?`<div class="bopt">
           <label class="radio"><input type="radio" name="bmode" value="auto" ${!isAdj?'checked':''}> 보증 기준 그대로 — <b>${auto?auto[0]:wX?`계산 불가 (보증기간 경과 · ${fmtD(wE)} 만료)`:'계산 불가 (계약유형·준공일 미등록)'}</b>${auto?` <span class="cap">보증 ${yr}년차 · ${z} 책임 구간${auto[0]==='당사 대납'?` · 처리소장 ${esc(it.hd)} ≠ 시공소장 ${esc(s.bld)}`:''}</span>`:''}</label>
           <label class="radio"><input type="radio" name="bmode" value="adj" ${isAdj?'checked':''}> 원인 조정 (예외)</label>
           <div id="adjBox" class="adjbox" ${isAdj?'':'hidden'}>
@@ -2154,23 +2158,7 @@ function detail(id){
         :`<p class="burden-line">${bs.s}<span class="why">${bs.w}</span></p>`}
       </div>`:''}
 
-      <div class="dsec"><h4>비용 <span class="cap" style="font-weight:400">원 단위 · 대금관리자 입력</span></h4>
-        ${s.wait?`<div class="alert warn"><b>정식 등록 후 정산</b> — 확정매출액·계약유형이 없어 비용 확인 단계로 넘어갈 수 없습니다. 비용 › 현장·예산에서 정식 등록하세요.</div>`:''}
-        ${st===5?`<div class="g2">
-          <div class="field"><label>자재 출고 (ERP)</label><input class="inp amt-in" id="cOut" inputmode="numeric" value="${won(it.matOut??it.mat??0)}"></div>
-          <div class="field"><label>자재 회수 (ERP 반품)</label><input class="inp amt-in" id="cRet" inputmode="numeric" value="${won(it.matRet||0)}"></div>
-          <div class="field"><label>노임</label><input class="inp amt-in" id="cLab" inputmode="numeric" value="${won(it.lab||0)}"></div>
-          <div class="field"><label>복구비 (2차 피해)</label><input class="inp amt-in" id="cRst" inputmode="numeric" value="${won(it.rst||0)}"></div></div>
-          <button class="btn btn-pri sm" id="cSave">비용 저장</button>${it.costAt?` <span class="cap">저장됨 ${fmtD(new Date(it.costAt))}</span>`:''}`
-        :`<table class="cost"><tbody>
-          <tr><td>자재비 <span class="cap">출고 − 회수 · 판정과 무관하게 당사</span></td><td class="amt">${st>=5||it.mat?won(it.mat):'—'}</td></tr>
-          <tr><td>노임</td><td class="amt">${won(it.lab)}</td></tr>
-          <tr><td>복구비</td><td class="amt">${won(it.rst)}</td></tr>
-          ${it.sh?`<tr><td>└ 시공사 몫 <span class="cap">당사 지출 아님</span></td><td class="amt" style="color:var(--ink2)">${won(it.sh)}</td></tr>`:''}
-          <tr class="tot"><td>당사 지급 대상 (노임·복구비)</td><td class="amt">${won(ourPay(it))}</td></tr>
-          <tr><td class="cap">합계 (자재비 포함)</td><td class="amt cap">${won(total)}</td></tr></tbody></table>`}
-        ${st>=4&&it.b&&it.b[0]!=='부담 미정'&&!payNeeded(it)&&st<7?'<p class="cap" style="margin-top:10px">지급할 노임·복구비가 없으면 6단계(기안 진행) 없이 종결됩니다.</p>':''}
-      </div>
+      ${costSection(it,s,st)}
 
       ${st===6||(st===7&&it.paid)?`<div class="dsec"><h4>기안 · 지급</h4>
         ${st===6?`<div class="g2"><div class="field"><label>기안 번호</label><input class="inp" id="dNo" value="${esc(it.draftNo||'')}" placeholder="그룹웨어 기안 번호"></div>
@@ -2179,6 +2167,12 @@ function detail(id){
         :`<dl class="kv"><dt>기안 번호</dt><dd>${esc(it.draftNo||'—')}</dd><dt>지급일</dt><dd>${it.paidAt?fmtD(it.paidAt):'—'}</dd><dt>지급액</dt><dd>${won(ourPay(it))}원</dd></dl>`}
       </div>`:''}
 
+      <div class="dsec"><h4>사진 <span class="cap" style="font-weight:400">${photos.length}장 · 자동 압축(긴 변 ${PHOTO_MAX}px)</span></h4>
+        ${photos.length?`<div class="pgrid">${photos.map(p=>`<a href="https://drive.google.com/thumbnail?id=${p.id}&sz=w1600" target="_blank" rel="noopener" title="${esc(p.kind)} · ${esc(p.by||'')} · ${p.at?fmtD(new Date(p.at)):''}"><img src="https://drive.google.com/thumbnail?id=${p.id}&sz=w320" alt="" loading="lazy"><em>${esc(p.kind)}</em></a>`).join('')}</div>`:'<p class="cap">아직 사진이 없습니다</p>'}
+        <div class="pup"><div class="seg sm">${kinds.map(k=>`<button class="${PH_KIND===k?'on':''}" data-kind="${k}">${k}</button>`).join('')}</div>
+          <label class="btn btn-line sm">＋ 사진 추가<input type="file" id="phFile" accept="image/*" multiple hidden></label></div>
+      </div>
+
       <div class="dsec"><h4>처리 이력</h4>
         <ul class="logl">${(it.log||[]).slice().reverse().map(l=>`<li><span>${l.at?fmtD(new Date(l.at))+' '+hhmm(new Date(l.at)):''}</span><b>${esc(l.by||'')}</b>${esc(l.msg)}</li>`).join('')||'<li class="cap">기록 없음</li>'}</ul>
       </div>
@@ -2186,7 +2180,7 @@ function detail(id){
     <div class="df">
       ${st===1?`<button class="btn btn-ghost" id="delCase" style="margin-right:auto;color:var(--warn-tx)">접수 삭제</button>`:st>1?`<button class="btn btn-ghost" id="prevSt" style="margin-right:auto">이전 단계로</button>`:''}
       <button class="btn btn-ghost x2">닫기</button>
-      ${st<6?`<button class="btn btn-pri" id="nextSt">${st===5&&!payNeeded(it)?'비용 확인 완료 · 7단계 종결':st===5?'비용 확인 완료 · 6단계 기안':(st+1)+'단계로 넘기기'}</button>`:''}
+      ${st<6?`<button class="btn btn-pri" id="nextSt">${st===5&&!payNeeded(it)?'7단계 종결 (지급 없음)':st===5?'6단계 기안으로':(st+1)+'단계로 넘기기'}</button>`:''}
       ${st===6?`<button class="btn btn-pri" id="paidBtn">지급 완료 · 처리 완료</button>`:''}
     </div>`);
 
@@ -2231,18 +2225,11 @@ function detail(id){
     toast('판정을 저장했습니다'); };
 
   /* 비용 */
-  drawer.querySelectorAll('.amt-in').forEach(i=>i.oninput=()=>{ const v=i.value.replace(/[^0-9]/g,''); i.value=v?Number(v).toLocaleString('ko-KR'):''; });
-  const cs=$('cSave'); if(cs) cs.onclick=()=>{ const out=num($('cOut').value), ret=num($('cRet').value), lab=num($('cLab').value), rst=num($('cRst').value);
-    if(ret>out){ toast('회수액이 출고액보다 클 수 없습니다'); return; }
-    dbCase(id,{matOut:out, matRet:ret, mat:out-ret, lab, rst, costAt:iso()},`비용 저장 · 자재 ${won(out-ret)} · 노임 ${won(lab)} · 복구비 ${won(rst)}`); toast('비용을 저장했습니다'); };
+  drawer.querySelectorAll('#adjBox .amt-in').forEach(i=>i.oninput=()=>{ const v=i.value.replace(/[^0-9]/g,''); i.value=v?Number(v).toLocaleString('ko-KR'):''; });
+  bindCost(it); bindProg(it);
 
   /* 단계 이동 */
   const nx=$('nextSt'); if(nx) nx.onclick=()=>{
-    if(st===2 && !it.hd){ toast('처리소장을 먼저 배정하세요'); return; }
-    if(st===3 && !it.cz){ toast('하자 원인을 먼저 선택하세요'); return; }
-    if(st===4 && s.wait){ toast('확인 대기 현장은 정식 등록 후 비용 확인으로 넘길 수 있습니다'); return; }
-    if(st===4 && (!it.b||it.b[0]==='부담 미정')){ toast('비용부담 판정을 먼저 저장하세요'); return; }
-    if(st===5 && !it.costAt){ toast('비용을 먼저 저장하세요 (없으면 0으로 저장)'); return; }
     const to = (st===5&&!payNeeded(it))?7:st+1;
     dbCase(id,{st:to, stAt:iso(), ...(to===7?{paid:false}:{})},`${st}→${to}단계 ${STAGES[to]}`); toast(`${id} → ${to}단계 ${STAGES[to]}`); };
   const pb=$('paidBtn'); if(pb) pb.onclick=()=>{ const d=$('pDt').value; if(!d){ toast('지급일을 입력하세요'); return; }
@@ -2397,7 +2384,7 @@ function exportAll(){
   const wb=XLSX.utils.book_new();
   const add=(name,rows)=>XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length?rows:[{'':'데이터 없음'}]), name);
   add('현장', Object.values(SITES).map(s=>({현장명:s.name, 업체명:s.co, ERP코드:s.code||'', 계약유형:s.ct||'', 준공일:s.comp, 보증기간:s.wy, 확정매출액:s.rev||'', 하자예산:s.budget||'', 집행:s.spent||'', 공종:s.gong||'', 면적:s.area||'', 시공소장:s.bld, 주소:s.addr||'', 보증기산기준:s.wStartBasis||'준공일', 보증기산일:wStartOf(s)||'', 보증만료일:wEndOf(s)?ymd(wEndOf(s)):'', 만료일수동:s.wEndManual?'Y':'', pourpay연결:s.pp?'Y':'', pourpay완료일:s.ppDone||'', 확인대기:s.wait?'Y':''})));
-  add('접수', ITEMS.map(i=>({접수번호:i.id, 현장:i.site, 접수일:ymd(i.rcvAt), 접수자:i.rc, 단계:`${i.st} ${STAGES[i.st]}`, 부위:i.part, 현상:i.ph, 상세:i.txt||'', 처리소장:i.hd||'', 원인:i.cz||'', 부담:i.b?i.b[0]:'', 근거:i.b?i.b[1]:'', 조정사유:i.b&&i.b[2]||'', 자재비:i.mat||0, 노임:i.lab||0, 복구비:i.rst||0, 시공사몫:i.sh||0, 기안번호:i.draftNo||'', 지급일:i.paidAt?ymd(i.paidAt):'', '2차피해':(i.dmg||[]).map(d=>d.join('/')).join('; '), 사진수:(i.photos||[]).length})));
+  add('접수', ITEMS.map(i=>({접수번호:i.id, 현장:i.site, 접수일:ymd(i.rcvAt), 접수자:i.rc, 단계:`${i.st} ${STAGES[i.st]}`, 부위:i.part, 현상:i.ph, 상세:i.txt||'', 처리소장:i.hd||'', 원인:i.cz||'', 부담:i.b?i.b[0]:'', 근거:i.b?i.b[1]:'', 조정사유:i.b&&i.b[2]||'', 자재비:i.mat||0, 일당:i.labRate||'', 시공인원:i.labCnt||'', 노임:i.lab||0, 복구비:costParts(i).rst, 기타경비:costParts(i).etc, 기타항목:extrasOf(i).map(e=>`${e.t==='기타'?e.name:e.t} ${e.amt}${e.our?'(당사지급)':''}${e.rcpt&&e.rcpt.length?' 영수증'+e.rcpt.length:''}`).join('; '), 당사지급:ourPay(i), 시공사몫:i.sh||0, 기안번호:i.draftNo||'', 지급일:i.paidAt?ymd(i.paidAt):'', '2차피해':(i.dmg||[]).map(d=>d.join('/')).join('; '), 사진수:(i.photos||[]).length})));
   add('자재출고', MATS.map(m=>({일자:ymd(m.date), 현장:m.site, 품목:m.item, 단위:m.unit, 수량:m.qty, 금액:m.amt})));
   add('과거노임', HIST.filter(h=>h.lab).map(h=>({지급일:ymd(h.date), 현장:h.site, 노임:h.lab})));
   add('소장명부', allMgrs().map(m=>({이름:m.name, 연락처:m.phone||'', 상호:m.bizName||'', 사업자등록번호:m.bizNumber||'', 사업장주소:m.bizAddress||'', 출처:m.src==='pp'?'pour-pay':'직접 등록'})));
@@ -2861,6 +2848,124 @@ function drawIntake(){
   if(iq){ iq.focus(); iq.setSelectionRange(iq.value.length,iq.value.length);
     iq.oninput=()=>{ intake.q=iq.value; intake.site=null; document.getElementById('iqRes').innerHTML=intakeRes(); bindIntake(); }; }
   bindIntake();
+}
+
+/* ════ 단계 자유 이동 · 비용 입력(일당×품 + 기타항목·영수증) ════ */
+const EXTRA_T = ['장비대','재료비(현장 구매)','2차 피해 복구비','기타'];
+const sumAmt = a => a.reduce((x,e)=>x+(Number(e.amt)||0),0);
+function extrasOf(it){ return Array.isArray(it.extras)? it.extras : []; }
+/* 집계용 분해 : 노임 · 복구비(2차 피해) · 경비(장비대·재료비·기타) */
+function costParts(it){ const ex=extrasOf(it); const rst=ex.length? sumAmt(ex.filter(e=>e.t==='2차 피해 복구비')) : (it.rst||0);
+  return {lab:it.lab||0, rst, etc:sumAmt(ex.filter(e=>e.t!=='2차 피해 복구비'))}; }
+/* 당사 지급액 — 당사 부담·대납 전액 · 공동 부담 시공사 몫 제외 · 시공소장 부담(무상)은 협의로 「당사 지급」 표시한 기타항목만 */
+function ourPay(it){ if(!it.b) return 0; const t=it.b[0], p=costParts(it), tot=p.lab+p.rst+p.etc;
+  if(t==='당사 부담'||t==='당사 대납') return tot; if(t==='공동 부담') return Math.max(0, tot-(it.sh||0));
+  if(t==='시공소장 부담') return sumAmt(extrasOf(it).filter(e=>e.our)); return 0; }
+function payNeeded(it){ return ourPay(it)>0; }
+function progHtml(it){
+  const skip = it.st>=4 && it.b && it.b[0]!=='부담 미정' && !payNeeded(it);
+  return `<div class="prog go">${[1,2,3,4,5,6,7].map(n=>{
+    let c=''; if(n===6&&skip) c='na'; else if(n<it.st||(it.st===7)) c='d'; else if(n===it.st) c='c';
+    if(it.st===7&&n===7) c='d';
+    return `<div class="s${n} ${c}" data-go="${n}" title="${n}단계 ${STAGES[n]}(으)로 이동" role="button" tabindex="0"><i>${EI('st'+n)}</i>${STAGES[n]}${n===6&&skip?'<br>해당 없음':''}</div>`; }).join('')}</div>`;
+}
+/* 진행 아이콘 → 그 단계로 바로 이동 (앞뒤 자유) */
+function bindProg(it){
+  drawer.querySelectorAll('.prog.go [data-go]').forEach(el=>el.onclick=()=>{ const to=+el.dataset.go; if(to===it.st) return;
+    const extra = to<7 ? {paid:false, ...(it.st===7?{paidAt:null}:{})} : {};
+    dbCase(it.id,{st:to, stAt:iso(), ...extra},`${it.st}→${to}단계 ${STAGES[to]} (직접 이동)`); toast(`${it.id} → ${to}단계 ${STAGES[to]}`); });
+}
+function missNote(it){ const m=[]; if(it.st>=3&&!it.hd) m.push('처리소장'); if(it.st>=4&&!it.cz) m.push('하자 원인'); if(it.st>=5&&(!it.b||it.b[0]==='부담 미정')) m.push('부담 판정'); if(it.st>=6&&!it.costAt) m.push('비용');
+  return m.length?`<p class="cap" style="margin-top:6px;color:var(--warn-tx)">아직 비어 있는 값: ${m.join(' · ')} — 판정·비용이 없으면 비용 탭 집계에서 빠집니다</p>`:''; }
+
+/* 비용 입력 초안 (저장 전까지 화면에만 유지 · 실시간 갱신에 지워지지 않음) */
+const CD = {};
+function costDraft(it){ if(CD[it.id]) return CD[it.id];
+  const lr = it.labRate ?? (it.lab && !it.labCnt ? it.lab : 0), lc = it.labCnt ?? (it.lab && !it.labRate ? 1 : 0);
+  let ex = extrasOf(it).map(e=>({...e, rcpt:[...(e.rcpt||[])]}));
+  if(!it.extras && it.rst) ex=[{t:'2차 피해 복구비', amt:it.rst, rcpt:[]}];
+  return {rate:lr||0, cnt:lc||0, ex, out:it.matOut??it.mat??0, ret:it.matRet||0, dirty:false}; }
+function costSection(it, s, st){
+  const d=costDraft(it), labT=d.rate*d.cnt, exT=sumAmt(d.ex), b=it.b&&it.b[0]!=='부담 미정'? it.b : autoBurden(it);
+  const yr=s.comp?gYear(it.site,it.rcvAt):null, free = b && b[0]==='시공소장 부담';
+  const head = b ? `<div class="bhint ${free?'free':''}">${free?'🟢 <b>무상 처리</b>':'🔵 <b>'+esc(b[0])+'</b>'}${yr?` · 보증 ${yr}년차`:''}${free?' — 소장 무상 처리 구간 · 기타항목은 협의해 「당사 지급」을 표시한 것만 지급':it.b&&it.b[0]!=='부담 미정'?'':' (보증 기준 예상 · 판정 저장 전)'}</div>` : '';
+  const ed = st<7;
+  const exRow = (e,k)=>`<div class="exrow" data-k="${k}">
+      <select class="sel" data-f="t" ${ed?'':'disabled'}>${EXTRA_T.map(t=>`<option ${e.t===t?'selected':''}>${t}</option>`).join('')}</select>
+      ${e.t==='기타'?`<input class="inp" data-f="name" placeholder="항목명" value="${esc(e.name||'')}" ${ed?'':'disabled'}>`:'<span></span>'}
+      <span class="amtw"><input class="inp amt" data-f="amt" inputmode="numeric" value="${e.amt?won(e.amt):''}" placeholder="0" ${ed?'':'disabled'}><em>원</em></span>
+      <label class="btn btn-line sm rc">영수증${e.rcpt.length?` ${e.rcpt.length}`:''}<input type="file" data-f="rcpt" accept="image/*,application/pdf" multiple hidden ${ed?'':'disabled'}></label>
+      ${ed?`<button class="xbtn" data-f="del" title="삭제">×</button>`:'<span></span>'}
+      ${free?`<label class="tgl our"><input type="checkbox" data-f="our" ${e.our?'checked':''} ${ed?'':'disabled'}> 당사 지급(협의)</label>`:''}
+      ${e.rcpt.length?`<div class="rclist">${e.rcpt.map((r,j)=>`<a href="https://drive.google.com/file/d/${r.id}/view" target="_blank" rel="noopener">🧾 ${esc(r.name||'영수증')}</a>${ed?`<button class="lkb" data-rdel="${j}">삭제</button>`:''}`).join('')}</div>`:`<div class="rclist cap">${e.amt?'영수증 없음':''}</div>`}
+    </div>`;
+  return `<div class="dsec" id="costSec"><h4>비용 <span class="cap" style="font-weight:400">원 단위 · 노임 외 항목은 영수증 첨부</span></h4>
+    ${s.wait?`<div class="alert warn"><b>확인 대기 현장</b> — 정식 등록 전이라 하자예산 집계에 반영되지 않습니다. 비용 › 현장·예산에서 정식 등록하세요.</div>`:''}
+    ${head}
+    <div class="labrow"><div class="field"><label>일당 (노임단가)</label><span class="amtw"><input class="inp amt" id="cRate" inputmode="numeric" value="${d.rate?won(d.rate):''}" placeholder="0" ${ed?'':'disabled'}><em>원</em></span></div>
+      <b class="op">×</b><div class="field"><label>시공인원</label><span class="amtw"><input class="inp amt" id="cCnt" inputmode="decimal" value="${d.cnt||''}" placeholder="0" ${ed?'':'disabled'}><em>품</em></span></div>
+      <b class="op">=</b><div class="field"><label>노임 합계</label><div class="labtot" id="cLabT">${won(labT)}원</div></div></div>
+    <div class="field"><label>기타항목 <span class="cap">(장비대 · 재료비 · 2차 피해 복구비 등 · 여러 개 추가 가능)</span></label>
+      <div id="exList">${d.ex.map(exRow).join('')}</div>
+      ${ed?`<button class="btn btn-dash" id="exAdd">＋ 기타항목 추가</button>`:''}</div>
+    <div class="ctot"><span>총 비용 (노임 + 기타항목)</span><b id="cTot">${won(labT+exT)}원</b></div>
+    <div class="g2" style="margin-top:14px"><div class="field"><label>자재 출고 (ERP)</label><input class="inp amt-in" id="cOut" inputmode="numeric" value="${won(d.out)}" ${ed?'':'disabled'}></div>
+      <div class="field"><label>자재 회수 (ERP 반품)</label><input class="inp amt-in" id="cRet" inputmode="numeric" value="${won(d.ret)}" ${ed?'':'disabled'}></div></div>
+    <table class="cost"><tbody>
+      <tr><td>자재비 <span class="cap">출고 − 회수 · 판정과 무관하게 당사</span></td><td class="amt">${won((it.mat||0))}</td></tr>
+      ${it.sh?`<tr><td>└ 시공사 몫 <span class="cap">공동 부담 · 당사 지출 아님</span></td><td class="amt" style="color:var(--ink2)">${won(it.sh)}</td></tr>`:''}
+      <tr class="tot"><td>당사 지급 대상 <span class="cap">저장된 값 기준</span></td><td class="amt">${won(ourPay(it))}</td></tr></tbody></table>
+    ${ed?`<div style="display:flex;gap:10px;align-items:center;margin-top:12px"><button class="btn btn-pri sm" id="cSave">비용 저장</button>${d.dirty?'<span class="cap" style="color:var(--warn-tx)">저장하지 않은 변경이 있습니다</span>':it.costAt?`<span class="cap">저장됨 ${fmtD(new Date(it.costAt))}</span>`:''}</div>`:''}
+  </div>`;
+}
+function bindCost(it){
+  const sec=document.getElementById('costSec'); if(!sec) return;
+  const d=costDraft(it); CD[it.id]=d;
+  const fmt=v=>{ const x=String(v).replace(/[^0-9]/g,''); return x?Number(x).toLocaleString('ko-KR'):''; };
+  const recalc=()=>{ const labT=d.rate*d.cnt; document.getElementById('cLabT').textContent=won(Math.round(labT))+'원'; document.getElementById('cTot').textContent=won(Math.round(labT+sumAmt(d.ex)))+'원'; };
+  const dirty=()=>{ d.dirty=true; CD[it.id]=d; };
+  const r=document.getElementById('cRate'), c=document.getElementById('cCnt');
+  if(r) r.oninput=()=>{ r.value=fmt(r.value); d.rate=num(r.value); dirty(); recalc(); };
+  if(c) c.oninput=()=>{ c.value=c.value.replace(/[^0-9.]/g,''); d.cnt=Number(c.value)||0; dirty(); recalc(); };
+  ['cOut','cRet'].forEach(k=>{ const e=document.getElementById(k); if(e) e.oninput=()=>{ e.value=fmt(e.value); d[k==='cOut'?'out':'ret']=num(e.value); dirty(); }; });
+  sec.querySelectorAll('.exrow').forEach(row=>{ const k=+row.dataset.k, e=d.ex[k];
+    row.querySelector('[data-f=t]').onchange=ev=>{ e.t=ev.target.value; dirty(); detail(it.id); };
+    const nm=row.querySelector('[data-f=name]'); if(nm) nm.oninput=()=>{ e.name=nm.value; dirty(); };
+    const a=row.querySelector('[data-f=amt]'); a.oninput=()=>{ a.value=fmt(a.value); e.amt=num(a.value); dirty(); recalc(); };
+    const del=row.querySelector('[data-f=del]'); if(del) del.onclick=()=>{ d.ex.splice(k,1); dirty(); detail(it.id); };
+    const our=row.querySelector('[data-f=our]'); if(our) our.onchange=()=>{ e.our=our.checked; dirty(); };
+    const f=row.querySelector('[data-f=rcpt]'); if(f) f.onchange=()=>uploadReceipts(it, d, k, [...f.files]);
+    row.querySelectorAll('[data-rdel]').forEach(bn=>bn.onclick=()=>{ e.rcpt.splice(+bn.dataset.rdel,1); dirty(); detail(it.id); });
+  });
+  const add=document.getElementById('exAdd'); if(add) add.onclick=()=>{ d.ex.push({t:'장비대', amt:0, rcpt:[]}); dirty(); detail(it.id); };
+  const sv=document.getElementById('cSave'); if(sv) sv.onclick=()=>saveCost(it, d);
+}
+async function saveCost(it, d){
+  d = d || CD[it.id] || costDraft(ITEMS.find(i=>i.id===it.id)||it);
+  if(d.ret>d.out){ toast('자재 회수액이 출고액보다 클 수 없습니다'); return; }
+  const ex=d.ex.filter(e=>e.amt||e.rcpt.length).map(e=>({t:e.t, name:e.t==='기타'?(e.name||''):'', amt:Number(e.amt)||0, our:!!e.our, rcpt:e.rcpt}));
+  if(ex.some(e=>e.t==='기타'&&!e.name)){ toast('「기타」 항목은 항목명을 입력하세요'); return; }
+  const lab=Math.round(d.rate*d.cnt), rst=sumAmt(ex.filter(e=>e.t==='2차 피해 복구비')), etc=sumAmt(ex.filter(e=>e.t!=='2차 피해 복구비'));
+  try{ await dbCase(it.id,{labRate:d.rate, labCnt:d.cnt, lab, extras:ex, rst, etc, matOut:d.out, matRet:d.ret, mat:d.out-d.ret, costAt:iso()},
+      `비용 저장 · 노임 ${won(d.rate)}×${d.cnt}품=${won(lab)} · 기타 ${won(rst+etc)} · 자재 ${won(d.out-d.ret)}`); }catch(e){ return; }
+  d.dirty=false; delete CD[it.id]; toast('비용을 저장했습니다');
+}
+/* 영수증 업로드 — 사진은 압축, PDF는 원본 (10MB 이하) · 드라이브 접수번호 폴더 */
+async function uploadReceipts(it, d, k, files){
+  CD[it.id]=d; const e=d.ex[k]; if(!e||!files.length) return; let ok=0;
+  for(const f of files){
+    try{
+      toast(`영수증 올리는 중… ${f.name}`);
+      let data, mime, name;
+      if(/^image\//.test(f.type)){ data=await compressImg(f); mime='image/jpeg'; name=`${it.id}_영수증_${e.t==='기타'?(e.name||'기타'):e.t}_${Date.now()}.jpg`; }
+      else { if(f.size>10*1024*1024) throw new Error('10MB 초과'); data=await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(f); });
+        mime=f.type||'application/pdf'; name=`${it.id}_영수증_${e.t==='기타'?(e.name||'기타'):e.t}_${Date.now()}.${(f.name.split('.').pop()||'pdf')}`; }
+      const r=await fetch(PHOTO_API,{method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({token:PHOTO_TOKEN, site:it.site, caseId:it.id, kind:'영수증', by:ME(), name, mime, data})});
+      const j=await r.json(); if(!j.ok) throw new Error(j.error||'업로드 실패');
+      e.rcpt.push({id:j.id, name:f.name, at:iso()}); ok++;
+    }catch(err){ toast(`영수증 업로드 실패 (${f.name}) · ${err.message}`); }
+  }
+  if(ok){ d.dirty=true; await saveCost(it, d); fetchStorage(); }
 }
 
 document.getElementById('todayTag').textContent=TD+' 현재';
