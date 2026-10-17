@@ -2427,6 +2427,8 @@ function wExpired(site, at){ const e=wEndOf(SITES[site]); return !!(e && day0(at
 /* 부담 구간 — 시공소장 구간은 준공일 기준 연차 · 보증 3년 이하는 만료일까지 전 기간 시공소장 */
 function zone(site, yr){ const s=SITES[site]; if(!s||!s.ct||!s.comp||!s.wy) return null; if(s.ct==='기술자문(직영)') return '시공소장'; if(s.wy<=3) return '시공소장'; return yr<=3?'시공소장':'당사'; }
 /* 준공일·보증기간 미입력 허용 — 하자 처리 중 확인되면 현장 수정에서 채움. 미입력이면 연차·책임 구간·부담은 자동 판정하지 않음 */
+/* 보증기간 선택지 — 1~6년 + 저장된 값이 그 밖이면 함께 표시(저장 시 값이 사라지지 않도록) */
+function wyList(cur){ const L=[1,2,3,4,5,6], n=Number(cur); if(n>0 && !L.includes(n)) L.push(n); return L.sort((a,b)=>a-b); }
 function cYear(s){ return s&&s.comp? Number(String(s.comp).slice(0,4)) : '미정'; }
 function yLab(y, suf=''){ return y==='미정'? '준공일 미정' : y+'년'+suf; }
 function wMiss(s){ return !s? [] : [!s.comp&&'준공일', !s.wy&&!(s.wEndManual&&s.wEnd)&&'보증기간'].filter(Boolean); }
@@ -2550,7 +2552,7 @@ function drawPPImport(sc){
   sc = sc || ppScan();
   const yr={}; sc.done.forEach(r=>{ const y=(r.comp||'').slice(0,4)||'준공일 없음'; yr[y]=(yr[y]||0)+1; });
   const R=PPI.rows, sel=R.filter(r=>r.on), bad=sel.filter(r=>rowIssues(r).length);
-  const wyOpt = v => `<option value="">미입력</option>${[1,2,3,5].map(y=>`<option ${v==y?'selected':''} value="${y}">${y}년</option>`).join('')}`;
+  const wyOpt = v => `<option value="">미입력</option>${wyList(v).map(y=>`<option ${v==y?'selected':''} value="${y}">${y}년</option>`).join('')}`;
   openDrawer(`<div class="dh"><div class="k">pour-pay 연동 · 읽기 전용</div><h3>완료 현장 가져오기</h3>
       <div class="m">pour-pay에서 완료(정산·입금 끝) 단계인 컨설팅 현장 ${sc.done.length}곳 · 마지막 읽기 ${PP.at?hhmm(PP.at):'—'} · 확정매출 = 컨설팅 총액(총 공사금액 − 노무비 − 기타경비)</div>
       <button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
@@ -2710,7 +2712,7 @@ function openSiteForm(nm, formal){
     </div>
     <div class="dsec"><h4>하자보증</h4>
       <div class="g2"><div class="field"><label>준공일 <span class="cap">(모르면 비워 두기)</span></label><input class="inp" type="date" id="fComp" value="${v('comp')}" oninput="calcBudget()"></div>
-      <div class="field"><label>보증기간 (년)</label><select class="sel" id="fWy" oninput="calcBudget()"><option value="" ${(nm?(s.wy||''):5)===''?'selected':''}>미입력</option>${[1,2,3,5].map(y=>`<option value="${y}" ${(nm?(s.wy||''):5)==y?'selected':''}>${y}</option>`).join('')}</select></div></div>
+      <div class="field"><label>보증기간 (년)</label><select class="sel" id="fWy" oninput="calcBudget()"><option value="" ${(nm?(s.wy||''):5)===''?'selected':''}>미입력</option>${wyList(nm?s.wy:5).map(y=>`<option value="${y}" ${(nm?(s.wy||''):5)==y?'selected':''}>${y}</option>`).join('')}</select></div></div>
       <div class="g2"><div class="field"><label>보증 기산 기준</label><select class="sel" id="fWb" onchange="calcBudget()">${W_BASIS.map(b=>`<option ${basis===b?'selected':''}>${b}</option>`).join('')}</select></div>
       <div class="field"><label>보증 기산일</label><input class="inp" type="date" id="fWs" value="${basis==='준공일'?v('comp'):v('wStart')}" oninput="calcBudget()"></div></div>
       <div class="field" id="fWnW"><label>기산 기준 메모 (기타일 때)</label><input class="inp" id="fWn" value="${esc(v('wNote'))}" placeholder="예: 입주자대표회의 인수인계일"></div>
