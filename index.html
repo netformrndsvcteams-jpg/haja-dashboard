@@ -847,7 +847,7 @@ function renderRows(list){
       <td>${it.rc}</td>
       <td>${it.hd?it.hd+(swapped(it)?'<span class="tg tg-swap" title="시공소장 '+s.bld+'">교체</span>':''):'<span class="bd-pre">미배정</span>'}</td>
       <td>${esc(partTx(it))}</td>
-      <td>${it.ph}${it.dmg&&it.dmg.length?`<span class="tg tg-dmg">2차 피해${it.dmg.length>1?' '+it.dmg.length:''}</span>`:''}</td>
+      <td>${esc(phTx(it))}${it.dmg&&it.dmg.length?`<span class="tg tg-dmg">2차 피해${it.dmg.length>1?' '+it.dmg.length:''}</span>`:''}</td>
       <td><span class="stg s${it.st}"><i>${EI('st'+it.st)}</i>${STAGES[it.st]}</span></td>
       <td>${burdenChip(it)}</td>
       <td>${ddText(it)}</td>
@@ -1592,12 +1592,12 @@ function recurGroups(rs){
 function aOverview(){
   const rs = anaRecs().filter(aIn);
   if(!rs.length) return aHead('개요','')+'<p class="empty card">해당 조건의 접수가 없습니다</p>';
-  const leak = rs.filter(r=>r.ph==='누수').length, czd = rs.filter(r=>r.cz), mdef = czd.filter(r=>r.cz==='자재 결함').length;
+  const leak = rs.filter(r=>hasH(r,'누수')).length, czd = rs.filter(r=>r.cz), mdef = czd.filter(r=>r.cz==='자재 결함').length;
   const rg = recurGroups(rs), recN = rg.reduce((a,g)=>a+g.rec,0), dmgN = rs.filter(r=>r.dmg&&r.dmg.length).length;
   /* 신호 */
   const pc = cntBy(rs,r=>r.part+' · '+r.ph); const topPC = Object.entries(pc).sort((a,b)=>b[1]-a[1])[0];
   const sc = cntBy(rs,r=>r.se); const topS = Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
-  const sLeak = rs.filter(r=>r.se===topS[0]&&r.ph==='누수').length;
+  const sLeak = rs.filter(r=>r.se===topS[0]&&hasH(r,'누수')).length;
   const gr = GONGS.map(g=>{ const n=rs.filter(r=>r.gong===g).length, ex=exposure((nm,s)=>s.gong===g); return [g,n,ex?n/ex:0,ex]; }).filter(x=>x[3]>=1&&x[1]>0).sort((a,b)=>b[2]-a[2]);
   const allEx = exposure(AF.gong?(nm,s)=>s.gong===AF.gong:null), allRate = rs.length/(allEx||1);
   const ycR = ys=>{ const a=czd.filter(r=>ys.includes(r.yr)); return {p:a.length?a.filter(r=>r.cz==='경년 열화').length/a.length:0,n:a.length}; }, yc=[ycR([1,2]),ycR([4,5])];
@@ -1625,7 +1625,7 @@ function aOverview(){
         <div class="vplot">${ticks.map(t=>`<u style="bottom:${t/top*100}%"></u>`).join('')}${bars.map(b=>`<div class="vb ${b.cur?'cur':''} ${b.se==='여름'?'sum':''}" tabindex="0"><i style="height:${b.v/top*100}%"></i><em>${b.l} · ${b.v}건${b.cur?' (진행 중)':''}</em><span>${b.l}</span></div>`).join('')}</div></div>
         <p class="cap note">${AF.period==='all'?'연한 막대는 진행 중인 해(오늘까지)':'진한 막대 = 여름(6~8월) · 연한 막대는 진행 중인 달'} · 막대에 올리면 건수가 보입니다</p></div>
       <div class="card"><div class="ch"><h3>현상 분포</h3><span class="ptag">${aLabel()}</span></div>
-        ${hbars(PHS6.map(p=>[p,rs.filter(r=>r.ph===p).length]).sort((a,b)=>b[1]-a[1]), rs.length)}
+        ${hbars(PHS6.map(p=>[p,rs.filter(r=>hasH(r,p)).length]).sort((a,b)=>b[1]-a[1]), rs.length)}
         <p class="cap note">2차 피해 동반 ${dmgN}건 (${pct(dmgN,rs.length)}) · 대부분 누수에서 번집니다</p></div>
     </div>`;
 }
@@ -1633,7 +1633,7 @@ function aOverview(){
 /* ── 2. 부위·현상 ── */
 function aPart(){
   const rs = anaRecs().filter(aIn);
-  const M = PARTS6.map(p=>PHS6.map(h=>rs.filter(r=>hasP(r,p)&&r.ph===h).length));
+  const M = PARTS6.map(p=>PHS6.map(h=>rs.filter(r=>hasP(r,p)&&hasH(r,h)).length));
   const mx = Math.max(1,...M.flat());
   const rowT = M.map(r=>r.reduce((a,b)=>a+b,0)), colT = PHS6.map((_,j)=>M.reduce((a,r)=>a+r[j],0));
   const czd = rs.filter(r=>r.cz);
@@ -1655,10 +1655,10 @@ function aPart(){
 /* ── 3. 계절·시기 ── */
 function aSeason(){
   const rs = anaRecs().filter(aIn);
-  const M = SEASONS.map(([s])=>PHS6.map(h=>rs.filter(r=>r.se===s&&r.ph===h).length));
+  const M = SEASONS.map(([s])=>PHS6.map(h=>rs.filter(r=>r.se===s&&hasH(r,h)).length));
   const mx = Math.max(1,...M.flat());
   const sT = M.map(r=>r.reduce((a,b)=>a+b,0)), sMax=Math.max(...sT,1);
-  const mon = Array.from({length:12},(_,i)=>{ const a=rs.filter(r=>r.m===i+1); return {m:i+1,n:a.length,leak:a.filter(r=>r.ph==='누수').length}; });
+  const mon = Array.from({length:12},(_,i)=>{ const a=rs.filter(r=>r.m===i+1); return {m:i+1,n:a.length,leak:a.filter(r=>hasH(r,'누수')).length}; });
   const mMax = Math.max(...mon.map(x=>x.n),1);
   return aHead('계절·시기','접수일 기준 · 계절별·월별 발생 패턴')
   + `<div class="seas">${SEASONS.map(([s,ic,d],i)=>{ const top=PHS6.map((h,j)=>[h,M[i][j]]).sort((a,b)=>b[1]-a[1])[0]; return `<div class="sea ${sT[i]===sMax?'pk':''}"><span class="si">${AI('s_'+s)}</span><small>${s} · ${d}</small><b class="num">${sT[i]}건</b><em>${pct(sT[i],rs.length)}</em><p>가장 많은 현상 <b>${top[0]} ${top[1]}건</b></p><div class="sbar"><i style="width:${sT[i]/sMax*100}%"></i></div></div>`; }).join('')}</div>
@@ -1679,7 +1679,7 @@ function aGong(){
   const keepG = AF.gong; const rs = anaRecs().filter(r=>(AF.period==='all'||String(r.date.getFullYear())===AF.period));
   const rows = GONGS.map(g=>{ const a=rs.filter(r=>r.gong===g), sites=Object.values(SITES).filter(s=>s.gong===g).length, ex=exposure((nm,s)=>s.gong===g);
     const czd=a.filter(r=>r.cz); const area=Object.values(SITES).filter(s=>s.gong===g).reduce((x,s)=>x+(s.area||0),0);
-    const topPh = PHS6.map(h=>[h,a.filter(r=>r.ph===h).length]).sort((x,y)=>y[1]-x[1])[0];
+    const topPh = PHS6.map(h=>[h,a.filter(r=>hasH(r,h)).length]).sort((x,y)=>y[1]-x[1])[0];
     return {g,n:a.length,sites,ex,rate:ex?a.length/ex:0,area,per:area?a.length/area*10000:0,mdef:czd.filter(r=>r.cz==='자재 결함').length,czd:czd.length,topPh,cost:a.filter(r=>r.st===7).reduce((x,r)=>x+r.cost,0),cn:a.filter(r=>r.st===7).length}; }).filter(r=>r.sites);
   const allN=rows.reduce((a,r)=>a+r.n,0), allEx=rows.reduce((a,r)=>a+r.ex,0), avg=allN/(allEx||1);
   rows.sort((a,b)=>b.rate-a.rate);
@@ -1722,7 +1722,7 @@ function aCause(){
       ${Y.map(o=>`<tr><th>${o.y}년차</th>${CAUSES.map(c=>{ const v=o.a.filter(r=>r.cz===c).length, t=o.a.length?v/o.a.length:0; return `<td style="${heatC(t*100,100)}" title="${o.y}년차 · ${c} ${v}건">${v?Math.round(t*100)+'%':''}</td>`; }).join('')}<td class="tot">${o.a.length}</td></tr>`).join('')}
       </tbody></table></div>
     <div class="tcard"><table class="ct"><thead><tr><th>원인</th><th class="amt">건수</th><th class="amt">비중</th><th>주요 부위</th><th>주요 현상</th><th class="amt">건당 처리비용(원)</th><th>R&D 관점</th></tr></thead><tbody>
-      ${cc.map(([c,n])=>{ const a=czd.filter(r=>r.cz===c); const tp=PARTS6.map(p=>[p,a.filter(r=>hasP(r,p)).length]).sort((x,y)=>y[1]-x[1])[0]; const th=PHS6.map(p=>[p,a.filter(r=>r.ph===p).length]).sort((x,y)=>y[1]-x[1])[0];
+      ${cc.map(([c,n])=>{ const a=czd.filter(r=>r.cz===c); const tp=PARTS6.map(p=>[p,a.filter(r=>hasP(r,p)).length]).sort((x,y)=>y[1]-x[1])[0]; const th=PHS6.map(p=>[p,a.filter(r=>hasH(r,p)).length]).sort((x,y)=>y[1]-x[1])[0];
         const note={'시공 불량':'시공 표준·교육 보완','자재 결함':'자재 로트·배합 점검','외부 요인':'구조체 거동·타 공종 간섭','경년 열화':'재도장·보수 주기 설계','사용자 과실':'입주민 안내 (부담 판정과 무관)','기타':'분류 보완 필요'}[c];
         return `<tr><td><b>${c}</b></td><td class="amt">${n}</td><td class="amt">${pct(n,czd.length)}</td><td>${tp[1]?tp[0]+' '+tp[1]+'건':'—'}</td><td>${th[1]?th[0]+' '+th[1]+'건':'—'}</td><td class="amt">${cost(c)!==null?won(cost(c)):'—'}</td><td class="cap">${note}</td></tr>`; }).join('')}
     </tbody></table></div>`;
@@ -1737,7 +1737,7 @@ function aRecur(){
   const dRst = dm.reduce((a,r)=>a+(r.rst||0),0);
   const byPart = PARTS6.map(p=>{ const a=rs.filter(r=>hasP(r,p)); const d=a.filter(r=>r.dmg&&r.dmg.length).length; return [p,d,a.length?a.length+'건 중 '+pct(d,a.length,0):'']; }).sort((a,b)=>b[1]-a[1]);
   return aHead('재발·2차 피해','재발 = 같은 현장·같은 부위에서 같은 현상이 14일~6개월 사이에 다시 접수된 건 (14일 미만은 같은 건의 중복 접수로 보고 제외)')
-  + `<div class="kpis">${kpi('a_k_rec','재발',recN+'건',`${rg.length}곳 · 전체 접수의 ${pct(recN,rs.length)}`,'yel')}${kpi('a_k_cnt','재발 평균 간격',rg.length?Math.round(rg.flatMap(g=>g.gaps).reduce((a,b)=>a+b,0)/rg.flatMap(g=>g.gaps).length)+'일':'—','앞선 접수 → 재접수')}${kpi('a_k_dmg','2차 피해 동반',dm.length+'건',`전체의 ${pct(dm.length,rs.length)} · 누수 ${dm.filter(r=>r.ph==='누수').length}건`,'warn')}${kpi('a_k_rst','복구비',won(dRst)+'원','2차 피해 복구 · 노임과 같이 시공사 경유')}</div>
+  + `<div class="kpis">${kpi('a_k_rec','재발',recN+'건',`${rg.length}곳 · 전체 접수의 ${pct(recN,rs.length)}`,'yel')}${kpi('a_k_cnt','재발 평균 간격',rg.length?Math.round(rg.flatMap(g=>g.gaps).reduce((a,b)=>a+b,0)/rg.flatMap(g=>g.gaps).length)+'일':'—','앞선 접수 → 재접수')}${kpi('a_k_dmg','2차 피해 동반',dm.length+'건',`전체의 ${pct(dm.length,rs.length)} · 누수 ${dm.filter(r=>hasH(r,'누수')).length}건`,'warn')}${kpi('a_k_rst','복구비',won(dRst)+'원','2차 피해 복구 · 노임과 같이 시공사 경유')}</div>
     <div class="card"><div class="ch"><h3>재발 현장</h3><span class="ptag">${aLabel()}</span><span class="cap">재발 횟수 많은 순 · 같은 처리가 반복되면 보수 공법 재검토 대상</span></div>
       ${rg.length?`<table class="ct mini"><thead><tr><th>현장</th><th>부위 · 현상</th><th>공종</th><th class="amt">접수</th><th class="amt">재발</th><th>재발 간격</th><th>접수 이력</th><th>최근 접수</th><th class="amt">누적 처리비용(원)</th></tr></thead><tbody>
       ${rg.slice(0,12).map(g=>`<tr><td><b>${g.site}</b></td><td>${g.part} · ${g.ph}</td><td>${SITES[g.site].gong}</td><td class="amt">${g.a.length}</td><td class="amt"><b class="neg">${g.rec}</b></td><td>${g.gaps.map(d=>d+'일').join(' · ')}</td><td class="wrap-t">${g.a.map(r=>fmtD(r.date).slice(2)).join(' → ')}</td><td>${fmtD(g.last)}</td><td class="amt">${won(g.cost)}</td></tr>`).join('')}</tbody></table>${rg.length>12?`<p class="cap note">외 ${rg.length-12}곳</p>`:''}`:'<p class="empty">재발 건이 없습니다</p>'}</div>
@@ -1825,9 +1825,9 @@ function renderSummary(){
   const grs = GONGS.map(g=>{ const n=ra.filter(r=>r.gong===g).length, ex=exposure((nm,s)=>s.gong===g); return [g,n,ex?n/ex:0,ex]; }).filter(x=>x[3]>=.5);
   const exAll = exposure(null), avg = ra.length/(exAll||1);
   grs.sort((a,b)=>b[2]-a[2]); const gMax=Math.max(...grs.map(x=>x[2]),.01);
-  const sc = SEASONS.map(([s,ic,d])=>{ const a=ra.filter(r=>r.se===s); const top=PHS6.map(h=>[h,a.filter(r=>r.ph===h).length]).sort((x,y)=>y[1]-x[1])[0]; return {s,d,n:a.length,top}; });
+  const sc = SEASONS.map(([s,ic,d])=>{ const a=ra.filter(r=>r.se===s); const top=PHS6.map(h=>[h,a.filter(r=>hasH(r,h)).length]).sort((x,y)=>y[1]-x[1])[0]; return {s,d,n:a.length,top}; });
   const sMax = Math.max(...sc.map(x=>x.n),1);
-  const phs = PHS6.map(h=>[h,ra.filter(r=>r.ph===h).length]).sort((a,b)=>b[1]-a[1]);
+  const phs = PHS6.map(h=>[h,ra.filter(r=>hasH(r,h)).length]).sort((a,b)=>b[1]-a[1]);
   AF.period=svA; AF.gong=svG;
   /* 자재 */
   const mm = MATS.filter(m=>inY(m.date,SF.mperiod));
@@ -2091,7 +2091,7 @@ function allRecs(){
 }
 function anaRecs(){
   return ITEMS.filter(i=>SITES[i.site] && SITES[i.site].comp).map(i=>{ const s=SITES[i.site], d=i.rcvAt;
-    return {id:i.id, site:i.site, date:d, part:partsOf(i)[0], parts:partsOf(i), ph:i.ph, cz:i.cz||null, dmg:(i.dmg||[]).map(x=>x[0]), mat:i.mat||0, lab:costParts(i).lab+costParts(i).etc, rst:costParts(i).rst, sh:i.sh||0, st:i.st, live:1,
+    return {id:i.id, site:i.site, date:d, part:partsOf(i)[0], parts:partsOf(i), ph:phsOf(i)[0], phs:phsOf(i), cz:i.cz||null, dmg:(i.dmg||[]).map(x=>x[0]), mat:i.mat||0, lab:costParts(i).lab+costParts(i).etc, rst:costParts(i).rst, sh:i.sh||0, st:i.st, live:1,
       gong:s.gong, m:d.getMonth()+1, se:SEASON(d.getMonth()+1), yr:gYear(i.site,d), cost:(i.mat||0)+costParts(i).lab+costParts(i).etc+costParts(i).rst}; });
 }
 
@@ -2135,7 +2135,7 @@ function detail(id){
 
       ${show([1])?`<div class="dsec"><h4>하자 내용</h4>
         <dl class="kv"><dt>접수일</dt><dd><input type="date" class="inp" id="rcvD" value="${ymd(it.rcvAt)}" max="${ymd(TODAY)}" style="min-width:0;width:180px"></dd>
-        <dt>부위 · 현상</dt><dd>${esc(partTx(it))} · ${esc(it.ph)}</dd>
+        <dt>부위 · 현상</dt><dd>${esc(partTx(it))} · ${esc(phTx(it))}</dd>
         <dt>하자 연락자</dt><dd><div class="g2"><select class="sel" data-cl="type">${[...new Set([...CALLER_T,(it.caller||{}).type].filter(Boolean))].map(t=>`<option ${(it.caller||{}).type===t?'selected':''}>${esc(t)}</option>`).join('')}</select><input class="inp" data-cl="name" placeholder="성함" value="${esc((it.caller||{}).name||'')}"></div>
           <div class="g2" style="margin-top:6px"><input class="inp" data-cl="phone" inputmode="tel" placeholder="연락처" value="${esc((it.caller||{}).phone||'')}"><input class="inp" data-cl="office" inputmode="tel" placeholder="관리사무소 연락처" value="${esc((it.caller||{}).office||'')}"></div></dd>
         ${it.txt?`<dt>상세</dt><dd style="white-space:pre-wrap">${esc(it.txt)}</dd>`:''}
@@ -2172,8 +2172,7 @@ function detail(id){
             <div class="field" id="adjTW"><label>부담 (기타일 때)</label><select class="sel" id="adjT">${['당사 부담','당사 대납','시공소장 부담','공동 부담'].map(t=>`<option ${isAdj&&it.b[0]===t?'selected':''}>${t}</option>`).join('')}</select></div></div>
             <div class="field" id="shW"><label>시공사 몫 (원) — 공동 부담일 때 노임·복구비 중 시공사가 내는 금액</label><input class="inp amt-in" id="shV" inputmode="numeric" value="${it.sh?won(it.sh):''}"></div>
           </div>
-          <button class="btn btn-pri sm" id="bSave">판정 저장</button>
-          <p class="burden-line" style="margin-top:12px">현재: ${bs.s}<span class="why">${bs.w}</span></p></div>`
+          <p class="burden-line" style="margin-top:12px">현재: ${bs.s}<span class="why">${bs.w}</span></p><p class="cap" id="bStat">선택·입력하면 자동 저장됩니다</p></div>`
         :`<p class="burden-line">${bs.s}<span class="why">${bs.w}</span></p>`}
       </div>`:''}
 
@@ -2198,7 +2197,7 @@ function detail(id){
       </div>
     </div>
     <div class="df">
-      ${st===1?`<button class="btn btn-ghost" id="delCase" style="margin-right:auto;color:var(--warn-tx)">접수 삭제</button>`:st>1?`<button class="btn btn-ghost" id="prevSt" style="margin-right:auto">이전 단계로</button>`:''}
+      <button class="btn btn-ghost" id="delCase" style="color:var(--warn-tx)">접수 삭제</button>${st>1?`<button class="btn btn-ghost" id="prevSt">이전 단계로</button>`:''}<span style="margin-right:auto"></span>
       <button class="btn btn-ghost x2">닫기</button>
       ${st<6?`<button class="btn btn-pri" id="nextSt">${st===5&&!payNeeded(it)?'7단계 종결 (지급 없음)':st===5?'6단계 기안으로':(st+1)+'단계로 넘기기'}</button>`:''}
       ${st===6?`<button class="btn btn-pri" id="paidBtn">지급 완료 · 처리 완료</button>`:''}
@@ -2243,16 +2242,21 @@ function detail(id){
   /* 부담 판정 */
   const radios=drawer.querySelectorAll('[name=bmode]'), ab=$('adjBox');
   const adjUi=()=>{ if(!$('adjR')) return; const r=$('adjR').value, t=ADJ[r]===null?$('adjT').value:ADJ[r]; $('adjTW').style.display=ADJ[r]===null?'':'none'; $('shW').style.display=t==='공동 부담'?'':'none'; };
-  radios.forEach(r=>r.onchange=()=>{ ab.hidden = r.value!=='adj' || !r.checked; adjUi(); });
-  if($('adjR')){ $('adjR').onchange=adjUi; $('adjT').onchange=adjUi; adjUi(); }
-  const bsv=$('bSave'); if(bsv) bsv.onclick=()=>{
-    const mode=[...radios].find(r=>r.checked).value;
-    if(mode==='auto'){ if(!auto){ toast(wX?'보증기간이 지난 접수입니다 — 원인 조정에서 부담을 직접 고르세요':'계약유형·준공일이 없어 보증 기준을 계산할 수 없습니다 — 원인 조정으로 입력하세요'); return; }
-      dbCase(id,{b:auto, sh:0},`부담 판정 · ${auto[0]} (보증 기준)`); }
+  const bStat = t => { const e=$('bStat'); if(e) e.textContent=t; };
+  const saveB = () => {
+    const mode=[...radios].find(r=>r.checked)?.value; if(!mode) return;
+    if(mode==='auto'){ if(!auto){ bStat(wX?'보증기간이 지난 접수입니다 — 원인 조정에서 부담을 직접 고르세요':'보증 기준을 계산할 수 없습니다(계약유형·준공일·보증기간 미입력) — 원인 조정으로 입력하세요'); return; }
+      if(it.b && it.b[0]===auto[0] && it.b[1]==='보증') return;
+      dbCase(id,{b:auto, sh:0},`부담 판정 · ${auto[0]} (보증 기준)`).then(()=>bStat('자동 저장됨 · '+hhmm(new Date()))).catch(()=>{}); }
     else { const r=$('adjR').value, t=ADJ[r]===null?$('adjT').value:ADJ[r], sh=t==='공동 부담'?num($('shV').value):0;
-      if(t==='공동 부담' && !sh){ toast('공동 부담은 시공사 몫 금액을 입력하세요'); return; }
-      dbCase(id,{b:[t,'조정',r], sh},`부담 판정 · ${t} (조정 · ${r})`); }
-    toast('판정을 저장했습니다'); };
+      if(t==='공동 부담' && !sh){ bStat('공동 부담은 시공사 몫 금액을 입력하면 저장됩니다'); return; }
+      dbCase(id,{b:[t,'조정',r], sh},`부담 판정 · ${t} (조정 · ${r})`).then(()=>bStat('자동 저장됨 · '+hhmm(new Date()))).catch(()=>{}); }
+    bStat('저장 중…'); };
+  radios.forEach(r=>r.onchange=()=>{ ab.hidden = r.value!=='adj' || !r.checked; adjUi(); saveB(); });
+  if($('adjR')){ $('adjR').onchange=()=>{ adjUi(); saveB(); }; $('adjT').onchange=()=>{ adjUi(); saveB(); }; adjUi(); }
+  if($('shV')) $('shV').onchange=saveB;
+  /* 4단계 이후 판정이 비어 있고 보증 기준 계산이 되면 그 값으로 자동 저장 */
+  if(radios.length && st>=4 && (!it.b || it.b[0]==='부담 미정') && auto && !isAdj) dbCase(id,{b:auto, sh:0},`부담 판정 · ${auto[0]} (보증 기준 · 자동)`);
 
   /* 비용 */
   drawer.querySelectorAll('#adjBox .amt-in').forEach(i=>i.oninput=()=>{ const v=i.value.replace(/[^0-9]/g,''); i.value=v?Number(v).toLocaleString('ko-KR'):''; });
@@ -2266,7 +2270,7 @@ function detail(id){
     dbCase(id,{st:7, stAt:iso(), ...(!it.doneAt?{doneAt:ymd(TODAY)}:{}), paid:true, paidAt:new Date(d).toISOString(), draftNo:$('dNo').value.trim()},`지급 완료 ${d} · ${won(ourPay(it))}원`); toast('지급 완료 · 처리 완료로 종결했습니다'); };
   const pv=$('prevSt'); if(pv) pv.onclick=()=>{ const to=(st===7&&!it.paid&&!payNeeded(it))?5:st-1; if(!confirm(`${STAGES[to]} 단계로 되돌릴까요?`)) return;
     dbCase(id,{st:to, stAt:iso(), ...(st===7?{paid:false,paidAt:null}:{})},`${st}→${to}단계로 되돌림`); };
-  const dc=$('delCase'); if(dc) dc.onclick=async()=>{ if(!confirm(`${id} 접수를 삭제할까요? 되돌릴 수 없습니다.`)) return;
+  const dc=$('delCase'); if(dc) dc.onclick=async()=>{ if(!confirm(`${id} 접수를 삭제할까요?${st>=5?' 비용·판정'+(st>=6?'·기안·지급':'')+' 기록도 함께 지워집니다.':''} 되돌릴 수 없습니다.`)) return;
     await DB.collection('cases').doc(id).delete(); closeDrawer(); toast(`${id} 삭제`); };
   render();
 }
@@ -2309,6 +2313,8 @@ async function submitIntake(){
   const parts=PARTS.filter(p=>(intake.parts||[]).includes(p));
   if(!parts.length){ toast('발생 부위를 하나 이상 고르세요'); return; }
   if(parts.includes('기타') && !document.getElementById('iPartN')?.value.trim()){ toast('기타 부위 내용을 입력하세요'); return; }
+  const phs=PHS.filter(h=>(intake.phs||[]).includes(h));
+  if(!phs.length){ toast('하자 현상을 하나 이상 고르세요'); return; }
   const rcvD=document.getElementById('iRcv')?.value||ymd(TODAY);
   if(rcvD>ymd(TODAY)){ toast('접수일은 오늘 이후로 정할 수 없습니다'); return; }
   const g_=k=>(document.getElementById(k)||{}).value?.trim()||'';
@@ -2323,7 +2329,7 @@ async function submitIntake(){
     const files=[...(document.getElementById('iPhoto')?.files||[])];
     const id = await nextId(), now=iso(), rcvAt = rcvD===ymd(TODAY)? now : new Date(rcvD+'T09:00:00').toISOString();
     await DB.collection('cases').doc(id).set({site, rc:intake.rc, st:1, rcvAt, stAt:rcvAt, src:'PC', caller, notes:[],
-      part:parts[0], parts, partNote:(parts.includes('기타')?(document.getElementById('iPartN')||{}).value||'':'').trim(), ph:document.getElementById('iPh').value, txt:document.getElementById('iTxt').value.trim(),
+      part:parts[0], parts, partNote:(parts.includes('기타')?(document.getElementById('iPartN')||{}).value||'':'').trim(), ph:phs[0], phs, txt:document.getElementById('iTxt').value.trim(),
       dmg:[], photos:[], unseen:false, createdAt:now, log:[{at:now, by:intake.rc, msg:'접수 등록 (PC)'+(rcvD!==ymd(TODAY)?` · 접수일 ${rcvD}`:'')}]});
     closeDrawer(); F.stage=1; F.chip=null; toast(`${id} 접수 등록 · ${site}`);
     if(files.length) uploadPhotos(id, site, files, '처리 전');
@@ -2421,7 +2427,7 @@ function exportAll(){
   const wb=XLSX.utils.book_new();
   const add=(name,rows)=>XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length?rows:[{'':'데이터 없음'}]), name);
   add('현장', Object.values(SITES).map(s=>({현장명:s.name, 업체명:s.co, ERP코드:s.code||'', 계약유형:s.ct||'', 준공일:s.comp, 보증기간:s.wy, 확정매출액:s.rev||'', 하자예산:s.budget||'', 집행:s.spent||'', 공종:s.gong||'', 면적:s.area||'', 시공소장:s.bld, 주소:s.addr||'', 보증기산기준:s.wStartBasis||'준공일', 보증기산일:wStartOf(s)||'', 보증만료일:wEndOf(s)?ymd(wEndOf(s)):'', 만료일수동:s.wEndManual?'Y':'', pourpay연결:s.pp?'Y':'', pourpay완료일:s.ppDone||'', 확인대기:s.wait?'Y':''})));
-  add('접수', ITEMS.map(i=>({접수번호:i.id, 현장:i.site, 접수일:ymd(i.rcvAt), 접수자:i.rc, 단계:`${i.st} ${STAGES[i.st]}`, 부위:partTx(i), 현상:i.ph, 상세:i.txt||'', 연락자유형:(i.caller||{}).type||'', 연락자:(i.caller||{}).name||'', 연락처:(i.caller||{}).phone||'', 관리사무소연락처:(i.caller||{}).office||'', 처리완료일:i.doneAt||'', 진행내용:(i.notes||[]).slice().sort((a,b)=>(a.d||'').localeCompare(b.d||'')).map(n=>`${n.d} ${n.txt}`).join('\n'), 처리소장:i.hd||'', 원인:i.cz||'', 부담:i.b?i.b[0]:'', 근거:i.b?i.b[1]:'', 조정사유:i.b&&i.b[2]||'', 자재비:i.mat||0, 일당:i.labRate||'', 시공인원:i.labCnt||'', 노임:i.lab||0, 복구비:costParts(i).rst, 기타경비:costParts(i).etc, 기타항목:extrasOf(i).map(e=>`${e.t==='기타'?e.name:e.t} ${e.amt}${e.our?'(당사지급)':''}${e.rcpt&&e.rcpt.length?' 영수증'+e.rcpt.length:''}`).join('; '), 당사지급:ourPay(i), 시공사몫:i.sh||0, 기안번호:i.draftNo||'', 지급일:i.paidAt?ymd(i.paidAt):'', '2차피해':(i.dmg||[]).map(d=>d.join('/')).join('; '), 사진수:(i.photos||[]).length})));
+  add('접수', ITEMS.map(i=>({접수번호:i.id, 현장:i.site, 접수일:ymd(i.rcvAt), 접수자:i.rc, 단계:`${i.st} ${STAGES[i.st]}`, 부위:partTx(i), 현상:phTx(i), 상세:i.txt||'', 연락자유형:(i.caller||{}).type||'', 연락자:(i.caller||{}).name||'', 연락처:(i.caller||{}).phone||'', 관리사무소연락처:(i.caller||{}).office||'', 처리완료일:i.doneAt||'', 진행내용:(i.notes||[]).slice().sort((a,b)=>(a.d||'').localeCompare(b.d||'')).map(n=>`${n.d} ${n.txt}`).join('\n'), 처리소장:i.hd||'', 원인:i.cz||'', 부담:i.b?i.b[0]:'', 근거:i.b?i.b[1]:'', 조정사유:i.b&&i.b[2]||'', 자재비:i.mat||0, 일당:i.labRate||'', 시공인원:i.labCnt||'', 노임:i.lab||0, 복구비:costParts(i).rst, 기타경비:costParts(i).etc, 기타항목:extrasOf(i).map(e=>`${e.t==='기타'?e.name:e.t} ${e.amt}${e.our?'(당사지급)':''}${e.rcpt&&e.rcpt.length?' 영수증'+e.rcpt.length:''}`).join('; '), 당사지급:ourPay(i), 시공사몫:i.sh||0, 기안번호:i.draftNo||'', 지급일:i.paidAt?ymd(i.paidAt):'', '2차피해':(i.dmg||[]).map(d=>d.join('/')).join('; '), 사진수:(i.photos||[]).length})));
   add('자재출고', MATS.map(m=>({일자:ymd(m.date), 현장:m.site, 품목:m.item, 단위:m.unit, 수량:m.qty, 금액:m.amt})));
   add('과거노임', HIST.filter(h=>h.lab).map(h=>({지급일:ymd(h.date), 현장:h.site, 노임:h.lab})));
   add('소장명부', allMgrs().map(m=>({이름:m.name, 연락처:m.phone||'', 상호:m.bizName||'', 사업자등록번호:m.bizNumber||'', 사업장주소:m.bizAddress||'', 출처:m.src==='pp'?'pour-pay':'직접 등록'})));
@@ -2883,10 +2889,14 @@ const PART_ALIAS={'평지붕면':'슬라브'};   // 평지붕면은 슬라브로
 const CALLER_T=['관리소장','관리사무소','입주자대표','입주민','시공사','기타'];
 function partsOf(it){ const a=(it&&it.parts&&it.parts.length? it.parts : [it&&it.part]).filter(Boolean).map(p=>PART_ALIAS[p]||p); return [...new Set(a)]; }
 const hasP=(r,p)=>partsOf(r).includes(p);
+const PHS=['누수','들뜸','균열','박리','변색','오염'];
+function phsOf(it){ const a=(it&&it.phs&&it.phs.length? it.phs : [it&&it.ph]).filter(Boolean); return [...new Set(a)]; }
+const hasH=(r,h)=>phsOf(r).includes(h);
+const phTx = it => phsOf(it).join(', ');
 /* 상세 화면 한 줄 요약 (모든 단계 공통) */
 function sumLine(it, s){
   const b = it.b && it.b[0]!=='부담 미정' ? it.b[0] : '부담 미정', c=callerTx(it.caller);
-  return `<div class="sumline"><span><em>부위·현상</em>${esc(partTx(it))} · ${esc(it.ph||'')}</span>${c?`<span><em>연락자</em>${esc(c)}</span>`:''}<span><em>처리소장</em>${esc(it.hd||'미배정')}</span><span><em>부담</em>${esc(b)}</span>${it.doneAt?`<span><em>처리완료</em>${it.doneAt.replace(/-/g,'.')}</span>`:''}</div>`;
+  return `<div class="sumline"><span><em>부위·현상</em>${esc(partTx(it))} · ${esc(phTx(it))}</span>${c?`<span><em>연락자</em>${esc(c)}</span>`:''}<span><em>처리소장</em>${esc(it.hd||'미배정')}</span><span><em>부담</em>${esc(b)}</span>${it.doneAt?`<span><em>처리완료</em>${it.doneAt.replace(/-/g,'.')}</span>`:''}</div>`;
 }
 /* 5단계 비용 확인 — 대금관리자 확인용 요약 (입력 없음) */
 function costCheck(it, s){
@@ -2918,7 +2928,7 @@ function intakeForm(){
     <div class="g2" style="margin-top:8px"><input class="inp" id="iCp" inputmode="tel" placeholder="연락처 (예: 010-1234-5678)"><input class="inp" id="iCo" inputmode="tel" placeholder="관리사무소 연락처 (예: 031-000-0000)"></div></div>
   <div class="field"><label>발생 부위 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="iParts">${PARTS.map(p=>`<button type="button" data-p="${p}" class="${P.includes(p)?'on':''}">${p}</button>`).join('')}</div>
     <input class="inp" id="iPartN" placeholder="기타 부위를 입력하세요 (예: 계단실 지붕)" style="margin-top:8px;display:${P.includes('기타')?'':'none'}"></div>
-  <div class="field"><label>하자 현상</label><select class="sel" id="iPh">${['누수','들뜸','균열','박리','변색','오염'].map(x=>`<option>${x}</option>`).join('')}</select></div>
+  <div class="field"><label>하자 현상 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="iPhs">${PHS.map(h=>`<button type="button" data-h="${h}" class="${(intake.phs||[]).includes(h)?'on':''}">${h}</button>`).join('')}</div></div>
   <div class="field"><label>상세 내용</label><textarea id="iTxt" placeholder="세대·위치, 연락받은 경위 등"></textarea></div>
   <div class="field"><label>현장 사진 (처리 전 · 여러 장 가능 · 자동 압축)</label><input type="file" id="iPhoto" accept="image/*" multiple class="inp" style="padding:8px"></div></div>`;
 }
@@ -2930,6 +2940,7 @@ function bindIntake(){
   const ipn=document.getElementById('iPartN');
   drawer.querySelectorAll('#iParts [data-p]').forEach(b=>b.onclick=()=>{ const p=b.dataset.p, P=intake.parts||(intake.parts=[]); const k=P.indexOf(p); if(k<0) P.push(p); else P.splice(k,1);
     b.classList.toggle('on',k<0); if(ipn){ ipn.style.display=P.includes('기타')?'':'none'; if(p==='기타'&&k<0) ipn.focus(); } });
+  drawer.querySelectorAll('#iPhs [data-h]').forEach(b=>b.onclick=()=>{ const h=b.dataset.h, H=intake.phs||(intake.phs=[]); const k=H.indexOf(h); if(k<0) H.push(h); else H.splice(k,1); b.classList.toggle('on',k<0); });
   const ircv=document.getElementById('iRcv'); if(ircv) ircv.onchange=()=>{ intake.rcv=ircv.value; };
   const sb=document.getElementById('submit'); if(sb){ const ok=intake.site||intake.quick; sb.disabled=!ok; sb.style.opacity=ok?'':'.4'; sb.style.cursor=ok?'':'not-allowed'; sb.onclick=submitIntake; }
 }
@@ -2957,7 +2968,7 @@ function drawIntake(){
 
 /* ════ 단계 자유 이동 · 비용 입력(일당×품 + 기타항목·영수증) ════ */
 const EXTRA_T = ['장비대','재료비(현장 구매)','2차 피해 복구비','기타'];
-const sumAmt = a => a.reduce((x,e)=>x+(Number(e.amt)||0),0);
+const sumAmt = a => (a||[]).reduce((x,e)=>x+(Number(e.amt)||0),0);
 function extrasOf(it){ return Array.isArray(it.extras)? it.extras : []; }
 /* 집계용 분해 : 노임 · 복구비(2차 피해) · 경비(장비대·재료비·기타) */
 function costParts(it){ const ex=extrasOf(it); const rst=ex.length? sumAmt(ex.filter(e=>e.t==='2차 피해 복구비')) : (it.rst||0);
@@ -3020,7 +3031,7 @@ function costSection(it, s, st){
       <tr><td>자재비 <span class="cap">출고 − 회수 · 판정과 무관하게 당사</span></td><td class="amt">${won((it.mat||0))}</td></tr>
       ${it.sh?`<tr><td>└ 시공사 몫 <span class="cap">공동 부담 · 당사 지출 아님</span></td><td class="amt" style="color:var(--ink2)">${won(it.sh)}</td></tr>`:''}
       <tr class="tot"><td>당사 지급 대상 <span class="cap">저장된 값 기준</span></td><td class="amt">${won(ourPay(it))}</td></tr></tbody></table>
-    ${ed?`<div style="display:flex;gap:10px;align-items:center;margin-top:12px"><button class="btn btn-pri sm" id="cSave">비용 저장</button>${d.dirty?'<span class="cap" style="color:var(--warn-tx)">저장하지 않은 변경이 있습니다</span>':it.costAt?`<span class="cap">저장됨 ${fmtD(new Date(it.costAt))}</span>`:''}</div>`:''}
+    ${ed?`<p class="cap" id="cStat" style="margin-top:12px">${it.costAt?`입력하면 자동 저장됩니다 · 마지막 저장 ${fmtD(new Date(it.costAt))} ${hhmm(new Date(it.costAt))}`:'입력하면 자동 저장됩니다'}</p>`:''}
   </div>`;
 }
 function bindCost(it){
@@ -3029,31 +3040,31 @@ function bindCost(it){
   const fmt=v=>{ const x=String(v).replace(/[^0-9]/g,''); return x?Number(x).toLocaleString('ko-KR'):''; };
   const recalc=()=>{ const labT=d.rate*d.cnt; document.getElementById('cLabT').textContent=won(Math.round(labT))+'원'; document.getElementById('cTot').textContent=won(Math.round(labT+sumAmt(d.ex)))+'원'; };
   const dirty=()=>{ d.dirty=true; CD[it.id]=d; };
+  const save=()=>{ const st=document.getElementById('cStat'); if(st) st.textContent='저장 중…'; saveCost(it, d, true); };
   const r=document.getElementById('cRate'), c=document.getElementById('cCnt');
-  if(r) r.oninput=()=>{ r.value=fmt(r.value); d.rate=num(r.value); dirty(); recalc(); };
-  if(c) c.oninput=()=>{ c.value=c.value.replace(/[^0-9.]/g,''); d.cnt=Number(c.value)||0; dirty(); recalc(); };
-  ['cOut','cRet'].forEach(k=>{ const e=document.getElementById(k); if(e) e.oninput=()=>{ e.value=fmt(e.value); d[k==='cOut'?'out':'ret']=num(e.value); dirty(); }; });
+  if(r){ r.oninput=()=>{ r.value=fmt(r.value); d.rate=num(r.value); dirty(); recalc(); }; r.onchange=save; }
+  if(c){ c.oninput=()=>{ c.value=c.value.replace(/[^0-9.]/g,''); d.cnt=Number(c.value)||0; dirty(); recalc(); }; c.onchange=save; }
+  ['cOut','cRet'].forEach(k=>{ const e=document.getElementById(k); if(e){ e.oninput=()=>{ e.value=fmt(e.value); d[k==='cOut'?'out':'ret']=num(e.value); dirty(); }; e.onchange=save; } });
   sec.querySelectorAll('.exrow').forEach(row=>{ const k=+row.dataset.k, e=d.ex[k];
-    row.querySelector('[data-f=t]').onchange=ev=>{ e.t=ev.target.value; dirty(); detail(it.id); };
-    const nm=row.querySelector('[data-f=name]'); if(nm) nm.oninput=()=>{ e.name=nm.value; dirty(); };
-    const a=row.querySelector('[data-f=amt]'); a.oninput=()=>{ a.value=fmt(a.value); e.amt=num(a.value); dirty(); recalc(); };
-    const del=row.querySelector('[data-f=del]'); if(del) del.onclick=()=>{ d.ex.splice(k,1); dirty(); detail(it.id); };
-    const our=row.querySelector('[data-f=our]'); if(our) our.onchange=()=>{ e.our=our.checked; dirty(); };
+    row.querySelector('[data-f=t]').onchange=ev=>{ e.t=ev.target.value; dirty(); save(); };
+    const nm=row.querySelector('[data-f=name]'); if(nm){ nm.oninput=()=>{ e.name=nm.value; dirty(); }; nm.onchange=save; }
+    const a=row.querySelector('[data-f=amt]'); a.oninput=()=>{ a.value=fmt(a.value); e.amt=num(a.value); dirty(); recalc(); }; a.onchange=save;
+    const del=row.querySelector('[data-f=del]'); if(del) del.onclick=()=>{ d.ex.splice(k,1); dirty(); save(); };
+    const our=row.querySelector('[data-f=our]'); if(our) our.onchange=()=>{ e.our=our.checked; dirty(); save(); };
     const f=row.querySelector('[data-f=rcpt]'); if(f) f.onchange=()=>uploadReceipts(it, d, k, [...f.files]);
-    row.querySelectorAll('[data-rdel]').forEach(bn=>bn.onclick=()=>{ e.rcpt.splice(+bn.dataset.rdel,1); dirty(); detail(it.id); });
+    row.querySelectorAll('[data-rdel]').forEach(bn=>bn.onclick=()=>{ e.rcpt.splice(+bn.dataset.rdel,1); dirty(); save(); });
   });
   const add=document.getElementById('exAdd'); if(add) add.onclick=()=>{ d.ex.push({t:'장비대', amt:0, rcpt:[]}); dirty(); detail(it.id); };
-  const sv=document.getElementById('cSave'); if(sv) sv.onclick=()=>saveCost(it, d);
 }
-async function saveCost(it, d){
+async function saveCost(it, d, quiet){
   d = d || CD[it.id] || costDraft(ITEMS.find(i=>i.id===it.id)||it);
-  if(d.ret>d.out){ toast('자재 회수액이 출고액보다 클 수 없습니다'); return; }
-  const ex=d.ex.filter(e=>e.amt||e.rcpt.length).map(e=>({t:e.t, name:e.t==='기타'?(e.name||''):'', amt:Number(e.amt)||0, our:!!e.our, rcpt:e.rcpt}));
-  if(ex.some(e=>e.t==='기타'&&!e.name)){ toast('「기타」 항목은 항목명을 입력하세요'); return; }
+  if(d.ret>d.out){ toast('자재 회수액이 출고액보다 클 수 없습니다 — 저장하지 않았습니다'); const s_=document.getElementById('cStat'); if(s_) s_.textContent='저장 안 됨 · 자재 회수액 확인'; return; }
+  const ex=d.ex.map(e=>({t:e.t, name:e.t==='기타'?(e.name||''):'', amt:Number(e.amt)||0, our:!!e.our, rcpt:e.rcpt}));   // 자동 저장: 빈 줄도 유지(× 로 삭제)
   const lab=Math.round(d.rate*d.cnt), rst=sumAmt(ex.filter(e=>e.t==='2차 피해 복구비')), etc=sumAmt(ex.filter(e=>e.t!=='2차 피해 복구비'));
   try{ await dbCase(it.id,{labRate:d.rate, labCnt:d.cnt, lab, extras:ex, rst, etc, matOut:d.out, matRet:d.ret, mat:d.out-d.ret, costAt:iso()},
       `비용 저장 · 노임 ${won(d.rate)}×${d.cnt}품=${won(lab)} · 기타 ${won(rst+etc)} · 자재 ${won(d.out-d.ret)}`); }catch(e){ return; }
-  d.dirty=false; delete CD[it.id]; toast('비용을 저장했습니다');
+  d.dirty=false; delete CD[it.id]; if(!quiet) toast('비용을 저장했습니다');
+  const s_=document.getElementById('cStat'); if(s_) s_.textContent='자동 저장됨 · '+hhmm(new Date());
 }
 /* 영수증 업로드 — 사진은 압축, PDF는 원본 (10MB 이하) · 드라이브 접수번호 폴더 */
 async function uploadReceipts(it, d, k, files){
@@ -3070,7 +3081,7 @@ async function uploadReceipts(it, d, k, files){
       e.rcpt.push({id:j.id, name:f.name, at:iso()}); ok++;
     }catch(err){ toast(`영수증 업로드 실패 (${f.name}) · ${err.message}`); }
   }
-  if(ok){ d.dirty=true; await saveCost(it, d); fetchStorage(); }
+  if(ok){ d.dirty=true; await saveCost(it, d, true); toast(`영수증 ${ok}건 저장`); fetchStorage(); }
 }
 
 document.getElementById('todayTag').textContent=TD+' 현재';
