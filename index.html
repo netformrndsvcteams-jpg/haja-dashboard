@@ -606,6 +606,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .seg.sm button{height:28px;font-size:12px;padding:0 10px}
 .ptg{display:flex;flex-wrap:wrap;gap:6px}.ptg button{height:36px;padding:0 14px;border:1.5px solid var(--line2);border-radius:999px;background:#fff;font-size:13px;font-weight:600;color:var(--ink2)}.ptg button.on{border-color:var(--sky);background:var(--sky-l,#e8f3ff);color:var(--sky-d)}
 .notes{list-style:none;display:flex;flex-direction:column;gap:6px;margin:0 0 10px}.notes li{display:grid;grid-template-columns:52px 1fr auto auto;gap:10px;align-items:baseline;font-size:13px;padding:8px 10px;background:var(--bg2,#f6f8fb);border-radius:8px}.notes li span{font-weight:700;color:var(--sky-d)}.notes li p{margin:0;white-space:pre-wrap}.notes li em{font-style:normal;font-size:12px;color:var(--ink3,#8a94a6)}.notes li.cap{display:block;background:none;padding:0}
+.sumline{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;padding:10px 12px;background:var(--bg2,#f6f8fb);border-radius:8px;font-size:12.5px}.sumline em{font-style:normal;color:var(--ink3,#8a94a6);margin-right:6px}.viewtg{padding:16px 0 0;text-align:center}.logd summary{cursor:pointer;font-size:15px;font-weight:700;list-style-position:inside}.logd[open] summary{margin-bottom:12px}.cchk{margin-top:12px}.cchk td{padding:8px 10px}.cchk tr.tot td{border-top:2px solid var(--line2)}.tg-ok{background:#e6f6ec;color:#1d7a3e}
 .noteadd{display:grid;grid-template-columns:160px 1fr auto;gap:6px}.noteadd .inp,.kv .g2 .inp,.kv .g2 .sel{min-width:0;width:100%}
 .dmgadd{display:grid;grid-template-columns:120px 1fr 1fr auto;gap:6px;margin-top:8px}
 .dmgadd .inp,.dmgadd .sel{min-width:0;height:36px}
@@ -2107,6 +2108,7 @@ function autoBurden(it){
 
 /* ── 상세 서랍 (입력 가능) ── */
 let PH_KIND = '처리 전';
+const DV = {id:null, all:false, k:null};   // 상세 화면: 단계별 보기 / 전체 보기
 function detail(id){
   const it=ITEMS.find(i=>i.id===id); if(!it) return;
   openId=id;
@@ -2117,6 +2119,9 @@ function detail(id){
   const photos = it.photos||[];
   const kinds = ['처리 전','처리 후','2차 피해','기타'];
     const isAdj = it.b && it.b[1]==='조정';
+  if(DV.id!==id){ DV.id=id; DV.all=false; DV.k=null; }
+  if(DV.k!==id+'|'+st){ DV.k=id+'|'+st; PH_KIND = st===1?'처리 전':'처리 후'; }
+  const ALL = DV.all, show = a => ALL || st===7 || a.includes(st);
   openDrawer(`
     <div class="dh"><button class="x" aria-label="닫기">×</button>
       <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}</div>
@@ -2124,29 +2129,31 @@ function detail(id){
       <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}${yr?` · 보증 ${yr}년차`:''}${s.comp&&wMiss(s).includes('보증기간')?' · <b style="color:var(--warn-tx)">보증기간 미입력</b>':''}${wE?` · 만료 ${fmtD(wE)}`:''}${wX?' · <b style="color:var(--warn-tx)">접수일 기준 보증기간 경과</b>':''}${s.wait?' · <b style="color:var(--yel)">확인 대기 현장</b>':''}</div>
     </div>
     <div class="db">
-      <div class="dsec"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 바로 이동합니다</span></h4>${progHtml(it)}${missNote(it)}
+      <div class="dsec"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 바로 이동합니다</span></h4>${progHtml(it)}${missNote(it)}${sumLine(it,s)}
         ${st<7?`<p class="cap" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · 이 단계 ${it.dIn}일째 · 기한 ${SLA[st]}일 ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
       </div>
 
-      <div class="dsec"><h4>하자 내용</h4>
+      ${show([1])?`<div class="dsec"><h4>하자 내용</h4>
         <dl class="kv"><dt>접수일</dt><dd><input type="date" class="inp" id="rcvD" value="${ymd(it.rcvAt)}" max="${ymd(TODAY)}" style="min-width:0;width:180px"></dd>
         <dt>부위 · 현상</dt><dd>${esc(partTx(it))} · ${esc(it.ph)}</dd>
         <dt>하자 연락자</dt><dd><div class="g2"><select class="sel" data-cl="type">${[...new Set([...CALLER_T,(it.caller||{}).type].filter(Boolean))].map(t=>`<option ${(it.caller||{}).type===t?'selected':''}>${esc(t)}</option>`).join('')}</select><input class="inp" data-cl="name" placeholder="성함" value="${esc((it.caller||{}).name||'')}"></div>
           <div class="g2" style="margin-top:6px"><input class="inp" data-cl="phone" inputmode="tel" placeholder="연락처" value="${esc((it.caller||{}).phone||'')}"><input class="inp" data-cl="office" inputmode="tel" placeholder="관리사무소 연락처" value="${esc((it.caller||{}).office||'')}"></div></dd>
         ${it.txt?`<dt>상세</dt><dd style="white-space:pre-wrap">${esc(it.txt)}</dd>`:''}
+        </dl></div>`:''}
+      ${show([2])?`<div class="dsec"><h4>배정 · 일정</h4><dl class="kv">
         <dt>시공소장</dt><dd>${bldsOf(s).map(b=>{ const m=mgrOf(b); return esc(b)+(m&&m.phone?` <span class="cap">${esc(m.phone)}</span>`:''); }).join(', ')||'—'} <span class="cap">(보증 책임자)</span></dd>
         ${con&&(con.contactName||con.contactPhone)?`<dt>시공사 담당</dt><dd>${esc(con.contactName||'')} <span class="cap">${esc(con.contactPhone||'')}</span></dd>`:''}
         <dt>처리소장</dt><dd>${st<7?`<select class="sel" id="selHd" style="min-width:200px"><option value="">선택</option>${wOpts(it.hd)}</select>`:esc(it.hd||'미배정')+(swapped(it)?' <span class="tg tg-swap">교체</span>':'')}</dd>
         ${st<7||it.visitAt?`<dt>방문 예정일</dt><dd>${st<7?`<input type="date" class="inp" id="visitAt" value="${it.visitAt||''}" style="min-width:0;width:180px">`:it.visitAt.replace(/-/g,'.')}</dd>`:''}
         </dl><div id="swapMsg"></div>
-      </div>
+      </div>`:''}
 
-      <div class="dsec"><h4>진행 내용 <span class="cap" style="font-weight:400">조율·진행 경과를 날짜순으로 기록</span></h4>
+      ${show([2,3])?`<div class="dsec"><h4>진행 내용 <span class="cap" style="font-weight:400">조율·진행 경과를 날짜순으로 기록</span></h4>
         <ol class="notes">${(it.notes||[]).map((n,k)=>({...n,k})).sort((a,b)=>(a.d||'').localeCompare(b.d||'')||(a.at||'').localeCompare(b.at||'')).map(n=>`<li><span>${(n.d||'').slice(5).replace('-','/')}</span><p>${esc(n.txt)}</p><em>${esc(n.by||'')}</em><button class="lkb" data-delnote="${n.k}">삭제</button></li>`).join('')||'<li class="cap">아직 기록이 없습니다</li>'}</ol>
         <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><input class="inp" id="nT" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"><button class="btn btn-line sm" id="nAdd">추가</button></div>
-      </div>
+      </div>`:''}
 
-      ${true?`<div class="dsec"><h4>보수 결과</h4>
+      ${show([4])?`<div class="dsec"><h4>보수 결과</h4>
         <div class="field"><label>처리완료일 <span class="cap">(4단계 보수 완료로 넘어가면 비어 있을 때 오늘로 채워짐)</span></label><input type="date" class="inp" id="doneD" value="${it.doneAt||''}" style="min-width:0;width:180px"></div>
         <div class="field"><label>하자 원인</label>
           ${st<7?`<select class="sel" id="selCz"><option value="">선택</option>${CAUSES.map(c=>`<option ${it.cz===c?'selected':''}>${c}</option>`).join('')}</select>`:`<p>${esc(it.cz||'—')}</p>`}
@@ -2156,7 +2163,7 @@ function detail(id){
           ${st<7?`<div class="dmgadd"><select class="sel" id="dT">${DMGS.map(d=>`<option>${d}</option>`).join('')}</select><input class="inp" id="dL" placeholder="위치 (예: 101동 1401호 천장)"><input class="inp" id="dF" placeholder="복구 내용 (예: 도배)"><button class="btn btn-line sm" id="dAdd">추가</button></div>`:''}
         </div></div>`:''}
 
-      ${true?`<div class="dsec"><h4>비용부담</h4>
+      ${show([4])?`<div class="dsec"><h4>비용부담</h4>
         ${st<7?`<div class="bopt">
           <label class="radio"><input type="radio" name="bmode" value="auto" ${!isAdj?'checked':''}> 보증 기준 그대로 — <b>${auto?auto[0]:wX?`계산 불가 (보증기간 경과 · ${fmtD(wE)} 만료)`:'계산 불가 (계약유형·준공일 미등록)'}</b>${auto?` <span class="cap">보증 ${yr}년차 · ${z} 책임 구간${auto[0]==='당사 대납'?` · 처리소장 ${esc(it.hd)} ≠ 시공소장 ${esc(s.bld)}`:''}</span>`:''}</label>
           <label class="radio"><input type="radio" name="bmode" value="adj" ${isAdj?'checked':''}> 원인 조정 (예외)</label>
@@ -2170,7 +2177,7 @@ function detail(id){
         :`<p class="burden-line">${bs.s}<span class="why">${bs.w}</span></p>`}
       </div>`:''}
 
-      ${costSection(it,s,st)}
+      ${show([4])?costSection(it,s,st):''}${st===5&&!ALL?costCheck(it,s):''}
 
       ${st===6||(st===7&&it.paid)?`<div class="dsec"><h4>기안 · 지급</h4>
         ${st===6?`<div class="g2"><div class="field"><label>기안 번호</label><input class="inp" id="dNo" value="${esc(it.draftNo||'')}" placeholder="그룹웨어 기안 번호"></div>
@@ -2179,14 +2186,15 @@ function detail(id){
         :`<dl class="kv"><dt>기안 번호</dt><dd>${esc(it.draftNo||'—')}</dd><dt>지급일</dt><dd>${it.paidAt?fmtD(it.paidAt):'—'}</dd><dt>지급액</dt><dd>${won(ourPay(it))}원</dd></dl>`}
       </div>`:''}
 
-      <div class="dsec"><h4>사진 <span class="cap" style="font-weight:400">${photos.length}장 · 자동 압축(긴 변 ${PHOTO_MAX}px)</span></h4>
+      ${show([1,3,4])?`<div class="dsec"><h4>사진 <span class="cap" style="font-weight:400">${photos.length}장 · 자동 압축(긴 변 ${PHOTO_MAX}px)</span></h4>
         ${photos.length?`<div class="pgrid">${photos.map(p=>`<a href="https://drive.google.com/thumbnail?id=${p.id}&sz=w1600" target="_blank" rel="noopener" title="${esc(p.kind)} · ${esc(p.by||'')} · ${p.at?fmtD(new Date(p.at)):''}"><img src="https://drive.google.com/thumbnail?id=${p.id}&sz=w320" alt="" loading="lazy"><em>${esc(p.kind)}</em></a>`).join('')}</div>`:'<p class="cap">아직 사진이 없습니다</p>'}
         <div class="pup"><div class="seg sm">${kinds.map(k=>`<button class="${PH_KIND===k?'on':''}" data-kind="${k}">${k}</button>`).join('')}</div>
           <label class="btn btn-line sm">＋ 사진 추가<input type="file" id="phFile" accept="image/*" multiple hidden></label></div>
-      </div>
+      </div>`:''}
 
-      <div class="dsec"><h4>처리 이력</h4>
-        <ul class="logl">${(it.log||[]).slice().reverse().map(l=>`<li><span>${l.at?fmtD(new Date(l.at))+' '+hhmm(new Date(l.at)):''}</span><b>${esc(l.by||'')}</b>${esc(l.msg)}</li>`).join('')||'<li class="cap">기록 없음</li>'}</ul>
+      ${st<7?`<div class="viewtg"><button class="btn btn-line sm" id="viewAll">${ALL?'이 단계만 보기':'전체 보기 — 다른 단계 내용 확인·수정'}</button></div>`:''}
+      <div class="dsec"><details class="logd"><summary>처리 이력 <span class="cap" style="font-weight:400">${(it.log||[]).length}건</span></summary>
+        <ul class="logl">${(it.log||[]).slice().reverse().map(l=>`<li><span>${l.at?fmtD(new Date(l.at))+' '+hhmm(new Date(l.at)):''}</span><b>${esc(l.by||'')}</b>${esc(l.msg)}</li>`).join('')||'<li class="cap">기록 없음</li>'}</ul></details>
       </div>
     </div>
     <div class="df">
@@ -2211,6 +2219,7 @@ function detail(id){
     sel.onchange=()=>{ show(); dbCase(id,{hd:sel.value||null},`처리소장 ${sel.value||'해제'}`); }; show(); }
   const va=$('visitAt'); if(va) va.onchange=()=>dbCase(id,{visitAt:va.value},`방문 예정일 ${va.value}`);
 
+  const vA=$('viewAll'); if(vA) vA.onclick=()=>{ DV.all=!DV.all; detail(id); };
   /* 접수일 · 연락자 · 처리완료일 · 진행 내용 */
   const rd=$('rcvD'); if(rd) rd.onchange=()=>{ if(!rd.value||rd.value>ymd(TODAY)){ toast('접수일을 확인하세요'); rd.value=ymd(it.rcvAt); return; } dbCase(id,{rcvAt:new Date(rd.value+'T09:00:00').toISOString()},`접수일 ${rd.value}`); };
   drawer.querySelectorAll('[data-cl]').forEach(el=>el.onchange=()=>{ const c={...(it.caller||{})}; c[el.dataset.cl]=el.value.trim(); it.caller=c; dbCase(id,{caller:c},`하자 연락자 수정`); });
@@ -2874,6 +2883,31 @@ const PART_ALIAS={'평지붕면':'슬라브'};   // 평지붕면은 슬라브로
 const CALLER_T=['관리소장','관리사무소','입주자대표','입주민','시공사','기타'];
 function partsOf(it){ const a=(it&&it.parts&&it.parts.length? it.parts : [it&&it.part]).filter(Boolean).map(p=>PART_ALIAS[p]||p); return [...new Set(a)]; }
 const hasP=(r,p)=>partsOf(r).includes(p);
+/* 상세 화면 한 줄 요약 (모든 단계 공통) */
+function sumLine(it, s){
+  const b = it.b && it.b[0]!=='부담 미정' ? it.b[0] : '부담 미정', c=callerTx(it.caller);
+  return `<div class="sumline"><span><em>부위·현상</em>${esc(partTx(it))} · ${esc(it.ph||'')}</span>${c?`<span><em>연락자</em>${esc(c)}</span>`:''}<span><em>처리소장</em>${esc(it.hd||'미배정')}</span><span><em>부담</em>${esc(b)}</span>${it.doneAt?`<span><em>처리완료</em>${it.doneAt.replace(/-/g,'.')}</span>`:''}</div>`;
+}
+/* 5단계 비용 확인 — 대금관리자 확인용 요약 (입력 없음) */
+function costCheck(it, s){
+  const p=costParts(it), free = it.b && it.b[0]==='시공소장 부담', ex=extrasOf(it).filter(e=>Number(e.amt)>0);
+  const need = e => !free || e.our, miss = ex.filter(e=>need(e) && !(e.rcpt&&e.rcpt.length));
+  const row=(k,v,cls='')=>`<tr class="${cls}"><td>${k}</td><td class="amt">${v}</td></tr>`;
+  return `<div class="dsec"><h4>비용 확인 <span class="cap" style="font-weight:400">영업이 입력한 내용 · 확인 후 6단계 기안으로 넘깁니다</span></h4>
+    <dl class="kv"><dt>처리완료일</dt><dd>${it.doneAt?it.doneAt.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}</dd>
+    <dt>처리소장</dt><dd>${esc(it.hd||'미배정')}</dd><dt>하자 원인</dt><dd>${esc(it.cz||'미입력')}</dd>
+    <dt>부담 판정</dt><dd>${it.b&&it.b[0]!=='부담 미정'?esc(it.b[0])+(it.b[1]==='조정'?` <span class="cap">(조정 · ${esc(it.b[2]||'')})</span>`:''):'<b style="color:var(--warn-tx)">미판정</b>'}</dd>
+    <dt>2차 피해</dt><dd>${it.dmg.length?it.dmg.length+'건':'없음'}</dd></dl>
+    <table class="ct cchk"><tbody>
+      ${row('자재비 <span class="cap">ERP 출고 − 회수 · 당사</span>', won(it.mat||0)+'원')}
+      ${row(`노임 <span class="cap">일당 ${won(it.labRate||0)} × ${it.labCnt||0}명</span>`, won(p.lab)+'원')}
+      ${ex.map(e=>row(`${esc(e.t==='기타'?(e.name||'기타'):e.t)} ${need(e)?(e.rcpt&&e.rcpt.length?`<span class="tg tg-ok">영수증 ${e.rcpt.length}</span>`:'<span class="tg tg-swap">영수증 없음</span>'):'<span class="cap">무상 처리 · 지급 대상 아님</span>'}`, won(e.amt)+'원')).join('')}
+      ${row('<b>당사 지급 대상</b>', '<b>'+won(ourPay(it))+'원</b>', 'tot')}
+    </tbody></table>
+    ${miss.length?`<div class="alert warn" style="margin-top:10px"><b>영수증 없는 항목 ${miss.length}건</b> — ${miss.map(e=>esc(e.t==='기타'?(e.name||'기타'):e.t)).join(', ')} · 「전체 보기」에서 비용 칸에 첨부하거나 영업에 요청하세요</div>`:''}
+    ${!it.costAt?`<div class="alert warn" style="margin-top:10px"><b>비용이 아직 입력되지 않았습니다</b> — 4단계로 되돌려 영업이 입력하도록 하세요</div>`:''}
+  </div>`;
+}
 function callerTx(c){ if(!c) return ''; return [c.type, c.name, c.phone].filter(Boolean).join(' · ') + (c.office?` (관리사무소 ${c.office})`:''); }
 function intakeForm(){
   const P=intake.parts||(intake.parts=[]);
