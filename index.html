@@ -726,7 +726,7 @@ let ITEMS = [];
 const won = n => (n||0).toLocaleString('ko-KR');
 const dAgo = n => { const d=new Date(TODAY); d.setDate(d.getDate()-n); return d; };
 const fmtD = d => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
-function gYear(site, at){ const c=new Date(SITES[site].comp); return Math.floor((at-c)/(365.25*864e5))+1; }
+function gYear(site, at){ if(!SITES[site]||!SITES[site].comp) return null; const c=new Date(SITES[site].comp); return Math.floor((at-c)/(365.25*864e5))+1; }
 function zone(site, yr){ const s=SITES[site]; if(!s.ct) return null; if(s.ct==='기술자문(직영)') return '시공소장'; return yr<=3?'시공소장':'당사'; }
 function ourPay(it){ if(!it.b) return 0; const t=it.b[0]; const tot=(it.lab||0)+(it.rst||0);
   if(t==='당사 부담'||t==='당사 대납') return tot; if(t==='공동 부담') return tot-(it.sh||0); return 0; }
@@ -1079,8 +1079,8 @@ function siteStat(nm){
   const mat=rs.reduce((a,r)=>a+(r.mat||0)-(r.ret||0),0), lab=rs.reduce((a,r)=>a+(r.lab||0)-(r.sh&&!r.rst?r.sh:0),0);
   const labT=rs.reduce((a,r)=>a+(r.lab||0),0), rstT=rs.reduce((a,r)=>a+(r.rst||0),0), shT=rs.reduce((a,r)=>a+(r.sh||0),0);
   const spent = mat+labT+rstT-shT;
-  const comp=new Date(s.comp), end=wEndOf(s)||new Date(comp);
-  const el = Math.min(1, Math.max(0,(TODAY-comp)/(end-comp)));
+  const comp=s.comp?new Date(s.comp):null, end=comp?wEndOf(s):null;
+  const el = comp&&end? Math.min(1, Math.max(0,(TODAY-comp)/(end-comp))) : 0;
   const burn = s.budget? spent/s.budget : null;
   const pace = burn!==null && el>0 ? burn/el : null;
   let state='ok';
@@ -1139,9 +1139,9 @@ function vOverview(){
   const reg = sts.filter(x=>!x.s.wait), wait = sts.filter(x=>x.s.wait);
   const B = reg.reduce((a,x)=>a+x.s.budget,0), S = reg.reduce((a,x)=>a+x.spent,0);
   const over = reg.filter(x=>x.state==='over'), risk = reg.filter(x=>x.state==='risk');
-  const years = [...new Set(sts.map(x=>new Date(x.s.comp).getFullYear()))].sort();
+  const years = [...new Set(sts.map(x=>cYear(x.s)))].sort();
   const rows = years.map(y=>{
-    const g = reg.filter(x=>new Date(x.s.comp).getFullYear()===y), gw = wait.filter(x=>new Date(x.s.comp).getFullYear()===y);
+    const g = reg.filter(x=>cYear(x.s)===y), gw = wait.filter(x=>cYear(x.s)===y);
     const b=g.reduce((a,x)=>a+x.s.budget,0), sp=g.reduce((a,x)=>a+x.spent,0);
     return {y,n:g.length,w:gw.length,b,sp,ov:g.filter(x=>x.state==='over').length,rk:g.filter(x=>x.state==='risk').length,end:g.filter(x=>x.el>=1).length};
   });
@@ -1158,7 +1158,7 @@ function vOverview(){
       <div class="ch"><h3>준공연도별 하자예산 · 집행</h3><span class="cap">막대 = 하자예산(연한 색) 위에 집행(진한 색) · 주황은 예산 초과분</span></div>
       <table class="ct"><thead><tr><th style="width:96px">준공연도</th><th style="width:96px" class="amt">현장</th><th style="width:150px" class="amt">하자예산(원)</th><th style="width:150px" class="amt">집행(원)</th><th style="width:84px" class="amt">소진율</th><th>예산 대비 집행</th><th style="width:150px" class="amt">잔여(원)</th><th style="width:170px">주의</th></tr></thead><tbody>
       ${rows.map(r=>`<tr class="clk" onclick="CF.cy='${r.y}';CF.cst='';location.hash='#cost/sites'">
-        <td><b>${r.y}년</b>${r.y===CY?' <span class="tg tg-now">당해</span>':''}</td>
+        <td><b>${yLab(r.y)}</b>${r.y===CY?' <span class="tg tg-now">당해</span>':''}</td>
         <td class="amt">${r.n}곳${r.w?`<small class="w">+대기 ${r.w}</small>`:''}</td>
         <td class="amt">${won(r.b)}</td><td class="amt">${won(r.sp)}</td><td class="amt"><b>${pct(r.sp,r.b)}</b></td>
         <td><div class="yb"><i class="b" style="width:${r.b/maxB*100}%"></i><i class="s ${r.sp>r.b?'ov':''}" style="width:${Math.min(r.sp,r.b)/maxB*100}%"></i>${r.sp>r.b?`<i class="x" style="left:${r.b/maxB*100}%;width:${(r.sp-r.b)/maxB*100}%"></i>`:''}</div></td>
@@ -1182,9 +1182,9 @@ function vOverview(){
 /* ── 2. 현장·예산 ── */
 function vSites(){
   let sts = Object.keys(SITES).map(siteStat);
-  const years=[...new Set(sts.map(x=>new Date(x.s.comp).getFullYear()))].sort();
+  const years=[...new Set(sts.map(x=>cYear(x.s)))].sort();
   const cnt = k => sts.filter(x=>x.state===k).length;
-  const base = sts.filter(x=>(!CF.cy||String(new Date(x.s.comp).getFullYear())===CF.cy)&&(!CF.cct||x.s.ct===CF.cct)&&(!CF.q||x.nm.includes(CF.q.trim())||(x.s.co||'').includes(CF.q.trim())));
+  const base = sts.filter(x=>(!CF.cy||String(cYear(x.s))===CF.cy)&&(!CF.cct||x.s.ct===CF.cct)&&(!CF.q||x.nm.includes(CF.q.trim())||(x.s.co||'').includes(CF.q.trim())));
   const list = base.filter(x=>!CF.cst||x.state===CF.cst);
   const ord={wait:0,over:1,risk:2,ok:3,end:4};
   list.sort((a,b)=>ord[a.state]-ord[b.state] || (b.pace||0)-(a.pace||0));
@@ -1202,7 +1202,7 @@ function vSites(){
   + ppBanner()
   + (wait.length?`<div class="banner"><img class="bi2" src="${ICON.wait}" alt=""><div><b>확인 대기 현장 ${wait.length}곳 — 정식 등록이 필요합니다</b><span>${wait.map(x=>`${x.nm} (간이 등록 ${x.s.reg.slice(5).replace('-','.')} · 진행 중 접수 ${blocked(x.nm)}건)`).join(' · ')}. 정식 등록 전에는 하자예산이 편성되지 않고, 걸린 접수는 5단계 비용 확인으로 넘어갈 수 없습니다.</span></div><button class="btn btn-yel" onclick="CF.cst='wait';renderCost()">대기 현장만 보기</button></div>`:'')
   + `<div class="tools">
-      <select class="sel" onchange="CF.cy=this.value;renderCost()"><option value="">준공연도 전체</option>${years.map(y=>`<option ${CF.cy==y?'selected':''} value="${y}">${y}년 준공</option>`).join('')}</select>
+      <select class="sel" onchange="CF.cy=this.value;renderCost()"><option value="">준공연도 전체</option>${years.map(y=>`<option ${CF.cy==y?'selected':''} value="${y}">${yLab(y,' 준공')}</option>`).join('')}</select>
       <select class="sel" onchange="CF.cct=this.value;renderCost()"><option value="">계약유형 전체</option>${['컨설팅','기술자문컨설팅','기술자문(직영)'].map(c=>`<option ${CF.cct===c?'selected':''}>${c}</option>`).join('')}</select>
       <input class="inp" id="sQ" placeholder="현장명·업체명 검색" value="${CF.q}" oninput="CF.q=this.value;softCost()">
       <div class="seg">${[['','전체',sts.length],['over','예산 초과',cnt('over')],['risk','초과 예상',cnt('risk')],['ok','예산 내',cnt('ok')],['end','보증 종료',cnt('end')],['wait','확인 대기',cnt('wait')]].map(([k,l,n])=>`<button class="${CF.cst===k?'on':''} ${k}" onclick="CF.cst='${k}';renderCost()">${l} <b>${n}</b></button>`).join('')}</div>
@@ -1215,12 +1215,12 @@ function vSites(){
       <th class="amt" style="width:108px">집행(원)</th><th style="width:150px">소진율 · 기간 경과</th><th class="amt" style="width:108px">잔여(원)</th><th style="width:86px">상태</th><th style="width:86px"></th></tr></thead><tbody>
     ${list.map(x=>{ const s=x.s;
       if(s.wait) return `<tr class="wait-row"><td><span class="site">${x.nm}<small>${s.co} · 시공소장 ${s.bld}</small></span></td><td><span class="cap">미등록</span></td>
-        <td>${s.comp.replace(/-/g,'.')}<small class="d2">보증 ${x.yr}년차</small></td>
+        <td>${compCell(x)}</td>
         <td colspan="${D?7:4}" class="wait-msg">정식 등록 후 산정 — 확정매출액·계약유형이 없어 하자예산을 편성할 수 없습니다 · 진행 중 접수 ${blocked(x.nm)}건</td>
         <td></td><td>${stTag(x)}</td><td><button class="btn btn-yel sm" onclick="openSiteForm('${x.nm}',true)">정식 등록</button></td></tr>`;
       return `<tr><td><span class="site">${x.nm}<small>${s.co}${s.code?' · ERP '+s.code:''} · 시공소장 ${s.bld}${s.pp?' · <b style="color:var(--sky)">pour-pay</b>':''}</small></span></td>
         <td>${s.ct}<small class="d2">적용률 ${(rate(s.ct)*100).toFixed(1)}%</small></td>
-        <td>${s.comp.replace(/-/g,'.')}<small class="d2">${x.el>=1?'보증 종료 '+fmtD(x.end):x.yr+'년차 · ~'+fmtD(x.end)}</small></td>
+        <td>${compCell(x)}</td>
         <td class="amt">${won(s.rev)}</td><td class="amt"><b>${won(s.budget)}</b></td>
         ${D?`<td class="amt">${won(x.mat)}</td><td class="amt">${won(x.lab-x.sh)}</td><td class="amt">${won(x.rst)}</td>`:''}
         <td class="amt">${won(x.spent)}</td><td>${burnMeter(x)}</td>
@@ -1548,7 +1548,7 @@ const AI = c => `<img class="e" src="${ICON['a_'+c]}" alt="">`;
 function exposure(filterSite){
   const from = AF.period==='all'? null : new Date(AF.period+'-01-01'), to = AF.period==='all'? TODAY : (AF.period===String(CY)? TODAY : new Date(Number(AF.period)+1+'-01-01'));
   let tot=0;
-  Object.entries(SITES).forEach(([nm,s])=>{ if(filterSite && !filterSite(nm,s)) return; const c=new Date(s.comp), e=wEndOf(s)||new Date(c);
+  Object.entries(SITES).forEach(([nm,s])=>{ if(filterSite && !filterSite(nm,s)) return; if(!s.comp) return; const c=new Date(s.comp), e=wEndOf(s)||new Date(TODAY);
     const a = new Date(Math.max(c, from||c)), b = new Date(Math.min(e, to)); if(b>a) tot += (b-a)/(365.25*864e5); });
   return tot;
 }
@@ -1700,7 +1700,7 @@ function aCause(){
   const Y = [1,2,3,4,5].map(y=>{ const a=czd.filter(r=>r.yr===y); const ex=exposure((nm,s)=>true)/5; return {y,a,n:rs.filter(r=>r.yr===y).length}; });
   /* 연차별 노출 : 각 현장이 기간 중 y년차였던 연수 */
   const yEx = [1,2,3,4,5].map(y=>{ let t=0; const from = AF.period==='all'? null : new Date(AF.period+'-01-01'), to = AF.period==='all'||AF.period===String(CY)? TODAY : new Date(Number(AF.period)+1+'-01-01');
-    Object.values(SITES).forEach(s=>{ if(AF.gong && s.gong!==AF.gong) return; const a=new Date(s.comp); a.setFullYear(a.getFullYear()+y-1); const b=new Date(s.comp); b.setFullYear(b.getFullYear()+y);
+    Object.values(SITES).forEach(s=>{ if(AF.gong && s.gong!==AF.gong) return; if(!s.comp) return; const a=new Date(s.comp); a.setFullYear(a.getFullYear()+y-1); const b=new Date(s.comp); b.setFullYear(b.getFullYear()+y);
       const x=new Date(Math.max(a, from||a)), z=new Date(Math.min(b,to)); if(z>x) t+=(z-x)/(365.25*864e5); }); return t; });
   const yRate = Y.map((o,i)=>yEx[i]>=.5? o.n/yEx[i] : null), yMax=Math.max(...yRate.filter(v=>v!==null),.01);
   const cost = c => { const a=rs.filter(r=>r.cz===c&&r.st===7); return a.length? Math.round(a.reduce((x,r)=>x+r.cost,0)/a.length/100)*100 : null; };
@@ -1799,11 +1799,11 @@ function renderSummary(){
     {ok: mdLast<=mdAvg, ic:'a_k_mat', t:'자재 결함', m: `직전 분기(${qL%10+1}분기) <b>${mdLast}건</b> · 앞선 4분기 평균 ${mdAvg.toFixed(1)}건${mdLast>mdAvg?' — 늘어나는 추세, 자재 로트·배합 점검 필요':' — 평소 수준'} · 이번 분기 ${mdCur}건(진행 중)`, go:'#analysis/cause'},
   ];
   /* 누적 · 준공연도 */
-  const years = [...new Set(sts.map(x=>new Date(x.s.comp).getFullYear()))].sort();
+  const years = [...new Set(sts.map(x=>cYear(x.s)))].sort();
   const allA = anaRecs();
-  const yrows = years.map(y=>{ const g=reg.filter(x=>new Date(x.s.comp).getFullYear()===y), gw=sts.filter(x=>x.s.wait&&new Date(x.s.comp).getFullYear()===y);
+  const yrows = years.map(y=>{ const g=reg.filter(x=>cYear(x.s)===y), gw=sts.filter(x=>x.s.wait&&cYear(x.s)===y);
     const b=g.reduce((a,x)=>a+x.s.budget,0), sp=g.reduce((a,x)=>a+x.spent,0);
-    const n=allA.filter(r=>new Date(SITES[r.site].comp).getFullYear()===y).length;
+    const n=allA.filter(r=>cYear(SITES[r.site])===y).length;
     return {y,n:g.length,w:gw.length,b,sp,cnt:n,ov:g.filter(x=>x.state==='over').length,rk:g.filter(x=>x.state==='risk').length}; });
   const B=reg.reduce((a,x)=>a+x.s.budget,0), S=reg.reduce((a,x)=>a+x.spent,0), maxB=Math.max(...yrows.map(r=>Math.max(r.b,r.sp)),1);
   /* 올해 */
@@ -1845,7 +1845,7 @@ function renderSummary(){
 
     ${band('연도별 하자예산 · 발생','준공연도 기준 누적','그해 준공한 현장의 하자예산 합계 = 그해 예산')}
     <a class="card clk" href="#cost/overview"><table class="ct yt"><thead><tr><th style="width:90px">준공연도</th><th class="amt" style="width:90px">준공 현장</th><th class="amt" style="width:140px">하자예산(원)</th><th class="amt" style="width:140px">집행(원)</th><th>소진</th><th class="amt" style="width:80px">소진율</th><th class="amt" style="width:96px">하자 접수</th><th style="width:180px">주의</th></tr></thead><tbody>
-      ${yrows.map(r=>`<tr><td><b>${r.y}년</b></td><td class="amt">${r.n}곳${r.w?`<small class="w">+대기 ${r.w}</small>`:''}</td><td class="amt">${won(r.b)}</td><td class="amt">${won(r.sp)}</td>
+      ${yrows.map(r=>`<tr><td><b>${yLab(r.y)}</b></td><td class="amt">${r.n}곳${r.w?`<small class="w">+대기 ${r.w}</small>`:''}</td><td class="amt">${won(r.b)}</td><td class="amt">${won(r.sp)}</td>
         <td><div class="yb"><i class="b" style="width:${r.b/maxB*100}%"></i><i class="s ${r.sp>r.b?'ov':''}" style="width:${Math.min(r.sp,r.b)/maxB*100}%"></i>${r.sp>r.b?`<i class="x" style="left:${r.b/maxB*100}%;width:${(r.sp-r.b)/maxB*100}%"></i>`:''}</div></td>
         <td class="amt"><b>${pct(r.sp,r.b)}</b></td><td class="amt">${r.cnt}건</td>
         <td>${r.ov?`<span class="stt st-over">초과 ${r.ov}</span>`:''}${r.rk?`<span class="stt st-risk">초과 예상 ${r.rk}</span>`:''}${!r.ov&&!r.rk?'<span class="cap">—</span>':''}</td></tr>`).join('')}
@@ -2009,7 +2009,7 @@ function _rebuild(){
   /* 현장 */
   Object.keys(SITES).forEach(k=>delete SITES[k]);
   Object.values(RAW.sites).forEach(s=>{ if(!s.name) return;
-    const o = {...s}; o.wy = o.wy||5; o.blds = bldsOf(o); o.bld = o.blds.join(', ');
+    const o = {...s}; o.wy = Number(o.wy)||null; o.comp = o.comp||null; o.blds = bldsOf(o); o.bld = o.blds.join(', ');
     o.budget = (!o.wait && rate(o.ct)) ? budgetOf(o.rev, o.ct) : 0;
     SITES[o.name] = o; });
   /* 접수 건 */
@@ -2096,7 +2096,7 @@ const ADJ = {'자재 결함':'당사 부담','시공소장 부재':'당사 대�
 function autoBurden(it){
   const s=SITES[it.site]; if(!s||!s.ct||!s.comp) return null;
   if(wExpired(it.site, it.rcvAt)) return null;   // 보증기간 경과 — 직접 판정
-  const z=zone(it.site, gYear(it.site,it.rcvAt));
+  const z=zone(it.site, gYear(it.site,it.rcvAt)); if(!z) return null;   // 보증기간 미입력 — 직접 판정
   if(z==='당사') return ['당사 부담','보증',null];
   if(it.hd && !isBld(it.site, it.hd)) return ['당사 대납','보증',null];
   return ['시공소장 부담','보증',null];
@@ -2118,7 +2118,7 @@ function detail(id){
     <div class="dh"><button class="x" aria-label="닫기">×</button>
       <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}</div>
       <h3>${esc(it.site)}</h3>
-      <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'—'}${yr?` · 보증 ${yr}년차`:''}${wE?` · 만료 ${fmtD(wE)}`:''}${wX?' · <b style="color:var(--warn-tx)">접수일 기준 보증기간 경과</b>':''}${s.wait?' · <b style="color:var(--yel)">확인 대기 현장</b>':''}</div>
+      <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}${yr?` · 보증 ${yr}년차`:''}${s.comp&&wMiss(s).includes('보증기간')?' · <b style="color:var(--warn-tx)">보증기간 미입력</b>':''}${wE?` · 만료 ${fmtD(wE)}`:''}${wX?' · <b style="color:var(--warn-tx)">접수일 기준 보증기간 경과</b>':''}${s.wait?' · <b style="color:var(--yel)">확인 대기 현장</b>':''}</div>
     </div>
     <div class="db">
       <div class="dsec"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 바로 이동합니다</span></h4>${progHtml(it)}${missNote(it)}
@@ -2421,11 +2421,23 @@ const nkey  = s => String(s||'').replace(/\s|\(주\)|㈜|주식회사|\(유\)|�
 /* ── 하자보증 기간 ── */
 function addYears(d, n){ const x=new Date(d), m=x.getMonth(); x.setFullYear(x.getFullYear()+n); const clamp = x.getMonth()!==m; if(clamp) x.setDate(0); return {d:x, clamp}; }
 function wStartOf(s){ return (s && s.wStartBasis && s.wStartBasis!=='준공일' && s.wStart) ? s.wStart : (s && s.comp) || null; }
-function wCalcEnd(start, wy){ if(!start) return null; const r=addYears(new Date(start), wy||5); if(!r.clamp) r.d.setDate(r.d.getDate()-1); return r.d; }   // 기산일 + N년 − 1일 (2/29 시작은 2/28)
+function wCalcEnd(start, wy){ if(!start||!wy) return null; const r=addYears(new Date(start), wy); if(!r.clamp) r.d.setDate(r.d.getDate()-1); return r.d; }   // 기산일 + N년 − 1일 (2/29 시작은 2/28)
 function wEndOf(s){ if(!s) return null; if(s.wEndManual && s.wEnd) return new Date(s.wEnd); return wCalcEnd(wStartOf(s), s.wy); }
 function wExpired(site, at){ const e=wEndOf(SITES[site]); return !!(e && day0(at) > day0(e)); }
 /* 부담 구간 — 시공소장 구간은 준공일 기준 연차 · 보증 3년 이하는 만료일까지 전 기간 시공소장 */
-function zone(site, yr){ const s=SITES[site]; if(!s||!s.ct) return null; if(s.ct==='기술자문(직영)') return '시공소장'; if((s.wy||5)<=3) return '시공소장'; return yr<=3?'시공소장':'당사'; }
+function zone(site, yr){ const s=SITES[site]; if(!s||!s.ct||!s.comp||!s.wy) return null; if(s.ct==='기술자문(직영)') return '시공소장'; if(s.wy<=3) return '시공소장'; return yr<=3?'시공소장':'당사'; }
+/* 준공일·보증기간 미입력 허용 — 하자 처리 중 확인되면 현장 수정에서 채움. 미입력이면 연차·책임 구간·부담은 자동 판정하지 않음 */
+function cYear(s){ return s&&s.comp? Number(String(s.comp).slice(0,4)) : '미정'; }
+function yLab(y, suf=''){ return y==='미정'? '준공일 미정' : y+'년'+suf; }
+function wMiss(s){ return !s? [] : [!s.comp&&'준공일', !s.wy&&!(s.wEndManual&&s.wEnd)&&'보증기간'].filter(Boolean); }
+function compCell(x){ const s=x.s, m=wMiss(s);
+  if(!s.comp) return `<span class="zt over">준공일 미입력</span><small class="d2">보증기간 ${s.wy?s.wy+'년':'미입력'}</small>`;
+  const c=s.comp.replace(/-/g,'.'); if(!x.end) return `${c}<small class="d2">${x.yr}년차 · <b style="color:var(--warn-tx)">보증기간 미입력</b></small>`;
+  return `${c}<small class="d2">${x.el>=1?'보증 종료 '+fmtD(x.end):x.yr+'년차 · ~'+fmtD(x.end)}</small>`; }
+function missBanner(){
+  const L=Object.values(SITES).filter(s=>wMiss(s).length); if(!L.length) return '';
+  const nc=L.filter(s=>!s.comp).length, nw=L.filter(s=>wMiss(s).includes('보증기간')).length;
+  return `<div class="banner soft"><img class="bi2" src="${ICON.wait}" alt=""><div><b>준공일·보증기간 미입력 ${L.length}곳 <span class="cap" style="font-weight:400">${[nc&&`준공일 ${nc}곳`, nw&&`보증기간 ${nw}곳`].filter(Boolean).join(' · ')}</span></b><span>접수는 그대로 받을 수 있고, 부담은 자동 판정되지 않아 담당자가 직접 정합니다. 확인되면 현장을 눌러 입력하세요 — ${L.slice(0,12).map(s=>`<a href="javascript:void 0" onclick="openSiteForm('${esc(s.name).replace(/'/g,"\\'")}')">${esc(s.name)}</a>`).join(' · ')}${L.length>12?` 외 ${L.length-12}곳`:''}</span></div></div>`; }
 function bldsOf(s){ return (s && (s.blds && s.blds.length ? s.blds : String(s.bld||'').split(/\s*,\s*/))).filter(Boolean); }
 function isBld(site, name){ return bldsOf(SITES[site]).includes(name); }
 function swapped(it){ return !!(it.hd && SITES[it.site] && !isBld(it.site, it.hd)); }
@@ -2521,7 +2533,7 @@ function ppScan(){
   pend.forEach(r=>{ if(cnt[r.nm]>1 && !r.conflict) r.conflict=`pour-pay에 같은 이름 「${r.nm}」 완료 현장이 ${cnt[r.nm]}곳 있습니다`; });
   return {pend, chg, notDone, done};
 }
-function rowIssues(r){ const e=[]; if(r.conflict) e.push('이름 중복'); if(!/^\d{4}-\d{2}-\d{2}$/.test(r.comp||'')) e.push('준공일'); if(!r.wy) e.push('보증기간'); if(!r.blds.length) e.push('시공소장'); return e; }
+function rowIssues(r){ const e=[]; if(r.conflict) e.push('이름 중복'); if(!r.blds.length) e.push('시공소장'); return e; }   // 준공일·보증기간은 비워 두고 등록 가능
 
 /* ── 가져오기 서랍 ── */
 let PPI = null;
@@ -2538,7 +2550,7 @@ function drawPPImport(sc){
   sc = sc || ppScan();
   const yr={}; sc.done.forEach(r=>{ const y=(r.comp||'').slice(0,4)||'준공일 없음'; yr[y]=(yr[y]||0)+1; });
   const R=PPI.rows, sel=R.filter(r=>r.on), bad=sel.filter(r=>rowIssues(r).length);
-  const wyOpt = v => `<option value="">선택</option>${[1,2,3,5].map(y=>`<option ${v==y?'selected':''} value="${y}">${y}년</option>`).join('')}`;
+  const wyOpt = v => `<option value="">미입력</option>${[1,2,3,5].map(y=>`<option ${v==y?'selected':''} value="${y}">${y}년</option>`).join('')}`;
   openDrawer(`<div class="dh"><div class="k">pour-pay 연동 · 읽기 전용</div><h3>완료 현장 가져오기</h3>
       <div class="m">pour-pay에서 완료(정산·입금 끝) 단계인 컨설팅 현장 ${sc.done.length}곳 · 마지막 읽기 ${PP.at?hhmm(PP.at):'—'} · 확정매출 = 컨설팅 총액(총 공사금액 − 노무비 − 기타경비)</div>
       <button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
@@ -2549,12 +2561,12 @@ function drawPPImport(sc){
     ${PPI.chg.length?`<div class="dsec"><h4>변경 있음 ${PPI.chg.length}곳 <span class="cap" style="font-weight:400">이미 등록한 현장의 pour-pay 값이 바뀌었습니다 · 누르기 전에는 반영되지 않습니다</span></h4>
       <div class="uptbl"><table class="ct"><thead><tr><th>현장</th><th>바뀐 항목</th><th style="width:90px"></th></tr></thead><tbody>${PPI.chg.map((c,k)=>`<tr><td>${esc(c.site)}</td><td>${c.diff.map(f=>`${{comp:'준공일',rev:'확정매출',blds:'시공소장',co:'시공사',nm:'현장명'}[f]} ${f==='rev'?won(c.a[f]):esc(c.a[f]??'—')} → <b>${f==='rev'?won(c.b[f]):esc(c.b[f])}</b>`).join('<br>')}</td><td><button class="btn btn-line sm" onclick="ppApplyChg(${k})">${c.diff.includes('nm')?'이름까지 반영':'반영'}</button></td></tr>`).join('')}</tbody></table></div></div>`:''}
     <div class="dsec"><h4>새로 가져올 현장 ${R.length}곳</h4>
-      ${R.length?`<p class="cap" style="margin-bottom:10px">빨간 칸은 pour-pay에 값이 없어 직접 채워야 합니다 · 확정매출이 마이너스인 현장은 하자예산 0원으로 등록합니다(준공 현장이라 하자 접수는 가능) · 같은 이름의 확인 대기 현장이 있으면 그 현장에 연결해 정식 등록합니다</p>
+      ${R.length?`<p class="cap" style="margin-bottom:10px">빨간 칸은 pour-pay에 값이 없는 항목입니다 · 시공소장은 채워야 등록되고, 준공일·보증기간은 비워 두고 등록한 뒤 확인되면 현장 수정에서 채울 수 있습니다 · 확정매출이 마이너스인 현장은 하자예산 0원으로 등록합니다(준공 현장이라 하자 접수는 가능) · 같은 이름의 확인 대기 현장이 있으면 그 현장에 연결해 정식 등록합니다</p>
       <div class="uptbl pptbl"><table class="ct"><thead><tr><th style="width:34px"><input type="checkbox" ${sel.length===R.length?'checked':''} onchange="PPI.rows.forEach(r=>r.on=this.checked);drawPPImport()"></th><th>현장 · 시공사</th><th style="width:118px">유형</th><th style="width:150px">준공일</th><th style="width:96px">보증</th><th class="amt" style="width:140px">확정매출(원)</th><th class="amt" style="width:104px">하자예산(원)</th><th style="width:150px">시공소장</th><th style="width:96px">완료일</th></tr></thead><tbody>
       ${R.map((r,k)=>{ const is=rowIssues(r); return `<tr class="${r.on?'':'off'}"><td><input type="checkbox" ${r.on?'checked':''} onchange="PPI.rows[${k}].on=this.checked;drawPPImport()"></td>
         <td><b>${esc(r.nm)}</b>${r.composite?' <span class="tg tg-swap">복합</span>':''}<small class="d2">${esc(r.co||'시공사 없음')}${r.match?` · <b style="color:var(--sky)">${r.matchWait?'확인 대기 현장':'기존 등록 현장'} 「${esc(r.match)}」에 연결</b>`:''}${r.sim&&r.sim.length?` · <span class="warn">비슷한 현장: ${esc(r.sim.join(', '))}</span>`:''}${r.conflict?`<br><b class="warn" style="color:var(--warn-tx)">이름 중복 — ${esc(r.conflict)} · pour-pay에서 현장명을 구분(예: (2))한 뒤 다시 읽으세요</b>`:''}</small></td>
         <td>${r.ct}</td>
-        <td>${is.includes('준공일')?`<input type="date" class="inp mini bad" onchange="PPI.rows[${k}].comp=this.value;ppFix(${k})">`:r.comp.replace(/-/g,'.')}</td>
+        <td>${!/^\d{4}-\d{2}-\d{2}$/.test(r.comp||'')?`<input type="date" class="inp mini bad" title="비워 두고 등록해도 됩니다" onchange="PPI.rows[${k}].comp=this.value;ppFix(${k})">`:r.comp.replace(/-/g,'.')}</td>
         <td><select class="sel mini ${r.wy?'':'bad'}" onchange="PPI.rows[${k}].wy=Number(this.value)||null;ppFix(${k})">${wyOpt(r.wy)}</select></td>
         <td class="amt ${r.rev>0?'':'neg'}">${won(r.rev)}${r.rev>0?'':'<small class="d2">마이너스 현장</small>'}</td>
         <td class="amt">${won(budgetOf(r.rev,r.ct))}${r.rev>0?'':'<small class="d2">0원 편성</small>'}</td>
@@ -2572,7 +2584,7 @@ async function ppCommit(){
   try{
     for(let i=0;i<ok.length;i+=300){ const bt=DB.batch();
       ok.slice(i,i+300).forEach(r=>{ const nm=r.match||r.nm, ex=SITES[nm];
-        const data={name:nm, co:r.co, ct:r.ct, comp:r.comp, wy:r.wy, rev:r.rev, gong:r.gong, area:r.area, blds:r.blds, bld:r.blds.join(', '), addr:r.addr,
+        const data={name:nm, co:r.co, ct:r.ct, comp:r.comp||null, wy:r.wy||null, rev:r.rev, gong:r.gong, area:r.area, blds:r.blds, bld:r.blds.join(', '), addr:r.addr,
           pp:r.id, ppNm:r.nm, ppDone:r.done||null, ppSnap:r.snap, wait:false, updatedAt:iso()};
         if(!ex){ data.createdAt=iso(); data.wStartBasis='준공일'; }
         bt.set(DB.collection('sites').doc(sid(nm)), data, {merge:true}); });
@@ -2697,8 +2709,8 @@ function openSiteForm(nm, formal){
       <div class="field"><label>현장 주소</label><input class="inp" id="fAddr" value="${esc(v('addr'))}"></div>
     </div>
     <div class="dsec"><h4>하자보증</h4>
-      <div class="g2"><div class="field"><label>준공일 *</label><input class="inp" type="date" id="fComp" value="${v('comp')}" oninput="calcBudget()"></div>
-      <div class="field"><label>보증기간 (년)</label><select class="sel" id="fWy" oninput="calcBudget()">${[1,2,3,5].map(y=>`<option ${v('wy',5)==y?'selected':''}>${y}</option>`).join('')}</select></div></div>
+      <div class="g2"><div class="field"><label>준공일 <span class="cap">(모르면 비워 두기)</span></label><input class="inp" type="date" id="fComp" value="${v('comp')}" oninput="calcBudget()"></div>
+      <div class="field"><label>보증기간 (년)</label><select class="sel" id="fWy" oninput="calcBudget()"><option value="" ${(nm?(s.wy||''):5)===''?'selected':''}>미입력</option>${[1,2,3,5].map(y=>`<option value="${y}" ${(nm?(s.wy||''):5)==y?'selected':''}>${y}</option>`).join('')}</select></div></div>
       <div class="g2"><div class="field"><label>보증 기산 기준</label><select class="sel" id="fWb" onchange="calcBudget()">${W_BASIS.map(b=>`<option ${basis===b?'selected':''}>${b}</option>`).join('')}</select></div>
       <div class="field"><label>보증 기산일</label><input class="inp" type="date" id="fWs" value="${basis==='준공일'?v('comp'):v('wStart')}" oninput="calcBudget()"></div></div>
       <div class="field" id="fWnW"><label>기산 기준 메모 (기타일 때)</label><input class="inp" id="fWn" value="${esc(v('wNote'))}" placeholder="예: 입주자대표회의 인수인계일"></div>
@@ -2711,7 +2723,7 @@ function openSiteForm(nm, formal){
 }
 function formW(){
   const g=id=>document.getElementById(id);
-  const comp=g('fComp').value, wy=Number(g('fWy').value)||5, basis=g('fWb').value, man=g('fWm').checked;
+  const comp=g('fComp').value, wy=Number(g('fWy').value)||null, basis=g('fWb').value, man=g('fWm').checked;
   const ws=g('fWs'); if(basis==='준공일'){ ws.value=comp; ws.disabled=true; } else ws.disabled=false;
   g('fWnW').style.display = basis==='기타'?'':'none';
   const start = basis==='준공일'? comp : ws.value;
@@ -2722,30 +2734,30 @@ function formW(){
 function calcBudget(){
   const ct=(document.querySelector('#fCt button.on')||{}).dataset?.v, rev=Number((document.getElementById('fRev').value||'').replace(/,/g,''))||0;
   const w=formW(), r=rate(ct), b= r&&document.getElementById('fRev').value.trim()? budgetOf(rev,ct):null;
-  let zoneTx='—';
+  let zoneTx = !w.comp? '준공일 입력 후 계산' : !w.end? '보증기간 입력 후 계산' : '—';
   if(w.comp && w.end){
     if(ct==='기술자문(직영)' || w.wy<=3) zoneTx = `전 기간 시공소장 (~${fmtD(w.end)})`;
     else { const z3=addYears(new Date(w.comp),3).d; z3.setDate(z3.getDate()-1); zoneTx = `시공소장 ~${fmtD(z3)} (준공 후 3년) · 당사 ~${fmtD(w.end)}`; }
   }
   document.getElementById('bud').innerHTML = `<h5>하자예산 · 보증 미리보기</h5><dl class="kv"><dt>적용률</dt><dd>${r?(r*100).toFixed(1)+'%':'계약유형 선택'}</dd><dt>하자예산</dt><dd><b class="num big">${b!==null?won(b)+'원':'—'}</b></dd>
     <dt>보증기간</dt><dd>${w.start?fmtD(new Date(w.start)):'—'} ~ ${w.end?fmtD(w.end):'—'}${w.man&&w.auto&&w.end&&ymd(w.auto)!==ymd(w.end)?' <span class="tg tg-swap">수동</span>':''}</dd>
-    <dt>부담 구간</dt><dd>${zoneTx}</dd><dt>예산 귀속</dt><dd>${w.comp?w.comp.slice(0,4)+'년 준공 예산':'—'}</dd></dl>`;
+    <dt>부담 구간</dt><dd>${zoneTx}</dd><dt>예산 귀속</dt><dd>${w.comp?w.comp.slice(0,4)+'년 준공 예산':'준공일 미정 (입력하면 해당 연도로 귀속)'}</dd></dl>`;
 }
 async function saveSite(mode){
   const g=id=>document.getElementById(id).value.trim();
   const nm=g('fNm'), ct=(document.querySelector('#fCt button.on')||{}).dataset?.v, rev=num(g('fRev')), blds=g('fBld').split(/\s*,\s*/).filter(Boolean), w=formW();
-  const miss=[]; if(!nm)miss.push('현장명'); if(!g('fCo'))miss.push('업체명'); if(!ct)miss.push('계약유형'); if(!w.comp)miss.push('준공일'); if(g('fRev')===''||g('fRev')==='-')miss.push('확정매출액'); if(!blds.length)miss.push('시공소장');
+  const miss=[]; if(!nm)miss.push('현장명'); if(!g('fCo'))miss.push('업체명'); if(!ct)miss.push('계약유형'); if(g('fRev')===''||g('fRev')==='-')miss.push('확정매출액'); if(!blds.length)miss.push('시공소장');
   if(w.basis!=='준공일' && !w.start) miss.push('보증 기산일'); if(w.man && !g('fWe')) miss.push('보증 만료일');
   if(miss.length){ toast('필수 항목을 입력하세요 — '+miss.join(', ')); return; }
   if(mode==='new' && SITES[nm]){ toast('같은 이름의 현장이 이미 등록되어 있습니다'); return; }
   const wasWait = SITES[nm] && SITES[nm].wait;
-  const data={name:nm, co:g('fCo'), code:g('fCode'), ct, comp:w.comp, wy:w.wy, rev, gong:g('fGong'), area:num(g('fArea'))||null, blds, bld:blds.join(', '), addr:g('fAddr'),
+  const data={name:nm, co:g('fCo'), code:g('fCode'), ct, comp:w.comp||null, wy:w.wy||null, rev, gong:g('fGong'), area:num(g('fArea'))||null, blds, bld:blds.join(', '), addr:g('fAddr'),
     wStartBasis:w.basis, wStart:w.basis==='준공일'?null:w.start, wNote:w.basis==='기타'?g('fWn'):'', wEndManual:w.man, wEnd:w.man?g('fWe'):null, wait:false, updatedAt:iso()};
   if(mode==='new') data.createdAt=iso();
   try{ await DB.collection('sites').doc(sid(nm)).set(data,{merge:true}); }catch(e){ toast('저장 실패 · '+(e.code||e.message)); return; }
   closeDrawer();
   const b=budgetOf(rev,ct);
-  toast(mode==='formal'||wasWait ? `정식 등록 완료 — 하자예산 ${won(b)}원 편성 · 걸린 접수가 비용 확인으로 진행할 수 있습니다` : mode==='new'? `${nm} 등록 — 하자예산 ${won(b)}원 (${data.comp.slice(0,4)}년 준공 예산)` : '저장했습니다');
+  toast(mode==='formal'||wasWait ? `정식 등록 완료 — 하자예산 ${won(b)}원 편성 · 걸린 접수가 비용 확인으로 진행할 수 있습니다` : mode==='new'? `${nm} 등록 — 하자예산 ${won(b)}원 (${data.comp?data.comp.slice(0,4)+'년 준공 예산':'준공일 미정'})` : '저장했습니다');
 }
 
 /* ── 엑셀 일괄 등록 (하자보증 열 추가 · 뒤 4열은 선택) ── */
@@ -2766,17 +2778,17 @@ function readUpload(file){
     const dt = v => v instanceof Date ? ymd(v) : String(v||'').trim().replace(/\./g,'-');
     UP = rows.filter(r=>String(r['현장명']).trim() && !String(r['현장명']).startsWith('예시)')).map(r=>{
       const blds=String(r['시공소장']).split(/\s*,\s*/).filter(Boolean), basis=String(r['보증 기산기준']||'').trim()||'준공일';
-      const o = {nm:String(r['현장명']).trim(), co:String(r['업체명']).trim(), code:String(r['ERP 프로젝트코드']).trim(), ct:String(r['계약유형']).trim(), comp:dt(r['준공일']), wy:Number(r['보증기간(년)'])||5,
+      const o = {nm:String(r['현장명']).trim(), co:String(r['업체명']).trim(), code:String(r['ERP 프로젝트코드']).trim(), ct:String(r['계약유형']).trim(), comp:dt(r['준공일'])||null, wy:Number(r['보증기간(년)'])||null,
         rev:num(r['확정매출액']), gong:String(r['공종']).trim(), area:Number(r['면적(㎡)'])||null, blds, bld:blds.join(', '), addr:String(r['현장 주소']||'').trim(),
         wStartBasis:W_BASIS.includes(basis)?basis:'기타', wStart:dt(r['보증 기산일'])||null, wEnd:dt(r['보증 만료일'])||null, wNote:W_BASIS.includes(basis)?'':basis};
       o.wEndManual=!!o.wEnd; if(o.wStartBasis==='준공일') o.wStart=null;
-      const err=[]; if(!o.co)err.push('업체명'); if(o.ct==='특허료')err.push('특허료 현장은 편성 제외'); else if(!rate(o.ct))err.push('계약유형'); if(!/^\d{4}-\d{2}-\d{2}$/.test(o.comp))err.push('준공일'); if(String(r['확정매출액']).trim()==='')err.push('확정매출액'); if(!blds.length)err.push('시공소장');
+      const err=[]; if(!o.co)err.push('업체명'); if(o.ct==='특허료')err.push('특허료 현장은 편성 제외'); else if(!rate(o.ct))err.push('계약유형'); if(o.comp && !/^\d{4}-\d{2}-\d{2}$/.test(o.comp))err.push('준공일 형식'); if(String(r['확정매출액']).trim()==='')err.push('확정매출액'); if(!blds.length)err.push('시공소장');
       if(o.wStartBasis!=='준공일' && !/^\d{4}-\d{2}-\d{2}$/.test(o.wStart||'')) err.push('보증 기산일'); if(o.wEnd && !/^\d{4}-\d{2}-\d{2}$/.test(o.wEnd)) err.push('보증 만료일');
       o.st = SITES[o.nm]? (SITES[o.nm].wait?'formal':'dup') : err.length? 'err':'new'; if(o.st==='formal' && err.length) o.st='err'; o.err=err; o.sim = o.st==='new'? similar(o.nm):[];
       return o; });
     const n = UP.filter(o=>o.st==='new'||o.st==='formal').length;
     document.getElementById('upPrev').innerHTML = `<div class="upsum"><span class="stt st-ok">등록 ${n}</span><span class="stt st-end">이미 등록 ${UP.filter(o=>o.st==='dup').length}</span><span class="stt st-over">오류 ${UP.filter(o=>o.st==='err').length}</span></div>
-      <div class="uptbl"><table class="ct"><thead><tr><th>현장명</th><th>계약유형</th><th>준공일</th><th>보증 만료</th><th class="amt">하자예산(원)</th><th>결과</th></tr></thead><tbody>${UP.map(o=>`<tr><td>${esc(o.nm)}${o.sim.length?`<small class="d2 warn">비슷한 현장: ${esc(o.sim.join(', '))}</small>`:''}</td><td>${esc(o.ct||'—')}</td><td>${o.comp||'—'}</td><td>${(()=>{ const e=wEndOf(o); return e&&!isNaN(e)?fmtD(e):'—'; })()}</td><td class="amt">${rate(o.ct)?won(budgetOf(o.rev,o.ct)):'—'}</td>
+      <div class="uptbl"><table class="ct"><thead><tr><th>현장명</th><th>계약유형</th><th>준공일</th><th>보증 만료</th><th class="amt">하자예산(원)</th><th>결과</th></tr></thead><tbody>${UP.map(o=>`<tr><td>${esc(o.nm)}${o.sim.length?`<small class="d2 warn">비슷한 현장: ${esc(o.sim.join(', '))}</small>`:''}</td><td>${esc(o.ct||'—')}</td><td>${o.comp||'<span class="cap">미입력</span>'}</td><td>${(()=>{ const e=wEndOf(o); return e&&!isNaN(e)?fmtD(e):o.comp&&!o.wy?'<span class="cap">보증기간 미입력</span>':'—'; })()}</td><td class="amt">${rate(o.ct)?won(budgetOf(o.rev,o.ct)):'—'}</td>
       <td>${o.st==='new'?'<span class="stt st-ok">등록</span>':o.st==='formal'?'<span class="stt st-ok">확인 대기 → 정식 등록</span>':o.st==='dup'?'<span class="stt st-end">건너뜀</span>':`<span class="stt st-over">오류 · ${o.err.join(', ')}</span>`}</td></tr>`).join('')}</tbody></table></div>`;
     const b=document.getElementById('upGo'); b.disabled=!n; b.textContent=n?`${n}곳 등록`:'등록';
   };
@@ -2785,13 +2797,14 @@ function readUpload(file){
 
 /* ── 접수 서랍 현장 정보 (보증 만료 표시) ── */
 function siteBox(name){
-  const s=SITES[name], yr=gYear(name,TODAY), e=wEndOf(s), ex=wExpired(name,TODAY), z=ex?null:zone(name,yr);
+  const s=SITES[name], yr=gYear(name,TODAY), e=wEndOf(s), ex=wExpired(name,TODAY), z=ex?null:zone(name,yr), mi=wMiss(s);
   const con=conOf(s.co), bl=bldsOf(s).map(b=>{ const m=mgrOf(b); return `${esc(b)}${m&&m.phone?` <span class="cap">${esc(m.phone)}</span>`:''}`; }).join(', ');
   const ws=wStartOf(s);
-  const wRows = `<dt>준공일</dt><dd>${s.comp.replace(/-/g,'.')}</dd>
-    <dt>하자보증</dt><dd>${s.wy||5}년 <span class="cap">${ws?fmtD(new Date(ws)):'—'} ~ ${e?fmtD(e):'—'}${s.wStartBasis&&s.wStartBasis!=='준공일'?` · 기산 ${esc(s.wStartBasis)}`:''}</span></dd>
-    <dt>현재</dt><dd>${ex?'<span class="zt over">보증기간 경과</span>':`보증 <b>${yr}년차</b>${z?` <span class="zt ${z==='당사'?'our':'bld'}">${z} 책임 구간</span>`:''}`}</dd>`;
-  const exAlert = ex?`<div class="alert warn" style="margin-top:10px"><b>보증기간 경과</b> — ${fmtD(e)}에 만료된 현장입니다. 접수는 가능하지만 부담은 자동 판정되지 않고 직접 정합니다.</div>`:'';
+  const wRows = `<dt>준공일</dt><dd>${s.comp?s.comp.replace(/-/g,'.'):'<span class="zt over">미입력</span>'}</dd>
+    <dt>하자보증</dt><dd>${s.wy?s.wy+'년':'<span class="zt over">미입력</span>'} <span class="cap">${ws?fmtD(new Date(ws)):'—'} ~ ${e?fmtD(e):'—'}${s.wStartBasis&&s.wStartBasis!=='준공일'?` · 기산 ${esc(s.wStartBasis)}`:''}</span></dd>
+    <dt>현재</dt><dd>${ex?'<span class="zt over">보증기간 경과</span>':!yr?'<span class="cap">준공일 입력 후 연차 계산</span>':`보증 <b>${yr}년차</b>${z?` <span class="zt ${z==='당사'?'our':'bld'}">${z} 책임 구간</span>`:''}`}</dd>`;
+  const exAlert = ex?`<div class="alert warn" style="margin-top:10px"><b>보증기간 경과</b> — ${fmtD(e)}에 만료된 현장입니다. 접수는 가능하지만 부담은 자동 판정되지 않고 직접 정합니다.</div>`
+    : mi.length?`<div class="alert warn" style="margin-top:10px"><b>${mi.join('·')} 미입력</b> — 접수는 가능하지만 부담은 자동 판정되지 않고 직접 정합니다. 확인되면 현장·예산 화면에서 현장을 「수정」해 입력하세요.</div>`:'';
   if(s.wait) return `<div class="confirm"><h5>${esc(name)} <span class="tg tg-wait">확인 대기</span></h5><dl class="kv"><dt>업체</dt><dd>${esc(s.co)}</dd>${wRows}<dt>시공소장</dt><dd>${bl}</dd><dt>예산</dt><dd class="cap">정식 등록 후 산정</dd></dl>${exAlert}</div>`;
   const p=s.budget? s.spent/s.budget*100 : 0;
   return `<div class="confirm"><h5>${esc(name)}</h5><dl class="kv">
@@ -2803,7 +2816,8 @@ function siteBox(name){
 }
 
 /* ── 현장·예산 화면 알림 ── */
-function ppBanner(){
+function ppBanner(){ return missBanner()+ppBanner0(); }
+function ppBanner0(){
   if(PP.st!=='ok') return PP.st==='err'?`<div class="banner soft"><img class="bi2" src="${ICON.c_link}" alt=""><div><b>pour-pay에 연결하지 못했습니다</b><span>${esc(PP.err)} · 완료 현장 가져오기를 쓰려면 pour-pay 연결이 필요합니다. 기존 등록 현장과 접수는 그대로 쓸 수 있습니다.</span></div><button class="btn btn-line" onclick="ppLoad(true)">다시 읽기</button></div>`:'';
   const sc=ppScan(), n=sc.pend.length, c=sc.chg.length; if(!n&&!c) return '';
   return `<div class="banner"><img class="bi2" src="${ICON.c_link}" alt=""><div><b>${n?`pour-pay 완료 현장 ${n}곳 가져오기 대기`:''}${n&&c?' · ':''}${c?`pour-pay에서 값이 바뀐 등록 현장 ${c}곳`:''}</b><span>pour-pay에서 정산·입금까지 끝나 완료 단계로 넘어간 컨설팅 현장입니다. 확정매출(컨설팅 총액)·준공일·시공소장을 확인하고 등록하면 하자예산이 편성됩니다.</span></div><button class="btn btn-yel" onclick="openPPImport()">확인하고 가져오기</button></div>`;
@@ -2820,7 +2834,7 @@ function softCost(){
 function siteHits(q){ const k=normName(q); return q? Object.keys(SITES).filter(n=>n.includes(q) || (k && normName(n).includes(k)) || (SITES[n].addr||'').includes(q)) : []; }
 function intakeRes(){
   const q=intake.q.trim(), hits=siteHits(q); let h='';
-  if(q && hits.length) h += `<div class="res">${hits.map(n=>{const s=SITES[n];return `<button data-site="${esc(n)}" class="${intake.site===n?'on':''}"><b>${esc(n)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}${wExpired(n,TODAY)?'<span class="tg tg-swap">보증 경과</span>':''}<small>${esc(s.co)} · 준공 ${s.comp.slice(0,7).replace('-','.')} · 보증 ${gYear(n,TODAY)}년차</small></button>`;}).join('')}</div>`;
+  if(q && hits.length) h += `<div class="res">${hits.map(n=>{const s=SITES[n];return `<button data-site="${esc(n)}" class="${intake.site===n?'on':''}"><b>${esc(n)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}${wExpired(n,TODAY)?'<span class="tg tg-swap">보증 경과</span>':''}<small>${esc(s.co)} · ${s.comp?`준공 ${s.comp.slice(0,7).replace('-','.')} · 보증 ${gYear(n,TODAY)}년차`:'준공일 미입력'}${s.comp&&!s.wy?' · 보증기간 미입력':''}</small></button>`;}).join('')}</div>`;
   if(q && !hits.length) h += `<div class="noresult"><b>「${esc(q)}」</b> 현장이 마스터에 없습니다.<br>아는 정보 4가지만 넣어 간이 등록하면 접수를 바로 이어갈 수 있습니다. 나머지는 대금관리자가 채워 정식 등록합니다.<br><button class="btn btn-ter" style="margin-top:12px" id="goQuick">간이 등록으로 계속</button></div>`;
   if(!q) h += `<p class="cap">현장명 일부를 입력하세요. 비슷한 이름이 많으니 결과의 업체·준공 연월을 함께 확인하세요.</p>`;
   if(intake.site) h += siteBox(intake.site) + intakeForm();
