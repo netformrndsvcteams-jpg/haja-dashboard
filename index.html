@@ -2519,16 +2519,21 @@ function ppScan(){
   const done = cons.filter(ppIsDone).map(ppRow), notDone = cons.filter(s=>!ppIsDone(s) && s.endDate);
   const pend=[], chg=[];
   done.forEach(r=>{
-    if(linked[r.id]){ const s=SITES[linked[r.id]], a=s.ppSnap||{}, b=ppSnapOf(r);
+    if(linked[r.id]){ const s=SITES[linked[r.id]], a={...(s.ppSnap||{}), nm:s.ppNm||s.name}, b={...ppSnapOf(r), nm:r.nm};
       const diff=Object.keys(b).filter(k=>String(a[k]??'')!==String(b[k]??'')); if(diff.length) chg.push({r, site:s.name, diff, a, b}); return; }
-    const ex = SITES[r.nm] ? r.nm : Object.keys(SITES).find(n=>!SITES[n].pp && normName(n)===normName(r.nm));
+    /* 같은 이름이 이미 다른 pour-pay 현장과 연결돼 있으면 덮어쓰지 않음 */
+    const taken = SITES[r.nm] && SITES[r.nm].pp && SITES[r.nm].pp!==r.id;
+    const ex = taken ? null : SITES[r.nm] ? r.nm : Object.keys(SITES).find(n=>!SITES[n].pp && normName(n)===normName(r.nm));
+    r.conflict = taken ? `하자 현장 「${r.nm}」은 이미 다른 pour-pay 현장과 연결돼 있습니다` : '';
     r.match = ex||null; r.matchWait = !!(ex && SITES[ex].wait);
     r.sim = ex? [] : similar(r.nm).filter(n=>!SITES[n].pp);
     pend.push(r);
   });
+  const cnt={}; pend.forEach(r=>cnt[r.nm]=(cnt[r.nm]||0)+1);
+  pend.forEach(r=>{ if(cnt[r.nm]>1 && !r.conflict) r.conflict=`pour-pay에 같은 이름 「${r.nm}」 완료 현장이 ${cnt[r.nm]}곳 있습니다`; });
   return {pend, chg, notDone, done};
 }
-function rowIssues(r){ const e=[]; if(!/^\d{4}-\d{2}-\d{2}$/.test(r.comp||'')) e.push('준공일'); if(!r.wy) e.push('보증기간'); if(!r.blds.length) e.push('시공소장'); return e; }
+function rowIssues(r){ const e=[]; if(r.conflict) e.push('이름 중복'); if(!/^\d{4}-\d{2}-\d{2}$/.test(r.comp||'')) e.push('준공일'); if(!r.wy) e.push('보증기간'); if(!r.blds.length) e.push('시공소장'); return e; }
 
 /* ── 가져오기 서랍 ── */
 let PPI = null;
@@ -2554,12 +2559,12 @@ function drawPPImport(sc){
       ${sc.notDone.length?`<p class="cap" style="margin:8px 0 0">준공일은 있지만 아직 완료되지 않은 현장 ${sc.notDone.length}곳은 가져오지 않습니다 — 그 사이 하자가 나면 접수 화면의 간이 등록(확인 대기)으로 받고, 완료 후 여기서 연결합니다.</p>`:''}
     </div>
     ${PPI.chg.length?`<div class="dsec"><h4>변경 있음 ${PPI.chg.length}곳 <span class="cap" style="font-weight:400">이미 등록한 현장의 pour-pay 값이 바뀌었습니다 · 누르기 전에는 반영되지 않습니다</span></h4>
-      <div class="uptbl"><table class="ct"><thead><tr><th>현장</th><th>바뀐 항목</th><th style="width:90px"></th></tr></thead><tbody>${PPI.chg.map((c,k)=>`<tr><td>${esc(c.site)}</td><td>${c.diff.map(f=>`${{comp:'준공일',rev:'확정매출',blds:'시공소장',co:'시공사'}[f]} ${f==='rev'?won(c.a[f]):esc(c.a[f]??'—')} → <b>${f==='rev'?won(c.b[f]):esc(c.b[f])}</b>`).join('<br>')}</td><td><button class="btn btn-line sm" onclick="ppApplyChg(${k})">반영</button></td></tr>`).join('')}</tbody></table></div></div>`:''}
+      <div class="uptbl"><table class="ct"><thead><tr><th>현장</th><th>바뀐 항목</th><th style="width:90px"></th></tr></thead><tbody>${PPI.chg.map((c,k)=>`<tr><td>${esc(c.site)}</td><td>${c.diff.map(f=>`${{comp:'준공일',rev:'확정매출',blds:'시공소장',co:'시공사',nm:'현장명'}[f]} ${f==='rev'?won(c.a[f]):esc(c.a[f]??'—')} → <b>${f==='rev'?won(c.b[f]):esc(c.b[f])}</b>`).join('<br>')}</td><td><button class="btn btn-line sm" onclick="ppApplyChg(${k})">${c.diff.includes('nm')?'이름까지 반영':'반영'}</button></td></tr>`).join('')}</tbody></table></div></div>`:''}
     <div class="dsec"><h4>새로 가져올 현장 ${R.length}곳</h4>
       ${R.length?`<p class="cap" style="margin-bottom:10px">빨간 칸은 pour-pay에 값이 없어 직접 채워야 합니다 · 확정매출이 마이너스인 현장은 하자예산 0원으로 등록합니다(준공 현장이라 하자 접수는 가능) · 같은 이름의 확인 대기 현장이 있으면 그 현장에 연결해 정식 등록합니다</p>
       <div class="uptbl pptbl"><table class="ct"><thead><tr><th style="width:34px"><input type="checkbox" ${sel.length===R.length?'checked':''} onchange="PPI.rows.forEach(r=>r.on=this.checked);drawPPImport()"></th><th>현장 · 시공사</th><th style="width:118px">유형</th><th style="width:150px">준공일</th><th style="width:96px">보증</th><th class="amt" style="width:140px">확정매출(원)</th><th class="amt" style="width:104px">하자예산(원)</th><th style="width:150px">시공소장</th><th style="width:96px">완료일</th></tr></thead><tbody>
       ${R.map((r,k)=>{ const is=rowIssues(r); return `<tr class="${r.on?'':'off'}"><td><input type="checkbox" ${r.on?'checked':''} onchange="PPI.rows[${k}].on=this.checked;drawPPImport()"></td>
-        <td><b>${esc(r.nm)}</b>${r.composite?' <span class="tg tg-swap">복합</span>':''}<small class="d2">${esc(r.co||'시공사 없음')}${r.match?` · <b style="color:var(--sky)">${r.matchWait?'확인 대기 현장':'기존 등록 현장'} 「${esc(r.match)}」에 연결</b>`:''}${r.sim&&r.sim.length?` · <span class="warn">비슷한 현장: ${esc(r.sim.join(', '))}</span>`:''}</small></td>
+        <td><b>${esc(r.nm)}</b>${r.composite?' <span class="tg tg-swap">복합</span>':''}<small class="d2">${esc(r.co||'시공사 없음')}${r.match?` · <b style="color:var(--sky)">${r.matchWait?'확인 대기 현장':'기존 등록 현장'} 「${esc(r.match)}」에 연결</b>`:''}${r.sim&&r.sim.length?` · <span class="warn">비슷한 현장: ${esc(r.sim.join(', '))}</span>`:''}${r.conflict?`<br><b class="warn" style="color:var(--warn-tx)">이름 중복 — ${esc(r.conflict)} · pour-pay에서 현장명을 구분(예: (2))한 뒤 다시 읽으세요</b>`:''}</small></td>
         <td>${r.ct}</td>
         <td>${is.includes('준공일')?`<input type="date" class="inp mini bad" onchange="PPI.rows[${k}].comp=this.value;ppFix(${k})">`:r.comp.replace(/-/g,'.')}</td>
         <td><select class="sel mini ${r.wy?'':'bad'}" onchange="PPI.rows[${k}].wy=Number(this.value)||null;ppFix(${k})">${wyOpt(r.wy)}</select></td>
@@ -2588,10 +2593,19 @@ async function ppCommit(){
   closeDrawer(); toast(`pour-pay 완료 현장 ${ok.length}곳 등록 · 하자예산 ${won(ok.reduce((a,r)=>a+budgetOf(r.rev,r.ct),0))}원 편성${ok.some(r=>!(r.rev>0))?` (마이너스 현장 ${ok.filter(r=>!(r.rev>0)).length}곳은 0원)`:''}`);
 }
 async function ppApplyChg(k){
-  const c=PPI.chg[k]; if(!c) return; const b=c.b, patch={ppSnap:b, updatedAt:iso()};
-  c.diff.forEach(f=>{ if(f==='blds'){ patch.blds=b.blds.split(/\s*,\s*/).filter(Boolean); patch.bld=b.blds; } else patch[f]=b[f]; });
-  try{ await DB.collection('sites').doc(sid(c.site)).set(patch,{merge:true}); }catch(e){ toast('반영 실패 · '+(e.code||e.message)); return; }
-  PPI.chg.splice(k,1); toast(`${c.site} 변경 반영`); setTimeout(()=>drawPPImport(),150);
+  const c=PPI.chg[k]; if(!c) return; const b=c.b, snap={comp:b.comp, rev:b.rev, blds:b.blds, co:b.co}, patch={ppSnap:snap, ppNm:b.nm, updatedAt:iso()};
+  c.diff.forEach(f=>{ if(f==='nm') return; if(f==='blds'){ patch.blds=b.blds.split(/\s*,\s*/).filter(Boolean); patch.bld=b.blds; } else patch[f]=b[f]; });
+  try{
+    if(c.diff.includes('nm') && b.nm!==c.site){   /* 현장명 변경 — 현장 문서를 새 이름으로 옮기고 접수 건의 현장명도 함께 바꿈 */
+      if(SITES[b.nm]){ toast(`「${b.nm}」 현장이 이미 있어 이름을 바꿀 수 없습니다`); return; }
+      if(!confirm(`하자 현장 「${c.site}」을(를) 「${b.nm}」(으)로 바꿉니다. 이 현장의 접수 건도 함께 바뀝니다.`)) return;
+      const old = RAW.sites[sid(c.site)]||{}, bt=DB.batch();
+      bt.set(DB.collection('sites').doc(sid(b.nm)), {...old, ...patch, name:b.nm});
+      ITEMS.filter(i=>i.site===c.site).forEach(i=>bt.set(DB.collection('cases').doc(i.id), {site:b.nm, updatedAt:iso(), log:logEntry(`현장명 변경 ${c.site} → ${b.nm} (pour-pay)`)}, {merge:true}));
+      await bt.commit(); await DB.collection('sites').doc(sid(c.site)).delete();
+    } else await DB.collection('sites').doc(sid(c.site)).set(patch,{merge:true});
+  }catch(e){ toast('반영 실패 · '+(e.code||e.message)); return; }
+  toast(`${c.site} 변경 반영`); setTimeout(()=>openPPImport(),300);
 }
 
 /* ── ⚙ 설정 : 운영 기준 · 소장 · 시공사 (기준 데이터) ── */
