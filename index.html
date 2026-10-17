@@ -618,6 +618,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .inp.bad,.sel.bad{border-color:#ff9a9a;background:#fff4f4}
 .srct{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}.srct.pp{background:#e6f3ff;color:#0f6fc2}.srct.lc{background:#fff3d6;color:#8a5a00}
 .ppst{margin-left:auto;display:flex;gap:8px;align-items:center}
+.settabs{margin-top:14px;display:inline-flex}.settools{display:flex;gap:10px;align-items:center;margin-bottom:12px}.settools .inp{max-width:300px}
 .d2.warn{color:var(--warn-tx)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1082,7 +1083,6 @@ const CF = {view:'overview', period:String(CY), q:'', cy:'', cct:'', cst:'', det
 const CVIEWS = [
   ['overview','개요','1f4ca','준공연도별 예산·집행'],
   ['sites','현장·예산','1f3e2','등록·하자예산 편성'],
-  ['people','소장·시공사','1f477','pour-pay 명단 + 직접 등록'],
   ['burden','부담 판정','2696-fe0f','판정별 비용'],
   ['subpay','대납 누적','1f91d','시공소장별 기록'],
   ['pay','기안·지급','1f4b8','5~7단계 돈 흐름'],
@@ -1106,8 +1106,7 @@ function head(title, tag, sub, right=''){
 function renderCost(){
   renderCostNav();
   const m = document.getElementById('cmain');
-  m.innerHTML = ({overview:vOverview, sites:vSites, people:vPeople, burden:vBurden, subpay:vSubpay, pay:vPay, ret:vRet}[CF.view]||vOverview)();
-  if(CF.view==='people' && PF._f){ const q=document.getElementById('pQ'); if(q){ q.focus(); q.setSelectionRange(q.value.length,q.value.length); } PF._f=0; }
+  m.innerHTML = ({overview:vOverview, sites:vSites, burden:vBurden, subpay:vSubpay, pay:vPay, ret:vRet}[CF.view]||vOverview)();
   if(CF.view==='sites'){ const q=document.getElementById('sQ'); if(q && CF._focusQ){ q.focus(); q.setSelectionRange(q.value.length,q.value.length); CF._focusQ=false; } }
 }
 
@@ -2052,7 +2051,7 @@ function setupNotice(){
   const miss=[]; if(!CFG.recv.length) miss.push('접수자 명단'); if(!WORKERS.length) miss.push('소장 명단'); if(!CFG.payMgr) miss.push('대금관리자');
   const noSite = !Object.keys(SITES).length;
   el.hidden = !(LOADED.config && (miss.length || noSite));
-  el.innerHTML = `<b>처음 설정이 필요합니다</b><span>${miss.length?`⚙ 설정에서 ${miss.filter(m=>m!=='소장 명단').join('·')||''}${miss.includes('소장 명단')?' · 소장 명단은 pour-pay에서 자동으로 들어옵니다 (비용 › 소장·시공사)':''}. `:''}${noSite?'비용 › 현장·예산에서 「pour-pay 완료 현장 가져오기」로 현장을 등록하세요 (pour-pay에 없는 과거 현장은 엑셀 일괄 등록).':''}</span><button class="btn btn-yel sm" onclick="openSettings()">설정 열기</button>`;
+  el.innerHTML = `<b>처음 설정이 필요합니다</b><span>${miss.length?`⚙ 설정에서 ${miss.filter(m=>m!=='소장 명단').join('·')||''}${miss.includes('소장 명단')?' · 소장 명단은 pour-pay에서 자동으로 들어옵니다 (⚙ 설정 › 소장)':''}. `:''}${noSite?'비용 › 현장·예산에서 「pour-pay 완료 현장 가져오기」로 현장을 등록하세요 (pour-pay에 없는 과거 현장은 엑셀 일괄 등록).':''}</span><button class="btn btn-yel sm" onclick="openSettings()">설정 열기</button>`;
 }
 
 /* ── 저장 도우미 ── */
@@ -2387,28 +2386,11 @@ async function commitLabor(){
 }
 
 /* ── 설정 · 백업 ── */
-function openSettings(){
-  openDrawer(`<div class="dh"><div class="k">설정</div><h3>명단 · 운영 기준</h3><div class="m">모든 사용자에게 같이 적용됩니다</div><button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
-    <div class="db"><div class="dsec">
-      <div class="field"><label>접수자 명단 (영업담당자 · 한 줄에 한 명)</label><textarea id="sRecv" style="height:120px">${esc(CFG.recv.join('\n'))}</textarea></div>
-      <div class="field"><label>소장 명단</label><p class="cap">pour-pay 소장 명단이 자동으로 들어옵니다 (현재 ${WORKERS.length}명). pour-pay에 없는 소장은 <a href="#cost/people" onclick="closeDrawer()">비용 › 소장·시공사</a>에서 직접 등록하세요.</p></div>
-      <div class="g2"><div class="field"><label>대금관리자</label><input class="inp" id="sPay" value="${esc(CFG.payMgr)}"></div>
-      <div class="field"><label>운영 시작일</label><input class="inp" type="date" id="sStart" value="${CFG.startDate||ymd(TODAY)}"></div></div>
-      <p class="cap">운영 시작일 이전의 ERP 출고·노임은 「과거 집행」으로, 이후는 접수 건에서 입력한 비용으로 집계합니다.</p>
-    </div>
-    <div class="dsec"><h4>백업 · 저장공간</h4>
-      <p class="cap" id="sStor">사진 저장공간 확인 중…</p>
-      <button class="btn btn-line sm" onclick="exportAll()" style="margin-top:10px">전체 데이터 엑셀로 내려받기</button>
-      <p class="cap" style="margin-top:8px">자동 백업(유료)을 쓰지 않으므로 월 1회 내려받아 보관하세요. 사진은 드라이브 「하자관리_사진」 폴더에 현장·접수번호별로 저장됩니다.</p>
-    </div></div>
-    <div class="df"><button class="btn btn-ghost" onclick="closeDrawer()">취소</button><button class="btn btn-pri" onclick="saveSettings()">저장</button></div>`);
-  const el=document.getElementById('stor'); document.getElementById('sStor').textContent = el && el.textContent ? `${el.textContent} · ${el.title||''}` : '사진 저장소 응답 없음';
-}
 async function saveSettings(){
   const lines=id=>[...new Set(document.getElementById(id).value.split(/\n|,/).map(s=>s.trim()).filter(Boolean))];
   try{ await DB.collection('config').doc('main').set({recv:lines('sRecv'), payMgr:document.getElementById('sPay').value.trim(), startDate:document.getElementById('sStart').value||ymd(TODAY), updatedAt:iso()},{merge:true}); }
   catch(e){ toast('저장 실패 · '+(e.code||e.message)); return; }
-  closeDrawer(); toast('설정을 저장했습니다');
+  SET.draft=null; closeDrawer(); toast('설정을 저장했습니다');
 }
 function exportAll(){
   if(typeof XLSX==='undefined'){ toast('엑셀 모듈을 불러오지 못했습니다'); return; }
@@ -2479,7 +2461,7 @@ async function ppLoad(manual){
     ppSaveDir();
     if(manual) toast(`pour-pay 읽기 완료 · 현장 ${PP.sites.length} · 소장 ${PP.mgrs.length} · 시공사 ${PP.cons.length}`);
   }catch(e){ PP.st='err'; PP.err=e.code||e.message; if(manual) toast('pour-pay 읽기 실패 · '+PP.err); }
-  rebuild();
+  rebuild(); if(document.getElementById('pTbl') && drawer.classList.contains('on')) openSettings(SET.tab);
 }
 /* 명부 사본 — 계좌·비밀번호·서류 이미지는 담지 않음 */
 function ppSaveDir(){
@@ -2494,9 +2476,9 @@ function ppSaveDir(){
   if(JSON.stringify(c)!==JSON.stringify(DIR.ppCon)) DB.collection('config').doc('ppCon').set({list:c, at:iso()}).catch(()=>{});
 }
 function dirListen(){
-  DB.collection('config').doc('ppMgr').onSnapshot(d=>{ const v=d.exists?d.data():{}; DIR.ppMgr=v.list||[]; DIR.ppAt=v.at||DIR.ppAt; rebuild(); });
-  DB.collection('config').doc('ppCon').onSnapshot(d=>{ const v=d.exists?d.data():{}; DIR.ppCon=v.list||[]; rebuild(); });
-  DB.collection('config').doc('dirLocal').onSnapshot(d=>{ const v=d.exists?d.data():{}; DIR.mgrs=v.mgrs||[]; DIR.cons=v.cons||[]; rebuild(); });
+  DB.collection('config').doc('ppMgr').onSnapshot(d=>{ const v=d.exists?d.data():{}; DIR.ppMgr=v.list||[]; DIR.ppAt=v.at||DIR.ppAt; rebuild(); refreshPeople(); });
+  DB.collection('config').doc('ppCon').onSnapshot(d=>{ const v=d.exists?d.data():{}; DIR.ppCon=v.list||[]; rebuild(); refreshPeople(); });
+  DB.collection('config').doc('dirLocal').onSnapshot(d=>{ const v=d.exists?d.data():{}; DIR.mgrs=v.mgrs||[]; DIR.cons=v.cons||[]; rebuild(); refreshPeople(); });
 }
 function allMgrs(){ return [...DIR.ppMgr.map(x=>({...x, src:'pp'})), ...DIR.mgrs.map(x=>({...x, src:'local'}))]; }
 function allCons(){ return [...DIR.ppCon.map(x=>({...x, src:'pp'})), ...DIR.cons.map(x=>({...x, src:'local'}))]; }
@@ -2610,43 +2592,68 @@ async function ppApplyChg(k){
   PPI.chg.splice(k,1); toast(`${c.site} 변경 반영`); setTimeout(()=>drawPPImport(),150);
 }
 
-/* ── 소장 · 시공사 명부 (비용 › 소장·시공사) ── */
-const PF = {kind:'mgr', q:''};
-function vPeople(){
-  const M=allMgrs(), C=allCons(), q=PF.q.trim();
-  const bldN={}, hdN={}, coN={};
+/* ── ⚙ 설정 : 운영 기준 · 소장 · 시공사 (기준 데이터) ── */
+const SET = {tab:'base', q:'', draft:null};
+function setDraft(){ const g=id=>document.getElementById(id); if(g('sRecv')) SET.draft={recv:g('sRecv').value, pay:g('sPay').value, start:g('sStart').value}; }
+function openSettings(tab){
+  if(!drawer.classList.contains('on')) SET.draft=null; else if(SET.tab==='base') setDraft();
+  if(tab){ if(tab!==SET.tab) SET.q=''; SET.tab=tab; } else SET.tab='base';
+  const t=SET.tab, M=allMgrs(), C=allCons(), d=SET.draft;
+  const tabs=`<div class="seg settabs">${[['base','운영 기준',''],['mgr','소장',M.length],['con','시공사',C.length]].map(([k,l,n])=>`<button class="${t===k?'on':''}" onclick="openSettings('${k}')">${l}${n!==''?` <b>${n}</b>`:''}</button>`).join('')}</div>`;
+  let body, foot;
+  if(t==='base'){
+    body = `<div class="dsec">
+      <div class="field"><label>접수자 명단 (영업담당자 · 한 줄에 한 명)</label><textarea id="sRecv" style="height:120px">${esc(d?d.recv:CFG.recv.join('\n'))}</textarea></div>
+      <div class="field"><label>소장 · 시공사 명단</label><p class="cap">pour-pay 명단이 자동으로 들어옵니다 (소장 ${M.length}명 · 시공사 ${C.length}곳). pour-pay에 없는 경우만 위의 「소장」 「시공사」 칸에서 직접 등록하세요.</p></div>
+      <div class="g2"><div class="field"><label>대금관리자</label><input class="inp" id="sPay" value="${esc(d?d.pay:CFG.payMgr)}"></div>
+      <div class="field"><label>운영 시작일</label><input class="inp" type="date" id="sStart" value="${d?d.start:(CFG.startDate||ymd(TODAY))}"></div></div>
+      <p class="cap">운영 시작일 이전의 ERP 출고·노임은 「과거 집행」으로, 이후는 접수 건에서 입력한 비용으로 집계합니다.</p>
+    </div>
+    <div class="dsec"><h4>백업 · 저장공간</h4>
+      <p class="cap" id="sStor">사진 저장공간 확인 중…</p>
+      <button class="btn btn-line sm" onclick="exportAll()" style="margin-top:10px">전체 데이터 엑셀로 내려받기</button>
+      <p class="cap" style="margin-top:8px">자동 백업(유료)을 쓰지 않으므로 월 1회 내려받아 보관하세요. 사진은 드라이브 「하자관리_사진」 폴더에 현장·접수번호별로 저장됩니다.</p>
+    </div>`;
+    foot = `<button class="btn btn-ghost" onclick="closeDrawer()">취소</button><button class="btn btn-pri" onclick="saveSettings()">저장</button>`;
+  } else {
+    const ppLine = PP.st==='ok' ? `<span class="stt st-ok">pour-pay 연결 · ${hhmm(PP.at)} 읽음</span>`
+      : PP.st==='err' ? `<span class="stt st-over">pour-pay 연결 실패 · ${esc(PP.err)}</span><span class="cap">마지막 사본${DIR.ppAt?' '+fmtD(new Date(DIR.ppAt)):''}으로 표시 중</span>`
+      : `<span class="stt st-end">pour-pay 읽는 중…</span>`;
+    body = `<div class="dsec"><div class="settools"><input class="inp" id="pQ" placeholder="이름·상호·사업자번호 검색" value="${esc(SET.q)}" autocomplete="off"><div class="ppst">${ppLine}</div>
+        <button class="btn btn-line sm" onclick="ppLoad(true)"><img class="bi" src="${ICON.c_link}" alt="">pour-pay 다시 읽기</button></div>
+      <div id="pTbl">${peopleTable()}</div>
+      <p class="cap" style="margin-top:10px">pour-pay 명단은 대시보드를 열 때마다 다시 읽어 사본을 갱신합니다 · pour-pay에 접속할 수 없을 때는 마지막 사본으로 동작합니다 · 계좌·서류는 여기 보관하지 않습니다 · 같은 이름이 pour-pay에 생기면 직접 등록분은 지워도 됩니다</p></div>`;
+    foot = `<button class="btn btn-ghost" onclick="closeDrawer()">닫기</button><button class="btn btn-pri" onclick="openPersonForm('${t}')">＋ ${t==='mgr'?'소장':'시공사'} 직접 등록</button>`;
+  }
+  openDrawer(`<div class="dh"><div class="k">설정 · 기준 정보</div><h3>${t==='base'?'명단 · 운영 기준':t==='mgr'?'소장 명부':'시공사 명부'}</h3><div class="m">모든 사용자에게 같이 적용됩니다</div><button class="x" aria-label="닫기" onclick="closeDrawer()">×</button>${tabs}</div>
+    <div class="db">${body}</div><div class="df">${foot}</div>`);
+  if(t!=='base'){ drawer.classList.add('wide'); const q=document.getElementById('pQ'); q.oninput=()=>{ SET.q=q.value; document.getElementById('pTbl').innerHTML=peopleTable(); }; }
+  else { const el=document.getElementById('stor'); document.getElementById('sStor').textContent = el && el.textContent ? `${el.textContent} · ${el.title||''}` : '사진 저장소 응답 없음'; }
+}
+function peopleTable(){
+  const t=SET.tab, q=SET.q.trim(), bldN={}, hdN={}, coN={};
   Object.values(SITES).forEach(s=>{ bldsOf(s).forEach(b=>bldN[b]=(bldN[b]||0)+1); const k=nkey(s.co); if(k) coN[k]=(coN[k]||0)+1; });
   ITEMS.forEach(i=>{ if(i.hd) hdN[i.hd]=(hdN[i.hd]||0)+1; });
-  const ppLine = PP.st==='ok' ? `<span class="stt st-ok">pour-pay 연결 · ${hhmm(PP.at)} 읽음</span>`
-    : PP.st==='err' ? `<span class="stt st-over">pour-pay 연결 실패 · ${esc(PP.err)}</span><span class="cap">마지막 사본${DIR.ppAt?' '+fmtD(new Date(DIR.ppAt)):''}으로 표시 중</span>`
-    : `<span class="stt st-end">pour-pay 읽는 중…</span>`;
-  const mf = M.filter(m=>!q||[m.name,m.phone,m.bizName,m.bizNumber].join(' ').includes(q));
-  const cf = C.filter(c=>!q||[c.name,c.bizName,c.bizNo,c.ceoName,c.contactName].join(' ').includes(q));
   const tag = x => x.src==='pp'?'<span class="srct pp">pour-pay</span>':'<span class="srct lc">직접 등록</span>';
-  const act = (x,kind) => x.src==='local'?`<button class="btn btn-ghost sm" onclick="openPersonForm('${kind}','${x.id}')">수정</button>`:'<span class="cap">pour-pay에서 수정</span>';
-  return head('소장·시공사', `소장 ${M.length} · 시공사 ${C.length}`, 'pour-pay 명단(자동 갱신 사본)에 pour-pay에 없는 소장·시공사를 직접 등록해 함께 씁니다 · 계좌·서류는 여기 보관하지 않습니다',
-      `<button class="btn btn-line" onclick="ppLoad(true)"><img class="bi" src="${ICON.c_link}" alt="">pour-pay 다시 읽기</button>
-       <button class="btn btn-pri" onclick="openPersonForm('${PF.kind}')">＋ ${PF.kind==='mgr'?'소장':'시공사'} 직접 등록</button>`)
-    + `<div class="tools"><div class="seg"><button class="${PF.kind==='mgr'?'on':''}" onclick="PF.kind='mgr';renderCost()">소장 <b>${M.length}</b></button><button class="${PF.kind==='con'?'on':''}" onclick="PF.kind='con';renderCost()">시공사 <b>${C.length}</b></button></div>
-      <input class="inp" id="pQ" placeholder="이름·상호·사업자번호 검색" value="${esc(PF.q)}" oninput="PF.q=this.value;softCost()"><div class="ppst">${ppLine}</div></div>`
-    + (PF.kind==='mgr'
-      ? `<div class="tcard"><table class="ct"><thead><tr><th style="width:120px">소장</th><th style="width:130px">연락처</th><th>상호 · 사업자등록번호</th><th>사업장 주소</th><th class="amt" style="width:90px">시공 현장</th><th class="amt" style="width:90px">처리 건</th><th style="width:96px">출처</th><th style="width:110px"></th></tr></thead><tbody>
-        ${mf.map(m=>`<tr><td><b>${esc(m.name)}</b></td><td>${esc(m.phone||'—')}</td><td>${esc(m.bizName||'—')}${m.bizNumber?`<small class="d2">${esc(m.bizNumber)}</small>`:''}${(m.extra||[]).map(a=>`<small class="d2">추가 · ${esc(a.bizName)} ${esc(a.bizNumber)}</small>`).join('')}</td><td class="cap">${esc(m.bizAddress||'—')}</td><td class="amt">${bldN[m.name]||0}</td><td class="amt">${hdN[m.name]||0}</td><td>${tag(m)}</td><td>${act(m,'mgr')}</td></tr>`).join('')||'<tr><td colspan="8" class="empty">등록된 소장이 없습니다</td></tr>'}
-        </tbody></table></div>`
-      : `<div class="tcard"><table class="ct"><thead><tr><th style="width:150px">시공사</th><th>상호 · 사업자등록번호</th><th style="width:90px">대표자</th><th style="width:150px">업태 · 종목</th><th style="width:150px">담당자 · 연락처</th><th>계산서 이메일</th><th class="amt" style="width:80px">현장</th><th style="width:96px">출처</th><th style="width:110px"></th></tr></thead><tbody>
-        ${cf.map(c=>{ const miss=!c.bizNo; return `<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.bizName||c.name)}${c.bizNo?`<small class="d2">${esc(c.bizNo)}</small>`:'<small class="d2 warn">사업자번호 없음</small>'}</td><td>${esc(c.ceoName||'—')}</td><td class="cap">${esc([c.bizType,c.bizItem].filter(Boolean).join(' · ')||'—')}</td><td>${esc(c.contactName||'—')}${c.contactPhone?`<small class="d2">${esc(c.contactPhone)}</small>`:''}</td><td class="cap">${esc(c.bizEmail||'—')}</td><td class="amt">${coN[nkey(c.name)]||0}</td><td>${tag(c)}</td><td>${act(c,'con')}</td></tr>`; }).join('')||'<tr><td colspan="9" class="empty">등록된 시공사가 없습니다</td></tr>'}
-        </tbody></table></div>`)
-    + `<p class="cap note">pour-pay 명단은 대시보드를 열 때마다 pour-pay에서 다시 읽어 사본을 갱신합니다 · pour-pay에 접속할 수 없을 때는 마지막 사본으로 동작합니다 · 같은 이름이 pour-pay에 생기면 직접 등록분은 지워도 됩니다</p>`;
+  const act = x => x.src==='local'?`<button class="btn btn-ghost sm" onclick="openPersonForm('${t}','${x.id}')">수정</button>`:'<span class="cap" style="white-space:nowrap">pour-pay에서 수정</span>';
+  if(t==='mgr'){ const mf=allMgrs().filter(m=>!q||[m.name,m.phone,m.bizName,m.bizNumber].join(' ').includes(q));
+    return `<div class="uptbl"><table class="ct"><thead><tr><th style="width:110px">소장</th><th style="width:130px">연락처</th><th>상호 · 사업자등록번호</th><th>사업장 주소</th><th class="amt" style="width:80px">시공 현장</th><th class="amt" style="width:70px">처리 건</th><th style="width:90px">출처</th><th style="width:110px"></th></tr></thead><tbody>
+      ${mf.map(m=>`<tr><td><b>${esc(m.name)}</b></td><td>${esc(m.phone||'—')}</td><td>${esc(m.bizName||'—')}${m.bizNumber?`<small class="d2">${esc(m.bizNumber)}</small>`:''}${(m.extra||[]).map(a=>`<small class="d2">추가 · ${esc(a.bizName)} ${esc(a.bizNumber)}</small>`).join('')}</td><td class="cap">${esc(m.bizAddress||'—')}</td><td class="amt">${bldN[m.name]||0}</td><td class="amt">${hdN[m.name]||0}</td><td>${tag(m)}</td><td>${act(m)}</td></tr>`).join('')||'<tr><td colspan="8" class="empty">해당하는 소장이 없습니다</td></tr>'}</tbody></table></div>`; }
+  const cf=allCons().filter(c=>!q||[c.name,c.bizName,c.bizNo,c.ceoName,c.contactName].join(' ').includes(q));
+  return `<div class="uptbl"><table class="ct"><thead><tr><th style="width:130px">시공사</th><th>상호 · 사업자등록번호</th><th style="width:80px">대표자</th><th style="width:130px">업태 · 종목</th><th style="width:130px">담당자 · 연락처</th><th>계산서 이메일</th><th class="amt" style="width:60px">현장</th><th style="width:90px">출처</th><th style="width:110px"></th></tr></thead><tbody>
+    ${cf.map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.bizName||c.name)}${c.bizNo?`<small class="d2">${esc(c.bizNo)}</small>`:'<small class="d2 warn">사업자번호 없음</small>'}</td><td>${esc(c.ceoName||'—')}</td><td class="cap">${esc([c.bizType,c.bizItem].filter(Boolean).join(' · ')||'—')}</td><td>${esc(c.contactName||'—')}${c.contactPhone?`<small class="d2">${esc(c.contactPhone)}</small>`:''}</td><td class="cap">${esc(c.bizEmail||'—')}</td><td class="amt">${coN[nkey(c.name)]||0}</td><td>${tag(c)}</td><td>${act(c)}</td></tr>`).join('')||'<tr><td colspan="9" class="empty">해당하는 시공사가 없습니다</td></tr>'}</tbody></table></div>`;
 }
+/* 명부가 바뀌면 열려 있는 명부 표만 갱신 (검색칸은 그대로) */
+function refreshPeople(){ const p=document.getElementById('pTbl'); if(p && drawer.classList.contains('on')) p.innerHTML=peopleTable(); }
 const PFIELDS = {
   mgr:[['name','이름 *'],['phone','연락처'],['bizName','상호'],['bizNumber','사업자등록번호'],['bizAddress','사업장 주소'],['memo','메모']],
   con:[['name','시공사명 *'],['bizName','상호 (사업자등록증상)'],['bizNo','사업자등록번호'],['ceoName','대표자'],['bizType','업태'],['bizItem','종목'],['bizAddress','사업장 주소'],['bizEmail','계산서 이메일'],['contactName','현장 담당자'],['contactPhone','담당자 연락처'],['memo','메모']]
 };
 function openPersonForm(kind, id){
   const list = kind==='mgr'?DIR.mgrs:DIR.cons, x = id? list.find(p=>p.id===id)||{} : {};
-  openDrawer(`<div class="dh"><div class="k">${kind==='mgr'?'소장':'시공사'} · 하자 대시보드 직접 등록</div><h3>${id?esc(x.name):kind==='mgr'?'소장 등록':'시공사 등록'}</h3><div class="m">pour-pay에 없는 ${kind==='mgr'?'소장':'시공사'}만 등록하세요 · pour-pay에 있으면 자동으로 들어옵니다</div><button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
+  openDrawer(`<div class="dh"><div class="k">${kind==='mgr'?'소장':'시공사'} · 하자 대시보드 직접 등록</div><h3>${id?esc(x.name):kind==='mgr'?'소장 등록':'시공사 등록'}</h3><div class="m">pour-pay에 없는 ${kind==='mgr'?'소장':'시공사'}만 등록하세요 · pour-pay에 있으면 자동으로 들어옵니다</div><button class="x" aria-label="닫기" onclick="openSettings('${kind}')">×</button></div>
     <div class="db"><div class="dsec">${PFIELDS[kind].map(([k,l])=>`<div class="field"><label>${l}</label><input class="inp" id="pf_${k}" value="${esc(x[k]||'')}"></div>`).join('')}</div></div>
-    <div class="df">${id?`<button class="btn btn-ghost" style="margin-right:auto;color:var(--warn-tx)" onclick="delPerson('${kind}','${id}')">삭제</button>`:''}<button class="btn btn-ghost" onclick="closeDrawer()">취소</button><button class="btn btn-pri" onclick="savePerson('${kind}','${id||''}')">저장</button></div>`);
+    <div class="df">${id?`<button class="btn btn-ghost" style="margin-right:auto;color:var(--warn-tx)" onclick="delPerson('${kind}','${id}')">삭제</button>`:''}<button class="btn btn-ghost" onclick="openSettings('${kind}')">취소</button><button class="btn btn-pri" onclick="savePerson('${kind}','${id||''}')">저장</button></div>`);
 }
 async function savePerson(kind, id){
   const o={}; PFIELDS[kind].forEach(([k])=>o[k]=document.getElementById('pf_'+k).value.trim());
@@ -2656,12 +2663,12 @@ async function savePerson(kind, id){
   const key = kind==='mgr'?'mgrs':'cons', list=[...DIR[key]];
   if(id){ const i=list.findIndex(p=>p.id===id); list[i]={...list[i],...o}; } else list.push({id:'L'+Date.now(), ...o, at:iso(), by:ME()||''});
   try{ await DB.collection('config').doc('dirLocal').set({[key]:list},{merge:true}); }catch(e){ toast('저장 실패 · '+(e.code||e.message)); return; }
-  closeDrawer(); toast('저장했습니다');
+  SET.q=''; openSettings(kind); toast('저장했습니다');
 }
 async function delPerson(kind, id){
   if(!confirm('삭제할까요?')) return; const key=kind==='mgr'?'mgrs':'cons';
   try{ await DB.collection('config').doc('dirLocal').set({[key]:DIR[key].filter(p=>p.id!==id)},{merge:true}); }catch(e){ toast('삭제 실패 · '+(e.code||e.message)); return; }
-  closeDrawer(); toast('삭제했습니다');
+  openSettings(kind); toast('삭제했습니다');
 }
 
 /* ── 현장 등록 · 수정 (하자보증 항목 · 시공소장 여러 명 · 주소) ── */
@@ -2797,7 +2804,7 @@ function ppBanner(){
 
 /* ── 한글 입력 끊김 방지 : 검색어를 칠 때 입력칸은 그대로 두고 결과만 다시 그림 ── */
 function softCost(){
-  const m=document.getElementById('cmain'); const fn=({sites:vSites, people:vPeople})[CF.view]; if(!m||!fn) return renderCost();
+  const m=document.getElementById('cmain'); const fn=({sites:vSites})[CF.view]; if(!m||!fn) return renderCost();
   const tmp=document.createElement('div'); tmp.innerHTML=fn();
   const oldC=[...m.children], newC=[...tmp.children];
   if(oldC.length!==newC.length) return renderCost();
