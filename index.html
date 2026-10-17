@@ -629,6 +629,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .xbtn{width:32px;height:32px;border-radius:10px;border:1px solid var(--line2);background:#fff;color:var(--ink3);font-size:18px;cursor:pointer}
 .btn-dash{width:100%;justify-content:center;border:1.5px dashed #f2c48f;background:#fffaf3;color:#d0591a;height:42px;border-radius:12px;font-weight:700;cursor:pointer}
 .ctot{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line2);border-radius:12px;padding:12px 16px;margin-top:10px}.ctot b{color:#d0591a;font-size:19px}
+.zt{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;margin-left:4px}.zt.bld{background:#effaf1;color:#1d6b35}.zt.our{background:#e6f3ff;color:#0f6fc2}.zt.over{background:#fff0e6;color:#c2410c;margin-left:0}
 .settabs{margin-top:14px;display:inline-flex}.settools{display:flex;gap:10px;align-items:center;margin-bottom:12px}.settools .inp{max-width:300px}
 .d2.warn{color:var(--warn-tx)}
 </style>
@@ -841,7 +842,7 @@ function renderRows(list){
       <td><span class="site">${it.site}${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}<small>${s.co}</small></span></td>
       <td>${it.rc}</td>
       <td>${it.hd?it.hd+(swapped(it)?'<span class="tg tg-swap" title="시공소장 '+s.bld+'">교체</span>':''):'<span class="bd-pre">미배정</span>'}</td>
-      <td>${it.part}</td>
+      <td>${esc(partTx(it))}</td>
       <td>${it.ph}${it.dmg&&it.dmg.length?`<span class="tg tg-dmg">2차 피해${it.dmg.length>1?' '+it.dmg.length:''}</span>`:''}</td>
       <td><span class="stg s${it.st}"><i>${EI('st'+it.st)}</i>${STAGES[it.st]}</span></td>
       <td>${burdenChip(it)}</td>
@@ -2125,11 +2126,10 @@ function detail(id){
       </div>
 
       <div class="dsec"><h4>하자 내용</h4>
-        <dl class="kv"><dt>부위 · 현상</dt><dd>${esc(it.part)} · ${esc(it.ph)}</dd>
+        <dl class="kv"><dt>부위 · 현상</dt><dd>${esc(partTx(it))} · ${esc(it.ph)}</dd>
         ${it.txt?`<dt>상세</dt><dd style="white-space:pre-wrap">${esc(it.txt)}</dd>`:''}
         <dt>시공소장</dt><dd>${bldsOf(s).map(b=>{ const m=mgrOf(b); return esc(b)+(m&&m.phone?` <span class="cap">${esc(m.phone)}</span>`:''); }).join(', ')||'—'} <span class="cap">(보증 책임자)</span></dd>
         ${con&&(con.contactName||con.contactPhone)?`<dt>시공사 담당</dt><dd>${esc(con.contactName||'')} <span class="cap">${esc(con.contactPhone||'')}</span></dd>`:''}
-        ${s.addr?`<dt>주소</dt><dd>${esc(s.addr)}</dd>`:''}
         <dt>처리소장</dt><dd>${st<7?`<select class="sel" id="selHd" style="min-width:200px"><option value="">선택</option>${wOpts(it.hd)}</select>`:esc(it.hd||'미배정')+(swapped(it)?' <span class="tg tg-swap">교체</span>':'')}</dd>
         ${st<7||it.visitAt?`<dt>방문 예정일</dt><dd>${st<7?`<input type="date" class="inp" id="visitAt" value="${it.visitAt||''}" style="min-width:0;width:180px">`:it.visitAt.replace(/-/g,'.')}</dd>`:''}
         </dl><div id="swapMsg"></div>
@@ -2276,6 +2276,7 @@ async function fetchStorage(){
 async function submitIntake(){
   if(!DB) return toast('저장소에 연결되지 않았습니다');
   if(!intake.rc){ toast('접수자를 선택하세요'); return; }
+  if(document.getElementById('iPart')?.value==='기타' && !document.getElementById('iPartN')?.value.trim()){ toast('기타 부위 내용을 입력하세요'); return; }
   const sb=document.getElementById('submit'); if(sb){ sb.disabled=true; sb.textContent='저장 중…'; }
   try{
     let site=intake.site;
@@ -2286,7 +2287,7 @@ async function submitIntake(){
     const files=[...(document.getElementById('iPhoto')?.files||[])];
     const id = await nextId(), now=iso();
     await DB.collection('cases').doc(id).set({site, rc:intake.rc, st:1, rcvAt:now, stAt:now, src:'PC',
-      part:document.getElementById('iPart').value, ph:document.getElementById('iPh').value, txt:document.getElementById('iTxt').value.trim(),
+      part:document.getElementById('iPart').value, partNote:(document.getElementById('iPart').value==='기타'?(document.getElementById('iPartN')||{}).value||'':'').trim(), ph:document.getElementById('iPh').value, txt:document.getElementById('iTxt').value.trim(),
       dmg:[], photos:[], unseen:false, createdAt:now, log:[{at:now, by:intake.rc, msg:'접수 등록 (PC)'}]});
     closeDrawer(); F.stage=1; F.chip=null; toast(`${id} 접수 등록 · ${site}`);
     if(files.length) uploadPhotos(id, site, files, '처리 전');
@@ -2384,7 +2385,7 @@ function exportAll(){
   const wb=XLSX.utils.book_new();
   const add=(name,rows)=>XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length?rows:[{'':'데이터 없음'}]), name);
   add('현장', Object.values(SITES).map(s=>({현장명:s.name, 업체명:s.co, ERP코드:s.code||'', 계약유형:s.ct||'', 준공일:s.comp, 보증기간:s.wy, 확정매출액:s.rev||'', 하자예산:s.budget||'', 집행:s.spent||'', 공종:s.gong||'', 면적:s.area||'', 시공소장:s.bld, 주소:s.addr||'', 보증기산기준:s.wStartBasis||'준공일', 보증기산일:wStartOf(s)||'', 보증만료일:wEndOf(s)?ymd(wEndOf(s)):'', 만료일수동:s.wEndManual?'Y':'', pourpay연결:s.pp?'Y':'', pourpay완료일:s.ppDone||'', 확인대기:s.wait?'Y':''})));
-  add('접수', ITEMS.map(i=>({접수번호:i.id, 현장:i.site, 접수일:ymd(i.rcvAt), 접수자:i.rc, 단계:`${i.st} ${STAGES[i.st]}`, 부위:i.part, 현상:i.ph, 상세:i.txt||'', 처리소장:i.hd||'', 원인:i.cz||'', 부담:i.b?i.b[0]:'', 근거:i.b?i.b[1]:'', 조정사유:i.b&&i.b[2]||'', 자재비:i.mat||0, 일당:i.labRate||'', 시공인원:i.labCnt||'', 노임:i.lab||0, 복구비:costParts(i).rst, 기타경비:costParts(i).etc, 기타항목:extrasOf(i).map(e=>`${e.t==='기타'?e.name:e.t} ${e.amt}${e.our?'(당사지급)':''}${e.rcpt&&e.rcpt.length?' 영수증'+e.rcpt.length:''}`).join('; '), 당사지급:ourPay(i), 시공사몫:i.sh||0, 기안번호:i.draftNo||'', 지급일:i.paidAt?ymd(i.paidAt):'', '2차피해':(i.dmg||[]).map(d=>d.join('/')).join('; '), 사진수:(i.photos||[]).length})));
+  add('접수', ITEMS.map(i=>({접수번호:i.id, 현장:i.site, 접수일:ymd(i.rcvAt), 접수자:i.rc, 단계:`${i.st} ${STAGES[i.st]}`, 부위:partTx(i), 현상:i.ph, 상세:i.txt||'', 처리소장:i.hd||'', 원인:i.cz||'', 부담:i.b?i.b[0]:'', 근거:i.b?i.b[1]:'', 조정사유:i.b&&i.b[2]||'', 자재비:i.mat||0, 일당:i.labRate||'', 시공인원:i.labCnt||'', 노임:i.lab||0, 복구비:costParts(i).rst, 기타경비:costParts(i).etc, 기타항목:extrasOf(i).map(e=>`${e.t==='기타'?e.name:e.t} ${e.amt}${e.our?'(당사지급)':''}${e.rcpt&&e.rcpt.length?' 영수증'+e.rcpt.length:''}`).join('; '), 당사지급:ourPay(i), 시공사몫:i.sh||0, 기안번호:i.draftNo||'', 지급일:i.paidAt?ymd(i.paidAt):'', '2차피해':(i.dmg||[]).map(d=>d.join('/')).join('; '), 사진수:(i.photos||[]).length})));
   add('자재출고', MATS.map(m=>({일자:ymd(m.date), 현장:m.site, 품목:m.item, 단위:m.unit, 수량:m.qty, 금액:m.amt})));
   add('과거노임', HIST.filter(h=>h.lab).map(h=>({지급일:ymd(h.date), 현장:h.site, 노임:h.lab})));
   add('소장명부', allMgrs().map(m=>({이름:m.name, 연락처:m.phone||'', 상호:m.bizName||'', 사업자등록번호:m.bizNumber||'', 사업장주소:m.bizAddress||'', 출처:m.src==='pp'?'pour-pay':'직접 등록'})));
@@ -2784,16 +2785,19 @@ function readUpload(file){
 
 /* ── 접수 서랍 현장 정보 (보증 만료 표시) ── */
 function siteBox(name){
-  const s=SITES[name], yr=gYear(name,TODAY), e=wEndOf(s), ex=wExpired(name,TODAY);
+  const s=SITES[name], yr=gYear(name,TODAY), e=wEndOf(s), ex=wExpired(name,TODAY), z=ex?null:zone(name,yr);
   const con=conOf(s.co), bl=bldsOf(s).map(b=>{ const m=mgrOf(b); return `${esc(b)}${m&&m.phone?` <span class="cap">${esc(m.phone)}</span>`:''}`; }).join(', ');
-  const wTx = `${s.comp.replace(/-/g,'.')} · 보증 ${yr}년차 · 만료 ${e?fmtD(e):'—'}`;
-  const exAlert = ex?`<div class="alert warn" style="margin-top:10px"><b>보증기간 경과</b> — ${fmtD(e)}에 만료된 현장입니다. 접수는 가능하지만 부담은 자동 판정되지 않고 4단계에서 직접 정합니다.</div>`:'';
-  if(s.wait) return `<div class="confirm"><h5>${esc(name)} <span class="tg tg-wait">확인 대기</span></h5><dl class="kv"><dt>업체</dt><dd>${esc(s.co)}</dd><dt>준공일</dt><dd>${wTx}</dd><dt>시공소장</dt><dd>${bl}</dd><dt>예산</dt><dd class="cap">정식 등록 후 산정</dd></dl>${exAlert}</div>`;
+  const ws=wStartOf(s);
+  const wRows = `<dt>준공일</dt><dd>${s.comp.replace(/-/g,'.')}</dd>
+    <dt>하자보증</dt><dd>${s.wy||5}년 <span class="cap">${ws?fmtD(new Date(ws)):'—'} ~ ${e?fmtD(e):'—'}${s.wStartBasis&&s.wStartBasis!=='준공일'?` · 기산 ${esc(s.wStartBasis)}`:''}</span></dd>
+    <dt>현재</dt><dd>${ex?'<span class="zt over">보증기간 경과</span>':`보증 <b>${yr}년차</b>${z?` <span class="zt ${z==='당사'?'our':'bld'}">${z} 책임 구간</span>`:''}`}</dd>`;
+  const exAlert = ex?`<div class="alert warn" style="margin-top:10px"><b>보증기간 경과</b> — ${fmtD(e)}에 만료된 현장입니다. 접수는 가능하지만 부담은 자동 판정되지 않고 직접 정합니다.</div>`:'';
+  if(s.wait) return `<div class="confirm"><h5>${esc(name)} <span class="tg tg-wait">확인 대기</span></h5><dl class="kv"><dt>업체</dt><dd>${esc(s.co)}</dd>${wRows}<dt>시공소장</dt><dd>${bl}</dd><dt>예산</dt><dd class="cap">정식 등록 후 산정</dd></dl>${exAlert}</div>`;
   const p=s.budget? s.spent/s.budget*100 : 0;
   return `<div class="confirm"><h5>${esc(name)}</h5><dl class="kv">
     <dt>업체</dt><dd>${esc(s.co)}${con&&con.contactName?` <span class="cap">담당 ${esc(con.contactName)} ${esc(con.contactPhone||'')}</span>`:''}</dd><dt>계약유형</dt><dd>${s.ct} · 적용률 ${rate(s.ct)*100}%</dd>
-    <dt>준공 · 보증</dt><dd>${wTx}${ex?'':` (${zone(name,yr)} 책임 구간)`}</dd>
-    <dt>시공소장</dt><dd>${bl}</dd>${s.addr?`<dt>주소</dt><dd>${esc(s.addr)}</dd>`:''}
+    ${wRows}
+    <dt>시공소장</dt><dd>${bl}</dd>
     <dt>하자예산</dt><dd class="num">${won(s.budget)}원${s.rev>0?'':' <span class="cap">확정매출 마이너스 · 0원 편성</span>'}</dd>
     <dt>집행</dt><dd><span class="num">${won(s.spent)}원 · ${p.toFixed(1)}%</span><div class="meter"><i class="${p>100?'ov':''}" style="width:${Math.min(p,100)}%"></i></div>${p>100?'<span class="cap" style="color:var(--red)">예산 초과 현장 — 접수 시점부터 주의</span>':''}</dd></dl>${exAlert}</div>`;
 }
@@ -2822,16 +2826,27 @@ function intakeRes(){
   if(intake.site) h += siteBox(intake.site) + intakeForm();
   return h;
 }
+const PARTS=['파라펫','드레인 주변','조인트','평지붕면','옥탑 벽체','기타'];
+function intakeForm(){
+  return `<div class="dsec" style="padding-bottom:0"><div class="field"><label>접수자 (필수 · 공용 계정이라 직접 선택)</label><select class="sel" id="iRc"><option value="">선택</option>${RECV.map(r=>`<option ${intake.rc===r?'selected':''}>${esc(r)}</option>`).join('')}</select></div>
+  <div class="field"><label>발생 부위</label><select class="sel" id="iPart">${PARTS.map(x=>`<option>${x}</option>`).join('')}</select>
+    <input class="inp" id="iPartN" placeholder="기타 부위를 입력하세요 (예: 계단실 지붕)" style="margin-top:8px;display:none"></div>
+  <div class="field"><label>하자 현상</label><select class="sel" id="iPh">${['누수','들뜸','균열','박리','변색','오염'].map(x=>`<option>${x}</option>`).join('')}</select></div>
+  <div class="field"><label>상세 내용</label><textarea id="iTxt" placeholder="세대·위치, 연락받은 경위 등"></textarea></div>
+  <div class="field"><label>현장 사진 (처리 전 · 여러 장 가능 · 자동 압축)</label><input type="file" id="iPhoto" accept="image/*" multiple class="inp" style="padding:8px"></div></div>`;
+}
+const partTx = it => it.part==='기타' && it.partNote ? `기타(${it.partNote})` : (it.part||'');
 function bindIntake(){
   drawer.querySelectorAll('[data-site]').forEach(b=>b.onclick=()=>{ intake.site=b.dataset.site; drawIntake(); });
   const gq=document.getElementById('goQuick'); if(gq) gq.onclick=()=>{ intake.quick=true; drawIntake(); };
-  drawer.querySelectorAll('.wk button').forEach(b=>b.onclick=()=>{ intake.rc=b.textContent; try{localStorage.setItem('lastRecv',intake.rc);}catch(e){} drawer.querySelectorAll('.wk button').forEach(x=>x.classList.toggle('on',x===b)); });
+  const rc=document.getElementById('iRc'); if(rc){ if(intake.rc && !RECV.includes(intake.rc)) intake.rc=''; rc.onchange=()=>{ intake.rc=rc.value; try{localStorage.setItem('lastRecv',intake.rc);}catch(e){} }; }
+  const ip=document.getElementById('iPart'), ipn=document.getElementById('iPartN'); if(ip&&ipn) ip.onchange=()=>{ ipn.style.display=ip.value==='기타'?'':'none'; if(ip.value==='기타') ipn.focus(); };
   const sb=document.getElementById('submit'); if(sb){ const ok=intake.site||intake.quick; sb.disabled=!ok; sb.style.opacity=ok?'':'.4'; sb.style.cursor=ok?'':'not-allowed'; sb.onclick=submitIntake; }
 }
 function drawIntake(){
   let body='';
   if(!intake.quick){
-    body = `<div class="field"><label for="iq">현장 검색 (현장 마스터 · 띄어쓰기·주소로도 찾음)</label><input class="inp" id="iq" value="${esc(intake.q)}" placeholder="예: 아산모종" autocomplete="off"></div><div id="iqRes">${intakeRes()}</div>`;
+    body = `<div class="field"><label for="iq">현장 검색 (현장 마스터 · 띄어쓰기 무시)</label><input class="inp" id="iq" value="${esc(intake.q)}" placeholder="예: 아산모종" autocomplete="off"></div><div id="iqRes">${intakeRes()}</div>`;
   } else {
     body = `<div class="alert warn" style="margin-top:0;margin-bottom:16px"><b>간이 등록</b> — 이 현장은 「확인 대기」로 표시되고 접수는 바로 진행됩니다. 비용 정산은 정식 등록 후 가능합니다.</div>
       <div class="field"><label>현장명</label><input class="inp" id="qName" value="${esc(intake.q)}"></div>
