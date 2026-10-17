@@ -1998,7 +1998,7 @@ function _rebuild(){
   Object.keys(SITES).forEach(k=>delete SITES[k]);
   Object.values(RAW.sites).forEach(s=>{ if(!s.name) return;
     const o = {...s}; o.wy = o.wy||5; o.blds = bldsOf(o); o.bld = o.blds.join(', ');
-    if(!o.wait && rate(o.ct) && o.rev) o.budget = Math.round(o.rev*rate(o.ct)); else o.budget = o.budget||0;
+    o.budget = (!o.wait && rate(o.ct)) ? budgetOf(o.rev, o.ct) : 0;
     SITES[o.name] = o; });
   /* 접수 건 */
   ITEMS.length = 0; let orphan = 0;
@@ -2313,7 +2313,7 @@ async function commitUpload(){
       ok.slice(i,i+400).forEach(o=>bt.set(DB.collection('sites').doc(sid(o.nm)),{name:o.nm, co:o.co, code:o.code, ct:o.ct, comp:o.comp, wy:o.wy, rev:o.rev, gong:o.gong||'기타', area:o.area, bld:o.bld, blds:o.blds, addr:o.addr, wStartBasis:o.wStartBasis, wStart:o.wStart, wNote:o.wNote, wEndManual:o.wEndManual, wEnd:o.wEnd, wait:false, updatedAt:iso(), ...(o.st==='new'?{createdAt:iso()}:{})},{merge:true}));
       await bt.commit(); }
   }catch(e){ toast('등록 실패 · '+(e.code||e.message)); return; }
-  closeDrawer(); toast(`${ok.length}곳 등록 완료 · 하자예산 ${won(ok.reduce((a,o)=>a+Math.round(o.rev*rate(o.ct)),0))}원 편성`);
+  closeDrawer(); toast(`${ok.length}곳 등록 완료 · 하자예산 ${won(ok.reduce((a,o)=>a+budgetOf(o.rev,o.ct),0))}원 편성`);
 }
 
 /* ── ERP 자재 출고 내역 저장 ── */
@@ -2425,6 +2425,8 @@ const PP_CONFIG = {
 const PP  = {st:'idle', at:null, err:'', sites:[], mgrs:[], cons:[], sm:[]};
 const DIR = {ppMgr:[], ppCon:[], ppAt:null, mgrs:[], cons:[]};   // ppMgr·ppCon = pour-pay 사본(자동 갱신) · mgrs·cons = 하자 대시보드 직접 등록
 const W_BASIS = ['준공일','준공검사 합격일','하자보증증권 발행일','기타'];
+/* 하자예산 = 확정매출 × 적용률 · 확정매출이 0 이하(마이너스 현장)면 0원 — 준공 현장이므로 등록은 함 */
+function budgetOf(rev, ct){ const r=rate(ct); return r && rev>0 ? Math.round(rev*r) : 0; }
 const toArr = v => Array.isArray(v) ? v.filter(Boolean) : (v && typeof v==='object') ? Object.values(v).filter(Boolean) : [];
 const nkey  = s => String(s||'').replace(/\s|\(주\)|㈜|주식회사|\(유\)|유한회사/g,'');
 
@@ -2526,7 +2528,7 @@ function ppScan(){
   });
   return {pend, chg, notDone, done};
 }
-function rowIssues(r){ const e=[]; if(!/^\d{4}-\d{2}-\d{2}$/.test(r.comp||'')) e.push('준공일'); if(!r.wy) e.push('보증기간'); if(!(r.rev>0)) e.push('확정매출'); if(!r.blds.length) e.push('시공소장'); return e; }
+function rowIssues(r){ const e=[]; if(!/^\d{4}-\d{2}-\d{2}$/.test(r.comp||'')) e.push('준공일'); if(!r.wy) e.push('보증기간'); if(!r.blds.length) e.push('시공소장'); return e; }
 
 /* ── 가져오기 서랍 ── */
 let PPI = null;
@@ -2554,21 +2556,21 @@ function drawPPImport(sc){
     ${PPI.chg.length?`<div class="dsec"><h4>변경 있음 ${PPI.chg.length}곳 <span class="cap" style="font-weight:400">이미 등록한 현장의 pour-pay 값이 바뀌었습니다 · 누르기 전에는 반영되지 않습니다</span></h4>
       <div class="uptbl"><table class="ct"><thead><tr><th>현장</th><th>바뀐 항목</th><th style="width:90px"></th></tr></thead><tbody>${PPI.chg.map((c,k)=>`<tr><td>${esc(c.site)}</td><td>${c.diff.map(f=>`${{comp:'준공일',rev:'확정매출',blds:'시공소장',co:'시공사'}[f]} ${f==='rev'?won(c.a[f]):esc(c.a[f]??'—')} → <b>${f==='rev'?won(c.b[f]):esc(c.b[f])}</b>`).join('<br>')}</td><td><button class="btn btn-line sm" onclick="ppApplyChg(${k})">반영</button></td></tr>`).join('')}</tbody></table></div></div>`:''}
     <div class="dsec"><h4>새로 가져올 현장 ${R.length}곳</h4>
-      ${R.length?`<p class="cap" style="margin-bottom:10px">빨간 칸은 pour-pay에 값이 없어 직접 채워야 합니다 · 같은 이름의 확인 대기 현장이 있으면 그 현장에 연결해 정식 등록합니다</p>
+      ${R.length?`<p class="cap" style="margin-bottom:10px">빨간 칸은 pour-pay에 값이 없어 직접 채워야 합니다 · 확정매출이 마이너스인 현장은 하자예산 0원으로 등록합니다(준공 현장이라 하자 접수는 가능) · 같은 이름의 확인 대기 현장이 있으면 그 현장에 연결해 정식 등록합니다</p>
       <div class="uptbl pptbl"><table class="ct"><thead><tr><th style="width:34px"><input type="checkbox" ${sel.length===R.length?'checked':''} onchange="PPI.rows.forEach(r=>r.on=this.checked);drawPPImport()"></th><th>현장 · 시공사</th><th style="width:118px">유형</th><th style="width:150px">준공일</th><th style="width:96px">보증</th><th class="amt" style="width:140px">확정매출(원)</th><th class="amt" style="width:104px">하자예산(원)</th><th style="width:150px">시공소장</th><th style="width:96px">완료일</th></tr></thead><tbody>
       ${R.map((r,k)=>{ const is=rowIssues(r); return `<tr class="${r.on?'':'off'}"><td><input type="checkbox" ${r.on?'checked':''} onchange="PPI.rows[${k}].on=this.checked;drawPPImport()"></td>
         <td><b>${esc(r.nm)}</b>${r.composite?' <span class="tg tg-swap">복합</span>':''}<small class="d2">${esc(r.co||'시공사 없음')}${r.match?` · <b style="color:var(--sky)">${r.matchWait?'확인 대기 현장':'기존 등록 현장'} 「${esc(r.match)}」에 연결</b>`:''}${r.sim&&r.sim.length?` · <span class="warn">비슷한 현장: ${esc(r.sim.join(', '))}</span>`:''}</small></td>
         <td>${r.ct}</td>
         <td>${is.includes('준공일')?`<input type="date" class="inp mini bad" onchange="PPI.rows[${k}].comp=this.value;ppFix(${k})">`:r.comp.replace(/-/g,'.')}</td>
         <td><select class="sel mini ${r.wy?'':'bad'}" onchange="PPI.rows[${k}].wy=Number(this.value)||null;ppFix(${k})">${wyOpt(r.wy)}</select></td>
-        <td class="amt">${r.rev>0?won(r.rev):`<input class="inp mini bad amt" inputmode="numeric" placeholder="${won(r.rev)}" onchange="PPI.rows[${k}].rev=num(this.value);ppFix(${k})">`}</td>
-        <td class="amt">${r.rev>0?won(Math.round(r.rev*rate(r.ct))):'—'}</td>
+        <td class="amt ${r.rev>0?'':'neg'}">${won(r.rev)}${r.rev>0?'':'<small class="d2">마이너스 현장</small>'}</td>
+        <td class="amt">${won(budgetOf(r.rev,r.ct))}${r.rev>0?'':'<small class="d2">0원 편성</small>'}</td>
         <td>${r.blds.length?esc(r.blds.join(', ')):`<input class="inp mini bad" list="dlWp" placeholder="이름" onchange="PPI.rows[${k}].blds=this.value.split(/\\s*,\\s*/).filter(Boolean);ppFix(${k})">`}</td>
         <td>${r.done?r.done.slice(2).replace(/-/g,'.'):'—'}</td></tr>`; }).join('')}
       </tbody></table><datalist id="dlWp">${WORKERS.map(w=>`<option value="${esc(w)}">`).join('')}</datalist></div>`
       :'<p class="empty">새로 가져올 완료 현장이 없습니다</p>'}
     </div></div>
-    <div class="df">${bad.length?`<span class="cap" style="margin-right:auto;color:var(--warn-tx)">선택한 ${bad.length}곳에 빈 칸이 있습니다</span>`:''}<button class="btn btn-ghost" onclick="closeDrawer()">닫기</button><button class="btn btn-pri" ${sel.length&&!bad.length?'':'disabled'} onclick="ppCommit()">${sel.length?`${sel.length}곳 등록 · 예산 ${won(sel.reduce((a,r)=>a+(r.rev>0?Math.round(r.rev*rate(r.ct)):0),0))}원`:'등록'}</button></div>`);
+    <div class="df">${bad.length?`<span class="cap" style="margin-right:auto;color:var(--warn-tx)">선택한 ${bad.length}곳에 빈 칸이 있습니다</span>`:''}<button class="btn btn-ghost" onclick="closeDrawer()">닫기</button><button class="btn btn-pri" ${sel.length&&!bad.length?'':'disabled'} onclick="ppCommit()">${sel.length?`${sel.length}곳 등록 · 예산 ${won(sel.reduce((a,r)=>a+budgetOf(r.rev,r.ct),0))}원`:'등록'}</button></div>`);
   drawer.classList.add('wide');
 }
 function ppFix(k){ const r=PPI.rows[k]; if(!rowIssues(r).length) r.on=true; drawPPImport(); }
@@ -2583,7 +2585,7 @@ async function ppCommit(){
         bt.set(DB.collection('sites').doc(sid(nm)), data, {merge:true}); });
       await bt.commit(); }
   }catch(e){ toast('등록 실패 · '+(e.code||e.message)); return; }
-  closeDrawer(); toast(`pour-pay 완료 현장 ${ok.length}곳 등록 · 하자예산 ${won(ok.reduce((a,r)=>a+Math.round(r.rev*rate(r.ct)),0))}원 편성`);
+  closeDrawer(); toast(`pour-pay 완료 현장 ${ok.length}곳 등록 · 하자예산 ${won(ok.reduce((a,r)=>a+budgetOf(r.rev,r.ct),0))}원 편성${ok.some(r=>!(r.rev>0))?` (마이너스 현장 ${ok.filter(r=>!(r.rev>0)).length}곳은 0원)`:''}`);
 }
 async function ppApplyChg(k){
   const c=PPI.chg[k]; if(!c) return; const b=c.b, patch={ppSnap:b, updatedAt:iso()};
@@ -2686,7 +2688,7 @@ function openSiteForm(nm, formal){
       <div class="g2"><div class="field"><label>업체명 (시공사) *</label><input class="inp" id="fCo" list="dlCo" value="${esc(v('co'))}"><datalist id="dlCo">${allCons().map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist></div>
       <div class="field"><label>ERP 프로젝트코드</label><input class="inp" id="fCode" value="${esc(v('code'))}" placeholder="비워 두면 자재 출고 업로드 때 채움"></div></div>
       <div class="field"><label>계약유형 *</label><div class="ctp" id="fCt">${['컨설팅','기술자문컨설팅','기술자문(직영)'].map(c=>`<button type="button" class="${s.ct===c?'on':''}" onclick="pickCt(this)" data-v="${c}">${c}<small>${c==='기술자문(직영)'?'1.5%':'3%'}</small></button>`).join('')}</div><p class="cap" style="margin-top:6px">특허료 현장은 하자예산 편성 대상이 아니므로 등록하지 않습니다</p></div>
-      <div class="field"><label>확정매출액 (원) *</label><input class="inp amt-in" id="fRev" inputmode="numeric" value="${s.rev?won(s.rev):''}" oninput="this.value=this.value.replace(/[^0-9]/g,'')?Number(this.value.replace(/[^0-9]/g,'')).toLocaleString('ko-KR'):'';calcBudget()"></div>
+      <div class="field"><label>확정매출액 (원) *</label><input class="inp amt-in" id="fRev" inputmode="numeric" value="${s.rev!=null&&s.rev!==''?won(s.rev):''}" oninput="const v=this.value.replace(/[^0-9-]/g,'').replace(/(?!^)-/g,'');this.value=v&&v!=='-'?Number(v).toLocaleString('ko-KR'):v;calcBudget()"><p class="cap" style="margin-top:6px">마이너스 현장은 앞에 - 를 붙여 입력 · 하자예산은 0원으로 편성됩니다</p></div>
       <div class="g2"><div class="field"><label>공종</label><select class="sel" id="fGong">${gongs.map(g=>`<option ${v('gong')===g?'selected':''}>${esc(g)}</option>`).join('')}</select></div>
       <div class="field"><label>면적 (㎡)</label><input class="inp" id="fArea" inputmode="numeric" value="${v('area')}"></div></div>
       <div class="field"><label>시공소장 * <span class="cap">(여러 명이면 쉼표로 구분)</span></label><input class="inp" id="fBld" list="dlWf" value="${esc(bldsOf(s).join(', '))}" placeholder="이름 입력 또는 선택"><datalist id="dlWf">${WORKERS.map(w=>`<option value="${esc(w)}">`).join('')}</datalist></div>
@@ -2716,8 +2718,8 @@ function formW(){
   return {comp, wy, basis, start, man, end: man&&we.value? new Date(we.value) : auto, auto};
 }
 function calcBudget(){
-  const ct=(document.querySelector('#fCt button.on')||{}).dataset?.v, rev=Number((document.getElementById('fRev').value||'').replace(/,/g,''));
-  const w=formW(), r=rate(ct), b= r&&rev? Math.round(rev*r):null;
+  const ct=(document.querySelector('#fCt button.on')||{}).dataset?.v, rev=Number((document.getElementById('fRev').value||'').replace(/,/g,''))||0;
+  const w=formW(), r=rate(ct), b= r&&document.getElementById('fRev').value.trim()? budgetOf(rev,ct):null;
   let zoneTx='—';
   if(w.comp && w.end){
     if(ct==='기술자문(직영)' || w.wy<=3) zoneTx = `전 기간 시공소장 (~${fmtD(w.end)})`;
@@ -2730,7 +2732,7 @@ function calcBudget(){
 async function saveSite(mode){
   const g=id=>document.getElementById(id).value.trim();
   const nm=g('fNm'), ct=(document.querySelector('#fCt button.on')||{}).dataset?.v, rev=num(g('fRev')), blds=g('fBld').split(/\s*,\s*/).filter(Boolean), w=formW();
-  const miss=[]; if(!nm)miss.push('현장명'); if(!g('fCo'))miss.push('업체명'); if(!ct)miss.push('계약유형'); if(!w.comp)miss.push('준공일'); if(!rev)miss.push('확정매출액'); if(!blds.length)miss.push('시공소장');
+  const miss=[]; if(!nm)miss.push('현장명'); if(!g('fCo'))miss.push('업체명'); if(!ct)miss.push('계약유형'); if(!w.comp)miss.push('준공일'); if(g('fRev')===''||g('fRev')==='-')miss.push('확정매출액'); if(!blds.length)miss.push('시공소장');
   if(w.basis!=='준공일' && !w.start) miss.push('보증 기산일'); if(w.man && !g('fWe')) miss.push('보증 만료일');
   if(miss.length){ toast('필수 항목을 입력하세요 — '+miss.join(', ')); return; }
   if(mode==='new' && SITES[nm]){ toast('같은 이름의 현장이 이미 등록되어 있습니다'); return; }
@@ -2740,7 +2742,7 @@ async function saveSite(mode){
   if(mode==='new') data.createdAt=iso();
   try{ await DB.collection('sites').doc(sid(nm)).set(data,{merge:true}); }catch(e){ toast('저장 실패 · '+(e.code||e.message)); return; }
   closeDrawer();
-  const b=Math.round(rev*rate(ct));
+  const b=budgetOf(rev,ct);
   toast(mode==='formal'||wasWait ? `정식 등록 완료 — 하자예산 ${won(b)}원 편성 · 걸린 접수가 비용 확인으로 진행할 수 있습니다` : mode==='new'? `${nm} 등록 — 하자예산 ${won(b)}원 (${data.comp.slice(0,4)}년 준공 예산)` : '저장했습니다');
 }
 
@@ -2766,13 +2768,13 @@ function readUpload(file){
         rev:num(r['확정매출액']), gong:String(r['공종']).trim(), area:Number(r['면적(㎡)'])||null, blds, bld:blds.join(', '), addr:String(r['현장 주소']||'').trim(),
         wStartBasis:W_BASIS.includes(basis)?basis:'기타', wStart:dt(r['보증 기산일'])||null, wEnd:dt(r['보증 만료일'])||null, wNote:W_BASIS.includes(basis)?'':basis};
       o.wEndManual=!!o.wEnd; if(o.wStartBasis==='준공일') o.wStart=null;
-      const err=[]; if(!o.co)err.push('업체명'); if(o.ct==='특허료')err.push('특허료 현장은 편성 제외'); else if(!rate(o.ct))err.push('계약유형'); if(!/^\d{4}-\d{2}-\d{2}$/.test(o.comp))err.push('준공일'); if(!o.rev)err.push('확정매출액'); if(!blds.length)err.push('시공소장');
+      const err=[]; if(!o.co)err.push('업체명'); if(o.ct==='특허료')err.push('특허료 현장은 편성 제외'); else if(!rate(o.ct))err.push('계약유형'); if(!/^\d{4}-\d{2}-\d{2}$/.test(o.comp))err.push('준공일'); if(String(r['확정매출액']).trim()==='')err.push('확정매출액'); if(!blds.length)err.push('시공소장');
       if(o.wStartBasis!=='준공일' && !/^\d{4}-\d{2}-\d{2}$/.test(o.wStart||'')) err.push('보증 기산일'); if(o.wEnd && !/^\d{4}-\d{2}-\d{2}$/.test(o.wEnd)) err.push('보증 만료일');
       o.st = SITES[o.nm]? (SITES[o.nm].wait?'formal':'dup') : err.length? 'err':'new'; if(o.st==='formal' && err.length) o.st='err'; o.err=err; o.sim = o.st==='new'? similar(o.nm):[];
       return o; });
     const n = UP.filter(o=>o.st==='new'||o.st==='formal').length;
     document.getElementById('upPrev').innerHTML = `<div class="upsum"><span class="stt st-ok">등록 ${n}</span><span class="stt st-end">이미 등록 ${UP.filter(o=>o.st==='dup').length}</span><span class="stt st-over">오류 ${UP.filter(o=>o.st==='err').length}</span></div>
-      <div class="uptbl"><table class="ct"><thead><tr><th>현장명</th><th>계약유형</th><th>준공일</th><th>보증 만료</th><th class="amt">하자예산(원)</th><th>결과</th></tr></thead><tbody>${UP.map(o=>`<tr><td>${esc(o.nm)}${o.sim.length?`<small class="d2 warn">비슷한 현장: ${esc(o.sim.join(', '))}</small>`:''}</td><td>${esc(o.ct||'—')}</td><td>${o.comp||'—'}</td><td>${(()=>{ const e=wEndOf(o); return e&&!isNaN(e)?fmtD(e):'—'; })()}</td><td class="amt">${rate(o.ct)&&o.rev?won(Math.round(o.rev*rate(o.ct))):'—'}</td>
+      <div class="uptbl"><table class="ct"><thead><tr><th>현장명</th><th>계약유형</th><th>준공일</th><th>보증 만료</th><th class="amt">하자예산(원)</th><th>결과</th></tr></thead><tbody>${UP.map(o=>`<tr><td>${esc(o.nm)}${o.sim.length?`<small class="d2 warn">비슷한 현장: ${esc(o.sim.join(', '))}</small>`:''}</td><td>${esc(o.ct||'—')}</td><td>${o.comp||'—'}</td><td>${(()=>{ const e=wEndOf(o); return e&&!isNaN(e)?fmtD(e):'—'; })()}</td><td class="amt">${rate(o.ct)?won(budgetOf(o.rev,o.ct)):'—'}</td>
       <td>${o.st==='new'?'<span class="stt st-ok">등록</span>':o.st==='formal'?'<span class="stt st-ok">확인 대기 → 정식 등록</span>':o.st==='dup'?'<span class="stt st-end">건너뜀</span>':`<span class="stt st-over">오류 · ${o.err.join(', ')}</span>`}</td></tr>`).join('')}</tbody></table></div>`;
     const b=document.getElementById('upGo'); b.disabled=!n; b.textContent=n?`${n}곳 등록`:'등록';
   };
@@ -2791,7 +2793,7 @@ function siteBox(name){
     <dt>업체</dt><dd>${esc(s.co)}${con&&con.contactName?` <span class="cap">담당 ${esc(con.contactName)} ${esc(con.contactPhone||'')}</span>`:''}</dd><dt>계약유형</dt><dd>${s.ct} · 적용률 ${rate(s.ct)*100}%</dd>
     <dt>준공 · 보증</dt><dd>${wTx}${ex?'':` (${zone(name,yr)} 책임 구간)`}</dd>
     <dt>시공소장</dt><dd>${bl}</dd>${s.addr?`<dt>주소</dt><dd>${esc(s.addr)}</dd>`:''}
-    <dt>하자예산</dt><dd class="num">${won(s.budget)}원</dd>
+    <dt>하자예산</dt><dd class="num">${won(s.budget)}원${s.rev>0?'':' <span class="cap">확정매출 마이너스 · 0원 편성</span>'}</dd>
     <dt>집행</dt><dd><span class="num">${won(s.spent)}원 · ${p.toFixed(1)}%</span><div class="meter"><i class="${p>100?'ov':''}" style="width:${Math.min(p,100)}%"></i></div>${p>100?'<span class="cap" style="color:var(--red)">예산 초과 현장 — 접수 시점부터 주의</span>':''}</dd></dl>${exAlert}</div>`;
 }
 
