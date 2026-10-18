@@ -2919,7 +2919,7 @@ function sumLine(it, s){
 /* 5단계 비용 확인 — 대금관리자 확인용 요약 (입력 없음) */
 function costCheck(it, s){
   const p=costParts(it), free = it.b && it.b[0]==='시공소장 부담', ex=extrasOf(it).filter(e=>Number(e.amt)>0);
-  const need = e => !free || e.our, miss = ex.filter(e=>need(e) && !(e.rcpt&&e.rcpt.length));
+  const need = e => !NO_RCPT.includes(e.t) && (!free || e.our), miss = ex.filter(e=>need(e) && !(e.rcpt&&e.rcpt.length));
   const row=(k,v,cls='')=>`<tr class="${cls}"><td>${k}</td><td class="amt">${v}</td></tr>`;
   return `<div class="dsec"><h4>비용 확인 <span class="cap" style="font-weight:400">영업이 입력한 내용 · 확인 후 6단계 기안으로 넘깁니다</span></h4>
     <dl class="kv"><dt>처리완료일</dt><dd>${it.doneAt?it.doneAt.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}</dd>
@@ -2929,7 +2929,7 @@ function costCheck(it, s){
     <table class="ct cchk"><tbody>
       ${row('자재비 <span class="cap">ERP 출고 − 회수 · 당사</span>', won(it.mat||0)+'원')}
       ${row(`노임 <span class="cap">일당 ${won(it.labRate||0)} × ${it.labCnt||0}명</span>`, won(p.lab)+'원')}
-      ${ex.map(e=>row(`${esc(e.t==='기타'?(e.name||'기타'):e.t)} ${need(e)?(e.rcpt&&e.rcpt.length?`<span class="tg tg-ok">영수증 ${e.rcpt.length}</span>`:'<span class="tg tg-swap">영수증 없음</span>'):'<span class="cap">무상 처리 · 지급 대상 아님</span>'}`, won(e.amt)+'원')).join('')}
+      ${ex.map(e=>row(`${esc(e.t==='기타'?(e.name||'기타'):e.t)} ${NO_RCPT.includes(e.t)?'<span class="cap">세금계산서 처리</span>':need(e)?(e.rcpt&&e.rcpt.length?`<span class="tg tg-ok">영수증 ${e.rcpt.length}</span>`:'<span class="tg tg-swap">영수증 없음</span>'):'<span class="cap">무상 처리 · 지급 대상 아님</span>'}`, won(e.amt)+'원')).join('')}
       ${row('<b>당사 지급 대상</b>', '<b>'+won(ourPay(it))+'원</b>', 'tot')}
     </tbody></table>
     ${miss.length?`<div class="alert warn" style="margin-top:10px"><b>영수증 없는 항목 ${miss.length}건</b> — ${miss.map(e=>esc(e.t==='기타'?(e.name||'기타'):e.t)).join(', ')} · 「전체 보기」에서 비용 칸에 첨부하거나 영업에 요청하세요</div>`:''}
@@ -2987,6 +2987,7 @@ function drawIntake(){
 
 /* ════ 단계 자유 이동 · 비용 입력(일당×품 + 기타항목·영수증) ════ */
 const EXTRA_T = ['장비대','재료비(현장 구매)','2차 피해 복구비','기타'];
+const NO_RCPT = ['장비대'];   // 장비대는 전자세금계산서로 처리 — 영수증 첨부 불필요 (노임도 동일)
 const sumAmt = a => (a||[]).reduce((x,e)=>x+(Number(e.amt)||0),0);
 function extrasOf(it){ return Array.isArray(it.extras)? it.extras : []; }
 /* 집계용 분해 : 노임 · 복구비(2차 피해) · 경비(장비대·재료비·기타) */
@@ -3029,12 +3030,12 @@ function costSection(it, s, st){
       <select class="sel" data-f="t" ${ed?'':'disabled'}>${EXTRA_T.map(t=>`<option ${e.t===t?'selected':''}>${t}</option>`).join('')}</select>
       ${e.t==='기타'?`<input class="inp" data-f="name" placeholder="항목명" value="${esc(e.name||'')}" ${ed?'':'disabled'}>`:'<span></span>'}
       <span class="amtw"><input class="inp amt" data-f="amt" inputmode="numeric" value="${e.amt?won(e.amt):''}" placeholder="0" ${ed?'':'disabled'}><em>원</em></span>
-      <label class="btn btn-line sm rc">영수증${e.rcpt.length?` ${e.rcpt.length}`:''}<input type="file" data-f="rcpt" accept="image/*,application/pdf" multiple hidden ${ed?'':'disabled'}></label>
+      ${NO_RCPT.includes(e.t)?'<span class="cap rc" style="align-self:center">세금계산서 처리</span>':`<label class="btn btn-line sm rc">영수증 첨부${e.rcpt.length?` ${e.rcpt.length}`:''}<input type="file" data-f="rcpt" accept="image/*,application/pdf" multiple hidden ${ed?'':'disabled'}></label>`}
       ${ed?`<button class="xbtn" data-f="del" title="삭제">×</button>`:'<span></span>'}
       ${free?`<label class="tgl our"><input type="checkbox" data-f="our" ${e.our?'checked':''} ${ed?'':'disabled'}> 당사 지급(협의)</label>`:''}
-      ${e.rcpt.length?`<div class="rclist">${e.rcpt.map((r,j)=>`<a href="https://drive.google.com/file/d/${r.id}/view" target="_blank" rel="noopener">🧾 ${esc(r.name||'영수증')}</a>${ed?`<button class="lkb" data-rdel="${j}">삭제</button>`:''}`).join('')}</div>`:`<div class="rclist cap">${e.amt?'영수증 없음':''}</div>`}
+      ${e.rcpt.length?`<div class="rclist">${e.rcpt.map((r,j)=>`<a href="https://drive.google.com/file/d/${r.id}/view" target="_blank" rel="noopener">🧾 ${esc(r.name||'영수증')}</a>${ed?`<button class="lkb" data-rdel="${j}">삭제</button>`:''}`).join('')}</div>`:`<div class="rclist cap">${e.amt&&!NO_RCPT.includes(e.t)?'영수증 없음':''}</div>`}
     </div>`;
-  return `<div class="dsec" id="costSec"><h4>비용 <span class="cap" style="font-weight:400">원 단위 · 노임 외 항목은 영수증 첨부</span></h4>
+  return `<div class="dsec" id="costSec"><h4>비용 <span class="cap" style="font-weight:400">원 단위 · 노임·장비대는 전자세금계산서 처리, 그 외 항목은 영수증 첨부</span></h4>
     ${s.wait?`<div class="alert warn"><b>확인 대기 현장</b> — 정식 등록 전이라 하자예산 집계에 반영되지 않습니다. 비용·예산 › 현장·예산에서 정식 등록하세요.</div>`:''}
     ${head}
     <div class="labrow"><div class="field"><label>일당 (노임단가)</label><span class="amtw"><input class="inp amt" id="cRate" inputmode="numeric" value="${d.rate?won(d.rate):''}" placeholder="0" ${ed?'':'disabled'}><em>원</em></span></div>
