@@ -2124,7 +2124,7 @@ function detail(id){
   const ALL = DV.all, show = a => ALL || st===7 || a.includes(st);
   openDrawer(`
     <div class="dh"><button class="x" aria-label="닫기">×</button>
-      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}</div>
+      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}${!ME()?' · <b style="color:var(--warn-tx)">작업자 미선택 — 이력에 이름이 남지 않습니다</b>':''}</div>
       <h3>${esc(it.site)}</h3>
       <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}${yr?` · 보증 ${yr}년차`:''}${s.comp&&wMiss(s).includes('보증기간')?' · <b style="color:var(--warn-tx)">보증기간 미입력</b>':''}${wE?` · 만료 ${fmtD(wE)}`:''}${wX?' · <b style="color:var(--warn-tx)">접수일 기준 보증기간 경과</b>':''}${s.wait?' · <b style="color:var(--yel)">확인 대기 현장</b>':''}</div>
     </div>
@@ -2205,7 +2205,7 @@ function detail(id){
 
   drawer.querySelector('.x').onclick=closeDrawer; drawer.querySelector('.x2').onclick=closeDrawer;
   const $ = q => document.getElementById(q);
-  if(!ME()) toast('오른쪽 위에서 작업자를 먼저 선택하면 처리 이력에 이름이 남습니다');
+  if(!ME() && !window._meWarned){ window._meWarned=true; toast('오른쪽 위에서 작업자를 먼저 선택하면 처리 이력에 이름이 남습니다'); }   // 페이지를 연 뒤 한 번만
 
   /* 처리소장 · 방문일 */
   const sel=$('selHd');
