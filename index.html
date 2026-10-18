@@ -1473,7 +1473,7 @@ function costRoute(sub){ CF.view = CVIEWS.some(v=>v[0]===sub)? sub : 'overview';
 const PARTS6 = ['슬라브','슁글','금속기와','배수로','파라펫','드레인 주변','조인트','옥탑 벽체','기타'];
 const PHS6   = ['누수','들뜸','균열','박리','변색','오염'];
 const CAUSES = ['시공 불량','자재 결함','외부 요인','경년 열화','사용자 과실','기타'];
-const GONGS  = ['슬라브(듀얼)','슬라브(PVC)','슁글','금속기와','배수로','옥탑','균열보수','재도장','기타'];
+const GONGS  = ['슬라브','슁글','금속기와','PVC','배수로','옥탑','우레탄','재도장','기타'];
 const DMGS   = ['세대 내부','방충망·창호','주차 차량','공용시설','기타'];
 const SEASON = m => m>=3&&m<=5?'봄':m>=6&&m<=8?'여름':m>=9&&m<=11?'가을':'겨울';
 const SEASONS = [['봄','1f338','3~5월'],['여름','1f327-fe0f','6~8월 · 장마'],['가을','1f342','9~11월'],['겨울','2744-fe0f','12~2월']];
@@ -1545,7 +1545,7 @@ const AVIEWS = [
 ];
 const APERIODS = [['all','전체 누적'],[String(CY),PL0],[String(CY-1),`${CY-1}년`],[String(CY-2),`${CY-2}년`]];
 const aLabel = ()=> APERIODS.find(p=>p[0]===AF.period)[1];
-const aIn = r => (AF.period==='all' || String(r.date.getFullYear())===AF.period) && (!AF.gong || r.gong===AF.gong);
+const aIn = r => (AF.period==='all' || String(r.date.getFullYear())===AF.period) && (!AF.gong || hasG(r,AF.gong));
 const AI = c => `<img class="e" src="${ICON['a_'+c]}" alt="">`;
 
 /* 노출(현장·년) : 기간 동안 보증기간 안에 있던 현장-연수 합 → 공종·연차 비교용 분모 */
@@ -1563,7 +1563,7 @@ function renderAnaNav(){
     + `<p class="cnav-f">분석 대상 = 접수된 모든 하자<br>(종결 이력 + 진행 중)<br>원인은 4단계 보수 완료 후 확정</p>`;
 }
 function anaFilters(){
-  return `<label class="psel"><span>공종</span><select class="sel" onchange="AF.gong=this.value;renderAna()"><option value="">전체</option>${GONGS.filter(g=>Object.values(SITES).some(s=>s.gong===g)).map(g=>`<option ${AF.gong===g?'selected':''}>${g}</option>`).join('')}</select></label>
+  return `<label class="psel"><span>공종</span><select class="sel" onchange="AF.gong=this.value;renderAna()"><option value="">전체</option>${GONGS.filter(g=>Object.values(SITES).some(s=>hasG(s,g))).map(g=>`<option ${AF.gong===g?'selected':''}>${g}</option>`).join('')}</select></label>
     <label class="psel"><span>기간</span><select class="sel" onchange="AF.period=this.value;renderAna()">${APERIODS.map(([k,l])=>`<option value="${k}" ${AF.period===k?'selected':''}>${l}</option>`).join('')}</select></label>`;
 }
 function aHead(title, sub){ return head(title, '', `${aLabel()}${AF.gong?' · '+AF.gong:''} · ${sub}`, anaFilters()); }
@@ -1598,8 +1598,8 @@ function aOverview(){
   const pc = cntBy(rs,r=>r.part+' · '+r.ph); const topPC = Object.entries(pc).sort((a,b)=>b[1]-a[1])[0];
   const sc = cntBy(rs,r=>r.se); const topS = Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
   const sLeak = rs.filter(r=>r.se===topS[0]&&hasH(r,'누수')).length;
-  const gr = GONGS.map(g=>{ const n=rs.filter(r=>r.gong===g).length, ex=exposure((nm,s)=>s.gong===g); return [g,n,ex?n/ex:0,ex]; }).filter(x=>x[3]>=1&&x[1]>0).sort((a,b)=>b[2]-a[2]);
-  const allEx = exposure(AF.gong?(nm,s)=>s.gong===AF.gong:null), allRate = rs.length/(allEx||1);
+  const gr = GONGS.map(g=>{ const n=rs.filter(r=>hasG(r,g)).length, ex=exposure((nm,s)=>hasG(s,g)); return [g,n,ex?n/ex:0,ex]; }).filter(x=>x[3]>=1&&x[1]>0).sort((a,b)=>b[2]-a[2]);
+  const allEx = exposure(AF.gong?(nm,s)=>hasG(s,AF.gong):null), allRate = rs.length/(allEx||1);
   const ycR = ys=>{ const a=czd.filter(r=>ys.includes(r.yr)); return {p:a.length?a.filter(r=>r.cz==='경년 열화').length/a.length:0,n:a.length}; }, yc=[ycR([1,2]),ycR([4,5])];
   /* 월별 추이 */
   let bars;
@@ -1677,8 +1677,8 @@ function aSeason(){
 /* ── 4. 공종 ── */
 function aGong(){
   const keepG = AF.gong; const rs = anaRecs().filter(r=>(AF.period==='all'||String(r.date.getFullYear())===AF.period));
-  const rows = GONGS.map(g=>{ const a=rs.filter(r=>r.gong===g), sites=Object.values(SITES).filter(s=>s.gong===g).length, ex=exposure((nm,s)=>s.gong===g);
-    const czd=a.filter(r=>r.cz); const area=Object.values(SITES).filter(s=>s.gong===g).reduce((x,s)=>x+(s.area||0),0);
+  const rows = GONGS.map(g=>{ const a=rs.filter(r=>hasG(r,g)), sites=Object.values(SITES).filter(s=>hasG(s,g)).length, ex=exposure((nm,s)=>hasG(s,g));
+    const czd=a.filter(r=>r.cz); const area=Object.values(SITES).filter(s=>hasG(s,g)).reduce((x,s)=>x+(s.area||0),0);
     const topPh = PHS6.map(h=>[h,a.filter(r=>hasH(r,h)).length]).sort((x,y)=>y[1]-x[1])[0];
     return {g,n:a.length,sites,ex,rate:ex?a.length/ex:0,area,per:area?a.length/area*10000:0,mdef:czd.filter(r=>r.cz==='자재 결함').length,czd:czd.length,topPh,cost:a.filter(r=>r.st===7).reduce((x,r)=>x+r.cost,0),cn:a.filter(r=>r.st===7).length}; }).filter(r=>r.sites);
   const allN=rows.reduce((a,r)=>a+r.n,0), allEx=rows.reduce((a,r)=>a+r.ex,0), avg=allN/(allEx||1);
@@ -1704,7 +1704,7 @@ function aCause(){
   const Y = [1,2,3,4,5].map(y=>{ const a=czd.filter(r=>r.yr===y); const ex=exposure((nm,s)=>true)/5; return {y,a,n:rs.filter(r=>r.yr===y).length}; });
   /* 연차별 노출 : 각 현장이 기간 중 y년차였던 연수 */
   const yEx = [1,2,3,4,5].map(y=>{ let t=0; const from = AF.period==='all'? null : new Date(AF.period+'-01-01'), to = AF.period==='all'||AF.period===String(CY)? TODAY : new Date(Number(AF.period)+1+'-01-01');
-    Object.values(SITES).forEach(s=>{ if(AF.gong && s.gong!==AF.gong) return; if(!s.comp) return; const a=new Date(s.comp); a.setFullYear(a.getFullYear()+y-1); const b=new Date(s.comp); b.setFullYear(b.getFullYear()+y);
+    Object.values(SITES).forEach(s=>{ if(AF.gong && !hasG(s,AF.gong)) return; if(!s.comp) return; const a=new Date(s.comp); a.setFullYear(a.getFullYear()+y-1); const b=new Date(s.comp); b.setFullYear(b.getFullYear()+y);
       const x=new Date(Math.max(a, from||a)), z=new Date(Math.min(b,to)); if(z>x) t+=(z-x)/(365.25*864e5); }); return t; });
   const yRate = Y.map((o,i)=>yEx[i]>=.5? o.n/yEx[i] : null), yMax=Math.max(...yRate.filter(v=>v!==null),.01);
   const cost = c => { const a=rs.filter(r=>r.cz===c&&r.st===7); return a.length? Math.round(a.reduce((x,r)=>x+r.cost,0)/a.length/100)*100 : null; };
@@ -1822,7 +1822,7 @@ function renderSummary(){
   /* 유형 */
   AF.period = SF.period; AF.gong='';
   const ra = anaRecs().filter(r=>inY(r.date,SF.period));
-  const grs = GONGS.map(g=>{ const n=ra.filter(r=>r.gong===g).length, ex=exposure((nm,s)=>s.gong===g); return [g,n,ex?n/ex:0,ex]; }).filter(x=>x[3]>=.5);
+  const grs = GONGS.map(g=>{ const n=ra.filter(r=>hasG(r,g)).length, ex=exposure((nm,s)=>hasG(s,g)); return [g,n,ex?n/ex:0,ex]; }).filter(x=>x[3]>=.5);
   const exAll = exposure(null), avg = ra.length/(exAll||1);
   grs.sort((a,b)=>b[2]-a[2]); const gMax=Math.max(...grs.map(x=>x[2]),.01);
   const sc = SEASONS.map(([s,ic,d])=>{ const a=ra.filter(r=>r.se===s); const top=PHS6.map(h=>[h,a.filter(r=>hasH(r,h)).length]).sort((x,y)=>y[1]-x[1])[0]; return {s,d,n:a.length,top}; });
@@ -2013,7 +2013,7 @@ function _rebuild(){
   /* 현장 */
   Object.keys(SITES).forEach(k=>delete SITES[k]);
   Object.values(RAW.sites).forEach(s=>{ if(!s.name) return;
-    const o = {...s}; o.wy = Number(o.wy)||null; o.comp = o.comp||null; o.blds = bldsOf(o); o.bld = o.blds.join(', ');
+    const o = {...s}; o.wy = Number(o.wy)||null; o.comp = o.comp||null; o.gongs = gongsOf(s); o.gong = o.gongs.join('·'); o.blds = bldsOf(o); o.bld = o.blds.join(', ');
     o.budget = (!o.wait && rate(o.ct)) ? budgetOf(o.rev, o.ct) : 0;
     SITES[o.name] = o; });
   /* 접수 건 */
@@ -2092,7 +2092,7 @@ function allRecs(){
 function anaRecs(){
   return ITEMS.filter(i=>SITES[i.site] && SITES[i.site].comp).map(i=>{ const s=SITES[i.site], d=i.rcvAt;
     return {id:i.id, site:i.site, date:d, part:partsOf(i)[0], parts:partsOf(i), ph:phsOf(i)[0], phs:phsOf(i), cz:i.cz||null, dmg:(i.dmg||[]).map(x=>x[0]), mat:i.mat||0, lab:costParts(i).lab+costParts(i).etc, rst:costParts(i).rst, sh:i.sh||0, st:i.st, live:1,
-      gong:s.gong, m:d.getMonth()+1, se:SEASON(d.getMonth()+1), yr:gYear(i.site,d), cost:(i.mat||0)+costParts(i).lab+costParts(i).etc+costParts(i).rst}; });
+      gong:s.gong, gongs:s.gongs, m:d.getMonth()+1, se:SEASON(d.getMonth()+1), yr:gYear(i.site,d), cost:(i.mat||0)+costParts(i).lab+costParts(i).etc+costParts(i).rst}; });
 }
 
 /* ── 부담 판정 ── */
@@ -2337,13 +2337,16 @@ async function submitIntake(){
 }
 
 async function commitUpload(){
-  const ok = UP.filter(o=>o.st==='new'||o.st==='formal'); if(!ok.length) return;
+  const gu = UP.filter(o=>o.st==='gong');
+  const ok = UP.filter(o=>o.st==='new'||o.st==='formal'); if(!ok.length && !gu.length) return;
   try{
     for(let i=0;i<ok.length;i+=400){ const bt=DB.batch();
-      ok.slice(i,i+400).forEach(o=>bt.set(DB.collection('sites').doc(sid(o.nm)),{name:o.nm, co:o.co, code:o.code, ct:o.ct, comp:o.comp, wy:o.wy, rev:o.rev, gong:o.gong||'기타', area:o.area, bld:o.bld, blds:o.blds, addr:o.addr, wStartBasis:o.wStartBasis, wStart:o.wStart, wNote:o.wNote, wEndManual:o.wEndManual, wEnd:o.wEnd, wait:false, updatedAt:iso(), ...(o.st==='new'?{createdAt:iso()}:{})},{merge:true}));
+      ok.slice(i,i+400).forEach(o=>bt.set(DB.collection('sites').doc(sid(o.nm)),{name:o.nm, co:o.co, code:o.code, ct:o.ct, comp:o.comp, wy:o.wy, rev:o.rev, gong:(o.gongs.length?o.gongs.join('·'):o.gong)||'기타', gongs:o.gongs.length?o.gongs:['기타'], area:o.area, bld:o.bld, blds:o.blds, addr:o.addr, wStartBasis:o.wStartBasis, wStart:o.wStart, wNote:o.wNote, wEndManual:o.wEndManual, wEnd:o.wEnd, wait:false, updatedAt:iso(), ...(o.st==='new'?{createdAt:iso()}:{})},{merge:true}));
       await bt.commit(); }
+    for(let i=0;i<gu.length;i+=400){ const bt=DB.batch(); gu.slice(i,i+400).forEach(o=>bt.set(DB.collection('sites').doc(sid(o.nm)),{gongs:o.gongs, gong:o.gongs.join('·'), updatedAt:iso()},{merge:true})); await bt.commit(); }
   }catch(e){ toast('등록 실패 · '+(e.code||e.message)); return; }
-  closeDrawer(); toast(`${ok.length}곳 등록 완료 · 하자예산 ${won(ok.reduce((a,o)=>a+budgetOf(o.rev,o.ct),0))}원 편성`);
+  if(!ok.length){ closeDrawer(); toast(`공종 ${gu.length}곳 갱신`); return; }
+  closeDrawer(); toast(`${ok.length}곳 등록 완료${gu.length?` · 공종 ${gu.length}곳 갱신`:''} · 하자예산 ${won(ok.reduce((a,o)=>a+budgetOf(o.rev,o.ct),0))}원 편성`);
 }
 
 /* ── ERP 자재 출고 내역 저장 ── */
@@ -2736,7 +2739,7 @@ function openSiteForm(nm, formal){
   const s = nm? SITES[nm] : {};
   const mode = !nm?'new':formal?'formal':'edit';
   const v = (k,d='')=> s[k]!==undefined&&s[k]!==null? s[k] : d;
-  const gongs=['슬라브(듀얼)','슬라브(PVC)','슁글','금속기와','배수로','옥탑','균열보수','재도장','기타']; if(s.gong && !gongs.includes(s.gong)) gongs.unshift(s.gong);
+  window.FG = nm ? gongsOf(s).filter(g=>g!=='기타'||gongsOf(s).length===1) : [];
   const basis = v('wStartBasis','준공일');
   openDrawer(`<div class="dh"><div class="k">${mode==='new'?'현장 마스터 · 신규':mode==='formal'?'확인 대기 → 정식 등록':'현장 마스터 · 수정'}</div><h3>${mode==='new'?'현장 등록':esc(nm)}</h3>
       <div class="m">${mode==='formal'?`간이 등록 ${(s.reg||'').replace(/-/g,'.')} · 비어 있는 계약유형·확정매출액을 채우면 하자예산이 편성됩니다`:'준공 시점에 등록 · 하자예산은 확정매출액 × 적용률로 자동 계산'}${s.pp?` · <b>pour-pay 연결</b>${s.ppDone?` (완료 ${s.ppDone.replace(/-/g,'.')})`:''}`:''}</div>
@@ -2747,7 +2750,7 @@ function openSiteForm(nm, formal){
       <div class="field"><label>ERP 프로젝트코드</label><input class="inp" id="fCode" value="${esc(v('code'))}" placeholder="비워 두면 자재 출고 업로드 때 채움"></div></div>
       <div class="field"><label>계약유형 *</label><div class="ctp" id="fCt">${['컨설팅','기술자문컨설팅','기술자문(직영)'].map(c=>`<button type="button" class="${s.ct===c?'on':''}" onclick="pickCt(this)" data-v="${c}">${c}<small>${c==='기술자문(직영)'?'1.5%':'3%'}</small></button>`).join('')}</div><p class="cap" style="margin-top:6px">특허료 현장은 하자예산 편성 대상이 아니므로 등록하지 않습니다</p></div>
       <div class="field"><label>확정매출액 (원) *</label><input class="inp amt-in" id="fRev" inputmode="numeric" value="${s.rev!=null&&s.rev!==''?won(s.rev):''}" oninput="const v=this.value.replace(/[^0-9-]/g,'').replace(/(?!^)-/g,'');this.value=v&&v!=='-'?Number(v).toLocaleString('ko-KR'):v;calcBudget()"><p class="cap" style="margin-top:6px">마이너스 현장은 앞에 - 를 붙여 입력 · 하자예산은 0원으로 편성됩니다</p></div>
-      <div class="g2"><div class="field"><label>공종</label><select class="sel" id="fGong">${gongs.map(g=>`<option ${v('gong')===g?'selected':''}>${esc(g)}</option>`).join('')}</select></div>
+      <div class="g2"><div class="field"><label>공종 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="fGongs">${GONG_LIST.map(g=>`<button type="button" data-g="${g}" class="${FG.includes(g)?'on':''}" onclick="const k=FG.indexOf(this.dataset.g);if(k<0)FG.push(this.dataset.g);else FG.splice(k,1);this.classList.toggle('on',k<0)">${g}</button>`).join('')}</div></div>
       <div class="field"><label>면적 (㎡)</label><input class="inp" id="fArea" inputmode="numeric" value="${v('area')}"></div></div>
       <div class="field"><label>시공소장 * <span class="cap">(여러 명이면 쉼표로 구분)</span></label><input class="inp" id="fBld" list="dlWf" value="${esc(bldsOf(s).join(', '))}" placeholder="이름 입력 또는 선택"><datalist id="dlWf">${WORKERS.map(w=>`<option value="${esc(w)}">`).join('')}</datalist></div>
       <div class="field"><label>현장 주소</label><input class="inp" id="fAddr" value="${esc(v('addr'))}"></div>
@@ -2795,7 +2798,7 @@ async function saveSite(mode){
   if(miss.length){ toast('필수 항목을 입력하세요 — '+miss.join(', ')); return; }
   if(mode==='new' && SITES[nm]){ toast('같은 이름의 현장이 이미 등록되어 있습니다'); return; }
   const wasWait = SITES[nm] && SITES[nm].wait;
-  const data={name:nm, co:g('fCo'), code:g('fCode'), ct, comp:w.comp||null, wy:w.wy||null, rev, gong:g('fGong'), area:num(g('fArea'))||null, blds, bld:blds.join(', '), addr:g('fAddr'),
+  const data={name:nm, co:g('fCo'), code:g('fCode'), ct, comp:w.comp||null, wy:w.wy||null, rev, gongs:GONG_LIST.filter(x=>(window.FG||[]).includes(x)).length? GONG_LIST.filter(x=>FG.includes(x)) : ['기타'], gong:(GONG_LIST.filter(x=>(window.FG||[]).includes(x)).join('·')||'기타'), area:num(g('fArea'))||null, blds, bld:blds.join(', '), addr:g('fAddr'),
     wStartBasis:w.basis, wStart:w.basis==='준공일'?null:w.start, wNote:w.basis==='기타'?g('fWn'):'', wEndManual:w.man, wEnd:w.man?g('fWe'):null, wait:false, updatedAt:iso()};
   if(mode==='new') data.createdAt=iso();
   try{ await DB.collection('sites').doc(sid(nm)).set(data,{merge:true}); }catch(e){ toast('저장 실패 · '+(e.code||e.message)); return; }
@@ -2820,21 +2823,25 @@ function readUpload(file){
     const wb = XLSX.read(e.target.result,{type:'array',cellDates:true});
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''});
     const dt = v => v instanceof Date ? ymd(v) : String(v||'').trim().replace(/\./g,'-');
-    UP = rows.filter(r=>String(r['현장명']).trim() && !String(r['현장명']).startsWith('예시)')).map(r=>{
+    const GONLY = rows.length && !rows.some(r=>String(r['업체명']??'').trim()) && rows.some(r=>String(r['공종']??'').trim());
+    UP = rows.filter(r=>String(r['현장명']).trim() && !String(r['현장명']).startsWith('예시)')).map(r=>{ XCOLS2.forEach(k=>{ if(r[k]===undefined) r[k]=''; });
       const blds=String(r['시공소장']).split(/\s*,\s*/).filter(Boolean), basis=String(r['보증 기산기준']||'').trim()||'준공일';
       const o = {nm:String(r['현장명']).trim(), co:String(r['업체명']).trim(), code:String(r['ERP 프로젝트코드']).trim(), ct:String(r['계약유형']).trim(), comp:dt(r['준공일'])||null, wy:Number(r['보증기간(년)'])||null,
-        rev:num(r['확정매출액']), gong:String(r['공종']).trim(), area:Number(r['면적(㎡)'])||null, blds, bld:blds.join(', '), addr:String(r['현장 주소']||'').trim(),
+        rev:num(r['확정매출액']), gong:String(r['공종']??'').trim(), gongs:gtoks(r['공종']??''), area:Number(r['면적(㎡)'])||null, blds, bld:blds.join(', '), addr:String(r['현장 주소']||'').trim(),
         wStartBasis:W_BASIS.includes(basis)?basis:'기타', wStart:dt(r['보증 기산일'])||null, wEnd:dt(r['보증 만료일'])||null, wNote:W_BASIS.includes(basis)?'':basis};
       o.wEndManual=!!o.wEnd; if(o.wStartBasis==='준공일') o.wStart=null;
       const err=[]; if(!o.co)err.push('업체명'); if(o.ct==='특허료')err.push('특허료 현장은 편성 제외'); else if(!rate(o.ct))err.push('계약유형'); if(o.comp && !/^\d{4}-\d{2}-\d{2}$/.test(o.comp))err.push('준공일 형식'); if(String(r['확정매출액']).trim()==='')err.push('확정매출액'); if(!blds.length)err.push('시공소장');
       if(o.wStartBasis!=='준공일' && !/^\d{4}-\d{2}-\d{2}$/.test(o.wStart||'')) err.push('보증 기산일'); if(o.wEnd && !/^\d{4}-\d{2}-\d{2}$/.test(o.wEnd)) err.push('보증 만료일');
-      o.st = SITES[o.nm]? (SITES[o.nm].wait?'formal':'dup') : err.length? 'err':'new'; if(o.st==='formal' && err.length) o.st='err'; o.err=err; o.sim = o.st==='new'? similar(o.nm):[];
+      o.st = SITES[o.nm]? (SITES[o.nm].wait?'formal':'dup') : err.length? 'err':'new';
+      if(o.st==='dup' && o.gongs.length && gongsOf(SITES[o.nm]).join('·')!==o.gongs.join('·')){ o.st='gong'; o.gFrom=gongsOf(SITES[o.nm]).join('·'); }   /* 이미 등록된 현장: 공종만 갱신 */
+      if(GONLY && o.st==='err') o.st='skip';   /* 공종만 있는 파일(대조표): 미등록 현장은 오류 대신 건너뜀 */
+      if(o.st==='formal' && err.length) o.st='err'; o.err=err; o.sim = o.st==='new'? similar(o.nm):[];
       return o; });
-    const n = UP.filter(o=>o.st==='new'||o.st==='formal').length;
-    document.getElementById('upPrev').innerHTML = `<div class="upsum"><span class="stt st-ok">등록 ${n}</span><span class="stt st-end">이미 등록 ${UP.filter(o=>o.st==='dup').length}</span><span class="stt st-over">오류 ${UP.filter(o=>o.st==='err').length}</span></div>
+    const n = UP.filter(o=>o.st==='new'||o.st==='formal'||o.st==='gong').length, ng=UP.filter(o=>o.st==='gong').length;
+    document.getElementById('upPrev').innerHTML = `<div class="upsum"><span class="stt st-ok">등록 ${n-ng}</span>${ng?`<span class="stt st-ok">공종 갱신 ${ng}</span>`:''}${GONLY?`<span class="stt st-end">미등록 현장 건너뜀 ${UP.filter(o=>o.st==='skip').length}</span>`:''}<span class="stt st-end">이미 등록 ${UP.filter(o=>o.st==='dup').length}</span><span class="stt st-over">오류 ${UP.filter(o=>o.st==='err').length}</span></div>
       <div class="uptbl"><table class="ct"><thead><tr><th>현장명</th><th>계약유형</th><th>준공일</th><th>보증 만료</th><th class="amt">하자예산(원)</th><th>결과</th></tr></thead><tbody>${UP.map(o=>`<tr><td>${esc(o.nm)}${o.sim.length?`<small class="d2 warn">비슷한 현장: ${esc(o.sim.join(', '))}</small>`:''}</td><td>${esc(o.ct||'—')}</td><td>${o.comp||'<span class="cap">미입력</span>'}</td><td>${(()=>{ const e=wEndOf(o); return e&&!isNaN(e)?fmtD(e):o.comp&&!o.wy?'<span class="cap">보증기간 미입력</span>':'—'; })()}</td><td class="amt">${rate(o.ct)?won(budgetOf(o.rev,o.ct)):'—'}</td>
-      <td>${o.st==='new'?'<span class="stt st-ok">등록</span>':o.st==='formal'?'<span class="stt st-ok">확인 대기 → 정식 등록</span>':o.st==='dup'?'<span class="stt st-end">건너뜀</span>':`<span class="stt st-over">오류 · ${o.err.join(', ')}</span>`}</td></tr>`).join('')}</tbody></table></div>`;
-    const b=document.getElementById('upGo'); b.disabled=!n; b.textContent=n?`${n}곳 등록`:'등록';
+      <td>${o.st==='new'?'<span class="stt st-ok">등록</span>':o.st==='formal'?'<span class="stt st-ok">확인 대기 → 정식 등록</span>':o.st==='gong'?`<span class="stt st-ok">공종 갱신 · ${esc(o.gFrom)} → ${esc(o.gongs.join('·'))}</span>`:o.st==='skip'?'<span class="stt st-end">미등록 현장 · 건너뜀</span>':o.st==='dup'?'<span class="stt st-end">건너뜀</span>':`<span class="stt st-over">오류 · ${o.err.join(', ')}</span>`}</td></tr>`).join('')}</tbody></table></div>`;
+    const b=document.getElementById('upGo'); b.disabled=!n; b.textContent=n?(n-ng?`${n-ng}곳 등록`:'')+(n-ng&&ng?' · ':'')+(ng?`공종 ${ng}곳 갱신`:''):'등록';
   };
   fr.readAsArrayBuffer(file);
 }
@@ -2891,6 +2898,15 @@ const PART_ALIAS={'평지붕면':'슬라브'};   // 평지붕면은 슬라브로
 const CALLER_T=['관리소장','관리사무소','입주자대표','입주민','시공사','기타'];
 function partsOf(it){ const a=(it&&it.parts&&it.parts.length? it.parts : [it&&it.part]).filter(Boolean).map(p=>PART_ALIAS[p]||p); return [...new Set(a)]; }
 const hasP=(r,p)=>partsOf(r).includes(p);
+/* 공종 — 여러 개 저장(gongs). pour-pay 공종명·현장카드·폴더명 등 자유 표기를 표준 공종으로 정리 */
+const GONG_LIST=['슬라브','슁글','금속기와','PVC','배수로','옥탑','우레탄','재도장','기타'];
+function gtoks(t){ t=String(t||''); const o=[];
+  if(/금\s*,\s*슁\s*,\s*슬/.test(t)) o.push('금속기와','슁글','슬라브');
+  if(/슬라브|slab/i.test(t)) o.push('슬라브'); if(/슁글|싱글|shingle/i.test(t)) o.push('슁글'); if(/금속기와|metal/i.test(t)) o.push('금속기와');
+  if(/PVC/i.test(t)) o.push('PVC'); if(/배수로/.test(t)) o.push('배수로'); if(/옥탑/.test(t)) o.push('옥탑'); if(/우레탄/.test(t)) o.push('우레탄'); if(/재도장|옥상도장/.test(t)) o.push('재도장');
+  return GONG_LIST.filter(g=>o.includes(g)); }
+function gongsOf(s){ if(!s) return ['기타']; const a = Array.isArray(s.gongs)&&s.gongs.length ? s.gongs.filter(g=>GONG_LIST.includes(g)) : gtoks(s.gong); return a.length? a : ['기타']; }
+const hasG=(x,g)=>(Array.isArray(x&&x.gongs)&&x.gongs.length? x.gongs : gongsOf(x)).includes(g);
 const PHS=['누수','들뜸','균열','박리','변색','오염'];
 function phsOf(it){ const a=(it&&it.phs&&it.phs.length? it.phs : [it&&it.ph]).filter(Boolean); return [...new Set(a)]; }
 const hasH=(r,h)=>phsOf(r).includes(h);
