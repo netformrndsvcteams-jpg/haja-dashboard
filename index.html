@@ -2878,7 +2878,9 @@ function softCost(){
 function siteHits(q){ const k=normName(q); return q? Object.keys(SITES).filter(n=>n.includes(q) || (k && normName(n).includes(k)) || (SITES[n].addr||'').includes(q)) : []; }
 function intakeRes(){
   const q=intake.q.trim(), hits=siteHits(q); let h='';
-  if(q && hits.length) h += `<div class="res">${hits.map(n=>{const s=SITES[n];return `<button data-site="${esc(n)}" class="${intake.site===n?'on':''}"><b>${esc(n)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}${wExpired(n,TODAY)?'<span class="tg tg-swap">보증 경과</span>':''}<small>${esc(s.co)} · ${s.comp?`준공 ${s.comp.slice(0,7).replace('-','.')} · 보증 ${gYear(n,TODAY)}년차`:'준공일 미입력'}${s.comp&&!s.wy?' · 보증기간 미입력':''}</small></button>`;}).join('')}</div>`;
+  if(intake.site && SITES[intake.site]){ const s=SITES[intake.site];   // 현장을 고르면 목록을 접고 고른 현장만 남김
+    h += `<div class="res"><button data-site="${esc(intake.site)}" class="on"><b>${esc(intake.site)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}<small>${esc(s.co)} · ${s.comp?`준공 ${s.comp.slice(0,7).replace('-','.')}`:'준공일 미입력'}</small></button></div><button class="lkb" id="chgSite" style="margin:-4px 0 12px">다른 현장 선택 (검색 결과 ${hits.length}곳)</button>`;
+  } else if(q && hits.length) h += `<div class="res">${hits.map(n=>{const s=SITES[n];return `<button data-site="${esc(n)}" class="${intake.site===n?'on':''}"><b>${esc(n)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}${wExpired(n,TODAY)?'<span class="tg tg-swap">보증 경과</span>':''}<small>${esc(s.co)} · ${s.comp?`준공 ${s.comp.slice(0,7).replace('-','.')} · 보증 ${gYear(n,TODAY)}년차`:'준공일 미입력'}${s.comp&&!s.wy?' · 보증기간 미입력':''}</small></button>`;}).join('')}</div>`;
   if(q && !hits.length) h += `<div class="noresult"><b>「${esc(q)}」</b> 현장이 마스터에 없습니다.<br>아는 정보 4가지만 넣어 간이 등록하면 접수를 바로 이어갈 수 있습니다. 나머지는 대금관리자가 채워 정식 등록합니다.<br><button class="btn btn-ter" style="margin-top:12px" id="goQuick">간이 등록으로 계속</button></div>`;
   if(!q) h += `<p class="cap">현장명 일부를 입력하세요. 비슷한 이름이 많으니 결과의 업체·준공 연월을 함께 확인하세요.</p>`;
   if(intake.site) h += siteBox(intake.site) + intakeForm();
@@ -2935,6 +2937,7 @@ function intakeForm(){
 const partTx = it => partsOf(it).map(p=>p==='기타'&&it.partNote?`기타(${it.partNote})`:p).join(', ');
 function bindIntake(){
   drawer.querySelectorAll('[data-site]').forEach(b=>b.onclick=()=>{ intake.site=b.dataset.site; drawIntake(); });
+  const cs=document.getElementById('chgSite'); if(cs) cs.onclick=()=>{ intake.site=null; drawIntake(); const iq=document.getElementById('iq'); if(iq){ iq.focus(); iq.setSelectionRange(iq.value.length,iq.value.length); } };
   const gq=document.getElementById('goQuick'); if(gq) gq.onclick=()=>{ intake.quick=true; drawIntake(); };
   const rc=document.getElementById('iRc'); if(rc){ if(intake.rc && !RECV.includes(intake.rc)) intake.rc=''; rc.onchange=()=>{ intake.rc=rc.value; try{localStorage.setItem('lastRecv',intake.rc);}catch(e){} }; }
   const ipn=document.getElementById('iPartN');
