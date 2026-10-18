@@ -858,7 +858,7 @@ function render(){ renderTrack(); const l=visible(); renderChips(l); renderRows(
 
 /* ── 상세 서랍 ── */
 const scrim=document.getElementById('scrim'), drawer=document.getElementById('drawer');
-function openDrawer(html){ drawer.classList.remove('wide'); drawer.innerHTML=html; drawer.classList.add('on'); scrim.classList.add('on'); drawer.setAttribute('aria-hidden','false'); const f=drawer.querySelector('.x'); f&&f.focus(); }
+function openDrawer(html, keep){ const db0=drawer.querySelector('.db'), sy=keep&&db0?db0.scrollTop:0; drawer.classList.remove('wide'); drawer.innerHTML=html; drawer.classList.add('on'); scrim.classList.add('on'); drawer.setAttribute('aria-hidden','false'); const f=drawer.querySelector('.x'); f&&f.focus({preventScroll:true}); if(keep){ const db=drawer.querySelector('.db'); if(db) db.scrollTop=sy; } }
 function closeDrawer(){ drawer.classList.remove('on'); scrim.classList.remove('on'); drawer.setAttribute('aria-hidden','true'); openId=null; render(); }
 scrim.onclick=closeDrawer;
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&drawer.classList.contains('on')) closeDrawer();
@@ -2111,6 +2111,7 @@ let PH_KIND = '처리 전';
 const DV = {id:null, all:false, k:null};   // 상세 화면: 단계별 보기 / 전체 보기
 function detail(id){
   const it=ITEMS.find(i=>i.id===id); if(!it) return;
+  const keepScroll = openId===id && drawer.classList.contains('on');   // 같은 접수 건을 다시 그릴 때는 보던 위치 유지
   openId=id;
   if(it.unseen) dbCase(id,{unseen:false});
   const s=SITES[it.site]||{}, yr=s.comp?gYear(it.site,it.rcvAt):null, z=s.comp?zone(it.site,yr):null, bs=burdenSentence(it);
@@ -2201,7 +2202,7 @@ function detail(id){
       <button class="btn btn-ghost x2">닫기</button>
       ${st<6?`<button class="btn btn-pri" id="nextSt">${st===5&&!payNeeded(it)?'7단계 종결 (지급 없음)':st===5?'6단계 기안으로':(st+1)+'단계로 넘기기'}</button>`:''}
       ${st===6?`<button class="btn btn-pri" id="paidBtn">지급 완료 · 처리 완료</button>`:''}
-    </div>`);
+    </div>`, keepScroll);
 
   drawer.querySelector('.x').onclick=closeDrawer; drawer.querySelector('.x2').onclick=closeDrawer;
   const $ = q => document.getElementById(q);
@@ -2929,7 +2930,7 @@ function costCheck(it, s){
     <table class="ct cchk"><tbody>
       ${row('자재비 <span class="cap">ERP 출고 − 회수 · 당사</span>', won(it.mat||0)+'원')}
       ${row(`노임 <span class="cap">일당 ${won(it.labRate||0)} × ${it.labCnt||0}명</span>`, won(p.lab)+'원')}
-      ${ex.map(e=>row(`${esc(e.t==='기타'?(e.name||'기타'):e.t)} ${NO_RCPT.includes(e.t)?'<span class="cap">세금계산서 처리</span>':need(e)?(e.rcpt&&e.rcpt.length?`<span class="tg tg-ok">영수증 ${e.rcpt.length}</span>`:'<span class="tg tg-swap">영수증 없음</span>'):'<span class="cap">무상 처리 · 지급 대상 아님</span>'}`, won(e.amt)+'원')).join('')}
+      ${ex.map(e=>row(`${esc(e.t==='기타'?(e.name||'기타'):e.t)} ${NO_RCPT.includes(e.t)?'':need(e)?(e.rcpt&&e.rcpt.length?`<span class="tg tg-ok">영수증 ${e.rcpt.length}</span>`:'<span class="tg tg-swap">영수증 없음</span>'):'<span class="cap">무상 처리 · 지급 대상 아님</span>'}`, won(e.amt)+'원')).join('')}
       ${row('<b>당사 지급 대상</b>', '<b>'+won(ourPay(it))+'원</b>', 'tot')}
     </tbody></table>
     ${miss.length?`<div class="alert warn" style="margin-top:10px"><b>영수증 없는 항목 ${miss.length}건</b> — ${miss.map(e=>esc(e.t==='기타'?(e.name||'기타'):e.t)).join(', ')} · 「전체 보기」에서 비용 칸에 첨부하거나 영업에 요청하세요</div>`:''}
@@ -3030,7 +3031,7 @@ function costSection(it, s, st){
       <select class="sel" data-f="t" ${ed?'':'disabled'}>${EXTRA_T.map(t=>`<option ${e.t===t?'selected':''}>${t}</option>`).join('')}</select>
       ${e.t==='기타'?`<input class="inp" data-f="name" placeholder="항목명" value="${esc(e.name||'')}" ${ed?'':'disabled'}>`:'<span></span>'}
       <span class="amtw"><input class="inp amt" data-f="amt" inputmode="numeric" value="${e.amt?won(e.amt):''}" placeholder="0" ${ed?'':'disabled'}><em>원</em></span>
-      ${NO_RCPT.includes(e.t)?'<span class="cap rc" style="align-self:center">세금계산서 처리</span>':`<label class="btn btn-line sm rc">영수증 첨부${e.rcpt.length?` ${e.rcpt.length}`:''}<input type="file" data-f="rcpt" accept="image/*,application/pdf" multiple hidden ${ed?'':'disabled'}></label>`}
+      ${NO_RCPT.includes(e.t)?'<span class="rc"></span>':`<label class="btn btn-line sm rc">영수증 첨부${e.rcpt.length?` ${e.rcpt.length}`:''}<input type="file" data-f="rcpt" accept="image/*,application/pdf" multiple hidden ${ed?'':'disabled'}></label>`}
       ${ed?`<button class="xbtn" data-f="del" title="삭제">×</button>`:'<span></span>'}
       ${free?`<label class="tgl our"><input type="checkbox" data-f="our" ${e.our?'checked':''} ${ed?'':'disabled'}> 당사 지급(협의)</label>`:''}
       ${e.rcpt.length?`<div class="rclist">${e.rcpt.map((r,j)=>`<a href="https://drive.google.com/file/d/${r.id}/view" target="_blank" rel="noopener">🧾 ${esc(r.name||'영수증')}</a>${ed?`<button class="lkb" data-rdel="${j}">삭제</button>`:''}`).join('')}</div>`:`<div class="rclist cap">${e.amt&&!NO_RCPT.includes(e.t)?'영수증 없음':''}</div>`}
@@ -3066,7 +3067,7 @@ function bindCost(it){
   if(c){ c.oninput=()=>{ c.value=c.value.replace(/[^0-9.]/g,''); d.cnt=Number(c.value)||0; dirty(); recalc(); }; c.onchange=save; }
   ['cOut','cRet'].forEach(k=>{ const e=document.getElementById(k); if(e){ e.oninput=()=>{ e.value=fmt(e.value); d[k==='cOut'?'out':'ret']=num(e.value); dirty(); }; e.onchange=save; } });
   sec.querySelectorAll('.exrow').forEach(row=>{ const k=+row.dataset.k, e=d.ex[k];
-    row.querySelector('[data-f=t]').onchange=ev=>{ e.t=ev.target.value; dirty(); save(); };
+    row.querySelector('[data-f=t]').onchange=ev=>{ e.t=ev.target.value; dirty(); save(); detail(it.id); };   // 종류에 따라 항목명·영수증 칸이 바뀌므로 바로 다시 그림
     const nm=row.querySelector('[data-f=name]'); if(nm){ nm.oninput=()=>{ e.name=nm.value; dirty(); }; nm.onchange=save; }
     const a=row.querySelector('[data-f=amt]'); a.oninput=()=>{ a.value=fmt(a.value); e.amt=num(a.value); dirty(); recalc(); }; a.onchange=save;
     const del=row.querySelector('[data-f=del]'); if(del) del.onclick=()=>{ d.ex.splice(k,1); dirty(); save(); };
