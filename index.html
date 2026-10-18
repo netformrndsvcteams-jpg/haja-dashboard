@@ -1197,7 +1197,7 @@ function vSites(){
   const blocked = n => ITEMS.filter(i=>i.site===n && i.st<7).length;
   const D = CF.detail;
   const reg = list.filter(x=>!x.s.wait);
-  return head('현장·예산','등록 '+Object.values(SITES).filter(s=>!s.wait).length+'곳','준공 시점에 현장을 등록하면 하자예산이 자동 편성됩니다 · 과거 준공 현장도 같은 방식으로 등록해 연도별 예산을 맞춥니다',
+  return head('현장·예산','등록 '+Object.values(SITES).filter(s=>!s.wait).length+'곳','준공 시점에 현장을 등록하면 하자예산이 자동 편성됩니다 · 과거 준공 현장도 같은 방식으로 등록해 연도별 예산을 맞춥니다'+matUNote(),
      `<button class="btn btn-line" onclick="openMatUpload()"><img class="bi" src="${ICON.c_out}" alt="">자재 출고 올리기</button>
       <button class="btn btn-line" onclick="openLaborUpload()"><img class="bi" src="${ICON.c_subpay}" alt="">과거 노임 불러오기</button>
       <button class="btn btn-line" onclick="dlTemplate()"><img class="bi" src="${ICON.c_xls}" alt="">양식 받기</button>
@@ -1335,7 +1335,7 @@ function commitUpload(){
 }
 
 /* ── 3. 부담 판정 ── */
-const SEG = [['mat','자재비','#1a8cf0'],['our','당사 부담','#11a39a'],['sub','당사 대납','#7b5cff'],['joint','공동 부담 당사 몫','#e2457f'],['past','과거 노임 (운영 전)','#9aa6b4']];
+const SEG = [['mat','자재비','#1a8cf0'],['our','당사 부담','#11a39a'],['sub','당사 대납','#7b5cff'],['joint','공동 부담 당사 몫','#e2457f'],['past','과거 노임 (운영 전)','#9aa6b4'],['matu','자재비 (현장 미연결)','#8fc7f7']];
 function vBurden(){
   const rs = allRecs().filter(r=>inP(r.date));
   const by = t => rs.filter(r=>r.b[0]===t);
@@ -1347,9 +1347,9 @@ function vBurden(){
   const R = [row('당사 부담','당사 부담',''), row('당사 대납','당사 대납','회수 없음'), row('공동 부담','공동 부담','당사 몫')];
   const shA = sum(by('공동 부담'),r=>r.sh||0);
   const bld = by('시공소장 부담'), tbd = ITEMS.filter(i=>i.st>=4&&i.st<7&&i.b&&i.b[0]==='부담 미정');
-  const pastL = by('과거 이력').reduce((a,r)=>a+(r.lab||0),0), payA = R.reduce((a,r)=>a+r.our,0)+pastL, total = matA+payA;
+  const pastL = by('과거 이력').reduce((a,r)=>a+(r.lab||0),0), payA = R.reduce((a,r)=>a+r.our,0)+pastL, matUA = matU(m=>inP(m.date)), total = matA+matUA+payA;
   const judged = rs.length, paidN = R.reduce((a,r)=>a+r.n,0);
-  const segs = [['mat',matA],['our',R[0].our],['sub',R[1].our],['joint',R[2].our],['past',pastL]].filter(x=>x[0]!=='past'||x[1]>0);
+  const segs = [['mat',matA],['matu',matUA],['our',R[0].our],['sub',R[1].our],['joint',R[2].our],['past',pastL]].filter(x=>x[0]!=='past'||x[1]>0);
   const adj = rs.filter(r=>r.b[1]==='조정');
   const RS=[['자재 결함','당사 부담','품질 신호'],['시공소장 부재','당사 대납',''],['시공사와 협의','공동 부담',''],['기타','직접 선택','']];
   /* 자재 결함 분기별 (전체 누적) */
@@ -1358,13 +1358,14 @@ function vBurden(){
   const qMax = Math.max(1,...qs.map(k=>q[k]||0));
   return head('부담 판정','',`${pLabel()} · 비용 확인을 마친 건 기준 (부담 미정만 ${TD} 현재)`, periodSel())
   + `<div class="card">
-      <div class="ch"><h3>당사 지출 <b class="num">${won(total)}</b>원</h3><span class="cap">= 자재비 ${won(matA)}원 + 노임·복구비 ${won(payA)}원 · 판정 ${judged}건 중 당사가 노임·복구비를 지급한 건 ${paidN}건 (${pct(paidN,judged)}) · 시공소장 부담 ${bld.length}건</span></div>
+      <div class="ch"><h3>당사 지출 <b class="num">${won(total)}</b>원</h3><span class="cap">= 자재비 ${won(matA+matUA)}원${matUA?`(현장 미연결 ${won(matUA)}원 포함)`:''} + 노임·복구비 ${won(payA)}원 · 판정 ${judged}건 중 당사가 노임·복구비를 지급한 건 ${paidN}건 (${pct(paidN,judged)}) · 시공소장 부담 ${bld.length}건</span></div>
       <div class="stack" role="img" aria-label="당사 지출 구성">${segs.filter(s=>s[1]>0).map(([k,a])=>{ const sg=SEG.find(x=>x[0]===k); return `<i style="width:${a/total*100}%;background:${sg[2]}" title="${sg[1]} ${won(a)}원 (${pct(a,total)})"></i>`; }).join('')}</div>
       <div class="lgd">${segs.map(([k,a])=>{ const sg=SEG.find(x=>x[0]===k); return `<span><i style="background:${sg[2]}"></i>${sg[1]} <b class="num">${won(a)}원</b> <em>${pct(a,total)}</em></span>`; }).join('')}</div>
     </div>
     <div class="tcard"><table class="ct"><thead><tr><th>구분</th><th class="amt" style="width:80px">건수</th><th class="amt" style="width:130px">노임(원)</th><th class="amt" style="width:120px">복구비(원)</th><th class="amt" style="width:150px">당사 지급(원)</th><th class="amt" style="width:140px">보증 기준(원)</th><th class="amt" style="width:140px">원인 조정(원)</th></tr></thead><tbody>
       <tr class="grp"><td colspan="7">자재비 — 부담 판정과 무관하게 전액 당사 (ERP 출고 − 회수)</td></tr>
       <tr><td><span class="sw" style="background:#1a8cf0"></span>자재비 <small class="d2i">모든 판정 공통</small></td><td class="amt">${matN}</td><td class="amt mut">—</td><td class="amt mut">—</td><td class="amt"><b>${won(matA)}</b></td><td colspan="2" class="mut c">판정 대상 아님</td></tr>
+      ${matUA?`<tr><td><span class="sw" style="background:#8fc7f7"></span>자재비 (현장 미연결) <small class="d2i">등록 현장에 연결 안 된 출고</small></td><td class="amt">${MATU.filter(m=>inP(m.date)&&m.qty>0).length}</td><td class="amt mut">—</td><td class="amt mut">—</td><td class="amt"><b>${won(matUA)}</b></td><td colspan="2" class="mut c">현장 집행액 제외</td></tr>`:''}
       <tr class="grp"><td colspan="7">노임·복구비 — 부담 판정에 따라 지급 여부가 갈림</td></tr>
       ${R.map((r,i)=>`<tr><td><span class="sw" style="background:${SEG[i+1][2]}"></span>${r.label} ${r.sub?`<small class="d2i">${r.sub}</small>`:''}${r.adjN?`<span class="tg tg-adj">조정 ${r.adjN}건</span>`:''}</td><td class="amt">${r.n}</td><td class="amt">${won(r.lab)}</td><td class="amt">${won(r.rst)}</td><td class="amt"><b>${won(r.our)}</b></td><td class="amt">${won(r.bz)}</td><td class="amt">${won(r.aj)}</td></tr>`).join('')}
       ${shA?`<tr class="sub"><td colspan="7">↳ 공동 부담 노임·복구비 중 <b>시공사 몫 ${won(shA)}원</b>은 시공사가 부담 — 당사 지급·합계에서 제외</td></tr>`:''}
@@ -1813,12 +1814,12 @@ function renderSummary(){
   const B=reg.reduce((a,x)=>a+x.s.budget,0), S=reg.reduce((a,x)=>a+x.spent,0), maxB=Math.max(...yrows.map(r=>Math.max(r.b,r.sp)),1);
   /* 올해 */
   const rs26 = allRecs().filter(r=>r.date.getFullYear()===CY);
-  const mat26 = rs26.reduce((a,r)=>a+(r.mat||0)-(r.ret||0),0);
+  const mat26 = rs26.reduce((a,r)=>a+(r.mat||0)-(r.ret||0),0), matU26 = matU(m=>m.date.getFullYear()===CY);
   const by = t => rs26.filter(r=>r.b[0]===t).reduce((a,r)=>a+ourOf(r),0);
-  const segs = [['자재비',mat26,'#1a8cf0'],['당사 부담',by('당사 부담'),'#11a39a'],['당사 대납',by('당사 대납'),'#7b5cff'],['공동 부담 당사 몫',by('공동 부담'),'#e2457f'],['과거 노임 (운영 전)',by('과거 이력'),'#9aa6b4']].filter(x=>x[0]!=='과거 노임 (운영 전)'||x[1]>0);
+  const segs = [['자재비',mat26,'#1a8cf0'],['자재비 (현장 미연결)',matU26,'#8fc7f7'],['당사 부담',by('당사 부담'),'#11a39a'],['당사 대납',by('당사 대납'),'#7b5cff'],['공동 부담 당사 몫',by('공동 부담'),'#e2457f'],['과거 노임 (운영 전)',by('과거 이력'),'#9aa6b4']].filter(x=>x[0]!=='과거 노임 (운영 전)'||x[1]>0);
   const T26 = segs.reduce((a,s)=>a+s[1],0);
-  const prevSame = allRecs().filter(r=>r.date.getFullYear()===CY-1 && r.date.getMonth()<=TODAY.getMonth()).reduce((a,r)=>a+(r.mat||0)-(r.ret||0)+ourOf(r),0);
-  const mon = Array.from({length:CM},(_,i)=>{ const a=rs26.filter(r=>r.date.getMonth()===i); return {l:(i+1)+'월', v:a.reduce((x,r)=>x+(r.mat||0)-(r.ret||0)+ourOf(r),0), cur:i===CM-1}; });
+  const prevSame = allRecs().filter(r=>r.date.getFullYear()===CY-1 && r.date.getMonth()<=TODAY.getMonth()).reduce((a,r)=>a+(r.mat||0)-(r.ret||0)+ourOf(r),0) + matU(m=>m.date.getFullYear()===CY-1 && m.date.getMonth()<=TODAY.getMonth());
+  const mon = Array.from({length:CM},(_,i)=>{ const a=rs26.filter(r=>r.date.getMonth()===i); return {l:(i+1)+'월', v:a.reduce((x,r)=>x+(r.mat||0)-(r.ret||0)+ourOf(r),0)+matU(m=>m.date.getFullYear()===CY&&m.date.getMonth()===i), cur:i===CM-1}; });
   const mMax=Math.max(...mon.map(m=>m.v),1), step=mMax>8e6?4e6:mMax>4e6?2e6:1e6, top=Math.ceil(mMax/step)*step, ticks=[]; for(let t=0;t<=top;t+=step) ticks.push(t);
   /* 유형 */
   AF.period = SF.period; AF.gong='';
@@ -1832,7 +1833,7 @@ function renderSummary(){
   AF.period=svA; AF.gong=svG;
   /* 자재 */
   const mm = MATS.filter(m=>inY(m.date,SF.mperiod));
-  const ag = {}; mm.forEach(m=>{ const k=m.item; const o=ag[k]||(ag[k]={item:k,unit:m.unit,out:0,ret:0,amt:0,sites:new Set()}); if(m.qty>=0) o.out+=m.qty; else o.ret+=-m.qty; o.amt+=m.amt; o.sites.add(m.site); });
+  const ag = {}; mm.forEach(m=>{ const k=m.item; const o=ag[k]||(ag[k]={item:k,unit:m.unit,out:0,ret:0,amt:0,sites:new Set()}); if(m.qty>=0) o.out+=m.qty; else o.ret+=-m.qty; o.amt+=m.amt; o.sites.add(m.site||m.raw); });
   const items = Object.values(ag).sort((a,b)=>b.amt-a.amt), mTot = items.reduce((a,o)=>a+o.amt,0), iMax=Math.max(...items.map(o=>o.amt),1);
   const shown = SF.showAll? items : items.slice(0,8);
 
@@ -1861,7 +1862,7 @@ function renderSummary(){
       <a class="card clk" href="#cost/burden"><div class="ch"><h3>당사 지출 <b class="num">${won(T26)}</b>원</h3><span class="cap">전년 같은 기간(1~${CM}월) ${won(prevSame)}원 대비 ${prevSame?((T26/prevSame-1)*100>=0?'+':'')+((T26/prevSame-1)*100).toFixed(1)+'%':'—'}</span></div>
         <div class="stack">${segs.filter(s=>s[1]>0).map(s=>`<i style="width:${s[1]/T26*100}%;background:${s[2]}" title="${s[0]} ${won(s[1])}원 (${pct(s[1],T26)})"></i>`).join('')}</div>
         <div class="lgd">${segs.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} <b class="num">${won(s[1])}원</b> <em>${pct(s[1],T26)}</em></span>`).join('')}</div>
-        <p class="cap note">시공소장 부담 건은 노임 지급이 없고 자재비만 포함됩니다</p></a>
+        <p class="cap note">시공소장 부담 건은 노임 지급이 없고 자재비만 포함됩니다 · 「자재비 (현장 미연결)」은 등록 현장에 연결 안 된 하자 자재 출고</p></a>
       <div class="card"><div class="ch"><h3>월별 하자비용</h3><span class="cap">발생 월 기준 · 자재비 + 노임·복구비(당사분)</span></div>
         <div class="vbars sm"><div class="vy">${ticks.slice().reverse().map(t=>`<span>${t?(t/1e6)+'백만':'0'}</span>`).join('')}</div>
         <div class="vplot">${ticks.map(t=>`<u style="bottom:${t/top*100}%"></u>`).join('')}${mon.map(b=>`<div class="vb ${b.cur?'cur':''}" tabindex="0"><i style="height:${b.v/top*100}%"></i><em>${b.l} · ${won(b.v)}원${b.cur?' (진행 중)':''}</em><span>${b.l}</span></div>`).join('')}</div></div></div>
@@ -1878,12 +1879,13 @@ function renderSummary(){
         <p class="cap note">나머지 ${phs.slice(3).map(p=>`${p[0]} ${p[1]}`).join(' · ')}</p></a>
     </div>
 
-    ${band('자재별 소모량',sLabel(SF.mperiod),`<label class="psel"><span>기간</span>${sSel('mperiod')}</label><button class="btn btn-line sm" onclick="openMatUpload()"><img class="bi" src="${ICON.c_up}" alt="">ERP 출고 내역 올리기</button>`)}
+    ${band('자재별 소모량',sLabel(SF.mperiod),`<label class="psel"><span>기간</span>${sSel('mperiod')}</label><button class="btn btn-line sm" onclick="openMatUpload()"><img class="bi" src="${ICON.c_up}" alt="">ERP 출고 내역 올리기</button><button class="btn btn-ghost sm" onclick="openMatCfg()">현장 연결 · 단가표</button>`)}
     <div class="tcard"><table class="ct mt"><thead><tr><th>품목</th><th style="width:60px">단위</th><th class="amt" style="width:100px">출고 수량</th><th class="amt" style="width:90px">회수(반품)</th><th class="amt" style="width:100px">순사용</th><th class="amt" style="width:130px">금액(원)</th><th style="width:220px">비중</th><th class="amt" style="width:90px">사용 현장</th></tr></thead><tbody>
       ${shown.map(o=>`<tr><td><b>${o.item}</b></td><td>${o.unit}</td><td class="amt">${won(o.out)}</td><td class="amt ${o.ret?'':'mut'}">${o.ret?won(o.ret):'—'}</td><td class="amt"><b>${won(o.out-o.ret)}</b></td><td class="amt">${won(o.amt)}</td>
         <td><div class="hb"><i style="width:${o.amt/iMax*100}%;background:linear-gradient(90deg,#7cc8ff,var(--sky))"></i><span class="cap">${pct(o.amt,mTot)}</span></div></td><td class="amt">${o.sites.size}곳</td></tr>`).join('')||'<tr><td colspan="8" class="empty">이 기간 출고 내역이 없습니다</td></tr>'}
-    </tbody>${items.length?`<tfoot><tr><td>${items.length}개 품목${items.length>8?` · <button class="lkb" onclick="SF.showAll=!SF.showAll;renderSummary()">${SF.showAll?'상위 8개만':'전체 보기'}</button>`:''}</td><td></td><td></td><td></td><td></td><td class="amt">${won(mTot)}</td><td></td><td class="amt">${new Set(mm.map(m=>m.site)).size}곳</td></tr></tfoot>`:''}</table></div>
-    <p class="cap note">${MATS_SRC==='none'?'아직 올린 ERP 출고 내역이 없습니다 · ':`업로드 데이터 ${MATS.length}행 · `}출처: 이카운트 자재판매현황(거래처 「하자」) · 수량이 음수인 행은 반품(회수)으로 집계 · 품목명 개편 반영(코트재 → 코트재Ⅰ, 탑코트재 → 상도코트재)</p>
+    </tbody>${items.length?`<tfoot><tr><td>${items.length}개 품목${items.length>8?` · <button class="lkb" onclick="SF.showAll=!SF.showAll;renderSummary()">${SF.showAll?'상위 8개만':'전체 보기'}</button>`:''}</td><td></td><td></td><td></td><td></td><td class="amt">${won(mTot)}</td><td></td><td class="amt">${new Set(mm.map(m=>m.site||m.raw)).size}곳</td></tr></tfoot>`:''}</table></div>
+    <p class="cap note">${MATS_SRC==='none'?'아직 올린 ERP 출고 내역이 없습니다 · ':`업로드 데이터 ${MATS.length}행 · `}출처: 이카운트 하자 출고(거래처 「하자」) 월 단위 업로드 · 등록 현장 연결과 무관하게 전체 출고 집계 · 수량이 음수인 행은 반품(회수) · 품목명 개편 반영(코트재 → 코트재Ⅰ, 탑코트재 → 상도코트재)</p>
+    ${matRankCard()}
   </main>`;
 }
 
@@ -1996,6 +1998,7 @@ function listen(){
     e=>setSync('읽기 오류 · '+(e.code||e.message),'err'));
   on('sites','sites'); on('cases','cases'); on('mats','mats'); on('hist','hist');
   dirListen(); ppInit();
+  DB.collection('config').doc('mat').onSnapshot(d=>{ const x=d.exists?d.data():{}; MCFG.alias=x.alias||{}; MCFG.price=x.price||null; rebuild(); }, ()=>{});
   DB.collection('config').doc('main').onSnapshot(d=>{
     const c = d.exists ? d.data() : {};
     CFG.recv = c.recv||[]; CFG.workers = c.workers||[]; CFG.payMgr = c.payMgr||''; CFG.startDate = c.startDate||null;
@@ -2029,14 +2032,17 @@ function _rebuild(){
   ITEMS.sort((a,b)=>b.rcvAt-a.rcvAt || (b.id>a.id?1:-1));
   /* 자재 출고 (ERP 업로드) */
   MATS = [];
-  Object.values(RAW.mats).forEach(b=>(b.rows||[]).forEach(r=>{ if(!SITES[r.site]) return;
-    MATS.push({date:new Date(r.d), site:r.site, code:r.code||'', item:r.item, unit:r.unit||'—', qty:r.qty, amt:r.amt}); }));
+  /* 출고 행은 전부 보관(raw = 적요 현장명) · 현장은 「현장 연결」(config/mat.alias)로만 정함 · 금액 없는 행은 단가표로 계산 */
+  Object.values(RAW.mats).forEach(b=>(b.rows||[]).forEach(r=>{ const d=new Date(r.d), raw=r.raw||r.site||'(현장 미상)';
+    const amt = r.amt!=null ? r.amt : Math.round((r.qty||0)*(matPrice(r.item)||0));
+    MATS.push({date:d, site:matSiteFor(raw,d) || (!r.raw && SITES[r.site] ? r.site : null), raw, item:r.item, unit:r.unit||'—', qty:r.qty, amt}); }));
+  MATU = MATS.filter(m=>!m.site);
   MATS_SRC = MATS.length ? '업로드' : 'none';
-  /* 과거 집행 (운영 시작일 이전) */
+  /* 현장 집행 — 등록 현장에 연결된 자재 출고(기간 무관) + 운영 시작일 이전 과거 노임 */
   HIST.length = 0;
   const SD = CFG.startDate ? new Date(CFG.startDate) : TODAY;
   const P = ['과거 이력','',null];
-  MATS.filter(m=>m.date<SD).forEach(m=>{
+  MATS.filter(m=>m.site).forEach(m=>{
     if(m.amt>=0) HIST.push({site:m.site, date:m.date, mat:m.amt, lab:0, rst:0, b:P, past:true});
     else HIST.push({site:m.site, date:m.date, mat:0, ret:-m.amt, retDate:m.date, retItem:m.item, retQty:(-m.qty)+(m.unit&&m.unit!=='—'?m.unit:''), lab:0, rst:0, b:P, past:true}); });
   Object.values(RAW.hist).forEach(b=>(b.rows||[]).forEach(r=>{ if(!SITES[r.site]) return; const d=new Date(r.d); if(d>=SD) return;
@@ -3164,6 +3170,196 @@ async function uploadReceipts(it, d, k, files){
   }
   if(ok){ d.dirty=true; await saveCost(it, d, true); toast(`영수증 ${ok}건 저장`); fetchStorage(); }
 }
+
+
+/* ════ 하자 자재 출고 — 월 단위 일괄 업로드 (2026-10-19 확정)
+   · 출고 행은 현장 매칭 없이 전부 보관(적요 현장명 원문 raw)
+   · 등록 현장(예산 보유)만 「현장 연결」 확인 후 집행액에 반영 — 확인한 짝은 config/mat.alias 에 기억
+   · 금액: 실금액 파일은 파일 금액, ERP 원본은 수량 × 단가표(26년 실금액 「단가참조표」 기준, 품목별 수정) ════ */
+const PRICE_SEED = {"POUR 강화제Ⅰ [18L]": [200900, "2026-08"], "POUR 듀얼복합시트 1.5T [1m*25m]": [287500, "2026-08"], "POUR 듀얼복합시트 1.5T [30cm*25m]": [91900, "2026-06"], "POUR 듀얼복합시트 1.5T [50cm*25m]": [153200, "2026-08"], "POUR 듀얼복합시트 1.5T [60cm*25m]": [177700, "2026-07"], "POUR 듀얼복합시트 1.5T [70cm*25m]": [205200, "2026-08"], "POUR 듀얼복합시트 1.5T [80cm*25m]": [232800, "2026-06"], "POUR 보강시트 0.3T (슬라브용) [10cm*100m]": [40400, "2026-07"], "POUR 보강시트 0.3T (슬라브용) [15cm*100m]": [52500, "2026-08"], "POUR 보강시트 0.3T (슬라브용) [20cm*100m]": [57800, "2026-08"], "POUR 보강시트 0.3T (크랙용) [10cm*100m]": [40400, "2026-08"], "POUR 상도코트재 (녹색) [20kg]": [170700, "2026-08"], "POUR 상도코트재 (적갈색) [20kg]": [170700, "2026-08"], "POUR 상도코트재 (회색) [20kg]": [170700, "2026-08"], "POUR 슈퍼복합압축시트 0.3T [1m*100m]": [196900, "2026-08"], "POUR 슈퍼복합압축시트 0.3T [20cm*100m]": [57800, "2026-08"], "POUR 슈퍼복합압축시트 0.3T [30cm*100m]": [70300, "2026-08"], "POUR 슈퍼복합압축시트 0.3T [50cm*100m]": [102700, "2026-08"], "POUR 슈퍼복합압축시트 0.3T [80cm*100m]": [176500, "2026-07"], "POUR 압축강화시트 0.7T [10cm*100m]": [40300, "2026-07"], "POUR 압축강화시트 0.7T [15cm*100m]": [54500, "2026-07"], "POUR 압축강화시트 0.7T [1m*100m]": [380700, "2026-08"], "POUR 압축강화시트 0.7T [20cm*100m]": [71500, "2026-08"], "POUR 압축강화시트 0.7T [30cm*100m]": [108700, "2026-07"], "POUR 압축강화시트 0.7T [70cm*100m]": [254700, "2026-05"], "POUR 옥상배관방수트랩 (시트포함) [45mm]": [21300, "2026-07"], "POUR 코트재Ⅰ(녹색) [20kg]": [144400, "2026-07"], "POUR 코트재Ⅰ(백색) [20kg]": [144400, "2026-08"], "POUR 코트재Ⅰ(적갈색) [20kg]": [144400, "2026-07"], "POUR 코트재Ⅰ(회색) [20kg]": [144400, "2026-08"], "POUR 코트재Ⅱ녹색 [20kg]": [144400, "2026-07"], "POUR 코트재Ⅱ적갈색 [20kg]": [144400, "2026-08"], "POUR 코트재Ⅱ회색 [20kg]": [144400, "2026-08"], "POUR 페이퍼 팬 벤트 (시트용)": [31300, "2026-08"]};
+const MCFG = {alias:{}, price:null};
+let MATU = [];
+const matPrice = it => { const P = MCFG.price || {}; if(P[it]!=null) return Number(P[it]); const s=PRICE_SEED[it]; return s? s[0] : null; };
+const matRaw = s => { let t=String(s==null?'':s).replace(/\s+/g,' ').trim(); t=t.replace(/\s*하자\s*$/,'').trim(); return (!t||t==='하자'||/^\(?누락\)?$/.test(t)) ? '' : t; };
+function matSiteFor(raw, d){
+  const L=(MCFG.alias[raw]||[]).filter(n=>SITES[n]); if(!L.length) return null; if(L.length===1) return L[0];
+  const b=L.filter(n=>SITES[n].comp && new Date(SITES[n].comp)<=d).sort((x,y)=>new Date(SITES[y].comp)-new Date(SITES[x].comp));
+  return b[0] || L.slice().sort((x,y)=>new Date(SITES[x].comp||0)-new Date(SITES[y].comp||0))[0];
+}
+function matCands(raw){
+  const k=normName(raw); if(k.length<2) return [];
+  const ex=[], sim=[];
+  Object.keys(SITES).forEach(n=>{ const m=normName(n); if(!m) return; if(m===k) ex.push(n); else if(m.length>=3 && (m.includes(k)||k.includes(m))) sim.push(n); });
+  return ex.map(n=>({n,how:'이름 일치'})).concat(sim.map(n=>({n,how:'이름 유사'})));
+}
+function matPick(cands, d){
+  const c=cands.map(x=>x.n); const b=c.filter(n=>SITES[n].comp && new Date(SITES[n].comp)<=d).sort((x,y)=>new Date(SITES[y].comp)-new Date(SITES[x].comp));
+  return b[0] || c[0];
+}
+
+/* ── 업로드 창 ── */
+function openMatUpload(){
+  MUP=null;
+  openDrawer(`<div class="dh"><div class="k">하자 자재 출고 · 월 단위 업로드</div><h3>자재 출고 내역 올리기</h3><div class="m">이카운트 하자 출고 내역(판매현황, 거래처 「하자」) 또는 하자자재_실금액 파일을 올립니다 · 같은 행은 한 번만 반영</div><button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
+    <div class="db"><div class="dsec">
+      <ol class="steps">
+        <li><b>파일 준비</b><span>매월 이카운트 판매현황 › 거래처 「하자」로 그달 내역을 내려받습니다(5,000행이 넘으면 기간을 나눠 받기). 현장은 전표 첫 줄 적요에서 읽고, 금액은 단가표로 계산합니다. 과거분은 하자자재_실금액 파일(상세내역·자재 회수내역 시트)을 그대로 올려도 됩니다.</span></li>
+        <li><b>파일 선택</b><label class="drop"><input type="file" accept=".xlsx,.xls,.csv" onchange="readMat(this.files[0])"><img class="bi2" src="${ICON.c_up}" alt=""><span>파일을 끌어다 놓거나 눌러서 선택</span></label></li>
+        <li><b>등록 현장 연결 확인 후 반영</b><span>예산이 잡힌 등록 현장으로 간 출고만 확인해서 연결합니다(현장별 예산 소진율에 자재비 반영). 한 번 확인한 현장명은 기억해서 다음 달부터 자동 연결됩니다. 나머지는 연도·월별 합계와 현장 순위에만 반영됩니다.</span></li>
+      </ol><div id="mPrev"></div></div></div>
+    <div class="df"><button class="btn btn-line" onclick="openMatCfg()">현장 연결 · 단가표</button><span style="margin-right:auto"></span><button class="btn btn-ghost" onclick="closeDrawer()">취소</button><button class="btn btn-pri" id="mGo" disabled onclick="commitMat()">반영</button></div>`);
+}
+function matParse(wb){
+  const rows=[]; const H = r => r.map(c=>String(c).replace(/\s/g,''));
+  const toD = v => { if(v instanceof Date) return new Date(v.getFullYear(),v.getMonth(),v.getDate()); const m=String(v).match(/(\d{4})[\/.-](\d{1,2})[\/.-](\d{1,2})/); return m? new Date(+m[1],+m[2]-1,+m[3]) : null; };
+  const num = v => Number(String(v==null?'':v).replace(/,/g,''))||0;
+  const fixItem = it => { let s=String(it).trim(); Object.entries(ITEM_ALIAS).forEach(([a,b])=>{ if(s.startsWith(a)&&!s.startsWith(b)) s=b+s.slice(a.length); }); return s; };
+  const sheetAoa = n => XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:''});
+  if(wb.SheetNames.includes('상세내역')){   /* 하자자재_실금액 파일 */
+    const take=(name,neg)=>{ if(!wb.SheetNames.includes(name)) return; const a=sheetAoa(name); const hi=a.findIndex(r=>r.some(c=>/^일자/.test(c))&&r.some(c=>/품목/.test(c))); if(hi<0) return;
+      const h=H(a[hi]), col=(...k)=>{ for(const x of k){ const i=h.findIndex(c=>c.includes(x)); if(i>=0) return i; } return -1; };
+      const C={d:col('일자'),it:col('품목'),q:col('수량'),s:h.findIndex(c=>c==='현장'),a:col('금액')};
+      a.slice(hi+1).forEach(r=>{ const d=toD(r[C.d]); if(!d||!r[C.it]) return; let q=num(r[C.q]), amt=num(r[C.a]); if(neg){ q=-Math.abs(q); amt=-Math.abs(amt); }
+        rows.push({date:d, raw:matRaw(r[C.s])||'(현장 미상)', item:fixItem(r[C.it]), qty:q, amt}); }); };
+    take('상세내역',false); take('자재 회수내역',true);
+    return {rows, kind:'실금액 파일'};
+  }
+  const a=sheetAoa(wb.SheetNames[0]); const hi=a.findIndex(r=>r.some(c=>/일자/.test(c))&&r.some(c=>/품목/.test(c)));
+  if(hi<0) return {err:'「일자」와 「품목」 열이 있는 머리글을 찾지 못했습니다'};
+  const h=H(a[hi]), col=(...k)=>{ for(const x of k){ const i=h.findIndex(c=>c.includes(x)); if(i>=0) return i; } return -1; };
+  const C={d:col('일자'),it:col('품목명','품목'),q:col('수량'),a:col('공급가액'),c:col('거래처'),n:col('적요'),s:h.findIndex(c=>c==='현장'),pn:col('프로젝트명')};
+  if(C.q<0) return {err:'「수량」 열이 없습니다'};
+  const slipRaw={}; let skipC=0;
+  a.slice(hi+1).forEach(r=>{
+    const dn=String(r[C.d]||''); if(!r[C.it] || /계\s*$/.test(dn) || /합계|소계/.test(dn+String(r[C.it]))) return;
+    if(C.c>=0 && r[C.c] && !String(r[C.c]).includes('하자')){ skipC++; return; }
+    const d=toD(r[C.d]); if(!d) return;
+    const slip=dn.trim(); let raw='';
+    if(C.s>=0) raw=matRaw(r[C.s]); else if(C.pn>=0 && matRaw(r[C.pn])) raw=matRaw(r[C.pn]);
+    if(!raw){ if(!(slip in slipRaw)) slipRaw[slip]=C.n>=0?matRaw(r[C.n]):''; raw=slipRaw[slip]; } else if(!(slip in slipRaw)) slipRaw[slip]=raw;
+    const item=fixItem(r[C.it]), q=num(r[C.q]); let amt=C.a>=0?num(r[C.a]):0;
+    if(!amt){ const p=matPrice(item); amt = p==null? null : Math.round(q*p); }
+    rows.push({date:d, raw:raw||'(현장 미상)', item, qty:q, amt});
+  });
+  return {rows, kind:'이카운트 판매현황', skipC};
+}
+function readMat(file){
+  if(!file) return;
+  if(typeof XLSX==='undefined'){ toast('엑셀 모듈을 불러오지 못했습니다 · 인터넷 연결을 확인하세요'); return; }
+  const fr=new FileReader();
+  fr.onload=e=>{
+    const P=matParse(XLSX.read(e.target.result,{type:'array',cellDates:true})), box=document.getElementById('mPrev');
+    if(P.err){ box.innerHTML=`<div class="alert warn"><b>읽지 못했습니다</b> — ${P.err}</div>`; return; }
+    const key=r=>[ymd(r.date),r.raw,r.item,r.qty].join('|'), have=new Set(MATS.map(key)), seen=new Set();
+    const fresh=P.rows.filter(r=>{ const k=key(r); if(have.has(k)||seen.has(k)) return false; seen.add(k); return true; }), dup=P.rows.length-fresh.length;
+    const noP=fresh.filter(r=>r.amt==null), noPI=[...new Set(noP.map(r=>r.item))];
+    const sum=fresh.reduce((x,r)=>x+(r.amt||0),0);
+    /* 등록 현장 연결 후보 */
+    const g={}; fresh.forEach(r=>{ if(r.raw==='(현장 미상)') return; const o=g[r.raw]||(g[r.raw]={raw:r.raw,n:0,amt:0,d:r.date}); o.n++; o.amt+=r.amt||0; if(r.date<o.d) o.d=r.date; });
+    const known=[], ask=[], none=[];
+    Object.values(g).forEach(o=>{ if(MCFG.alias[o.raw]){ (MCFG.alias[o.raw].length?known:none).push(o); return; } const c=matCands(o.raw); if(c.length){ o.c=c; o.pick=matPick(c,o.d); o.on=c.some(x=>x.how==='이름 일치'); ask.push(o); } else none.push(o); });
+    ask.sort((x,y)=>y.amt-x.amt); none.sort((x,y)=>y.amt-x.amt);
+    MUP={fresh, ask};
+    const ys=[...new Set(fresh.map(r=>r.date.getFullYear()))].sort();
+    box.innerHTML=`<div class="upsum"><span class="stt st-ok">반영 ${fresh.length}행</span><span class="stt st-end">중복 ${dup}행</span>${noP.length?`<span class="stt st-over">단가 없음 ${noP.length}행</span>`:''}</div>
+      <p class="cap">${P.kind} · ${ys.join('·')}년 · 금액 합계 ${won(sum)}원 · 회수(음수 수량) ${fresh.filter(r=>r.qty<0).length}행${P.skipC?` · 거래처 「하자」 아닌 ${P.skipC}행 제외`:''}</p>
+      ${noP.length?`<div class="alert warn"><b>단가표에 없는 품목</b> — ${noPI.map(esc).join(' · ')}<br>이 행은 금액 없이 저장되고, 「현장 연결 · 단가표」에서 단가를 넣으면 그 단가로 계산됩니다.</div>`:''}
+      ${ask.length?`<div class="dsec" style="padding:0;border:0"><h4 style="margin:14px 0 8px">등록 현장 연결 확인 <span class="cap" style="font-weight:400">${ask.length}곳 · 체크한 곳만 현장 집행액(예산 소진율)에 반영 · 체크 안 한 곳은 「연결 안 함」으로 기억</span></h4>
+        <div class="uptbl"><table class="ct"><thead><tr><th style="width:36px"></th><th>출고 현장명(적요)</th><th class="amt">행</th><th class="amt">금액(원)</th><th>등록 현장</th></tr></thead><tbody>
+        ${ask.map((o,i)=>`<tr><td><input type="checkbox" class="mLk" data-i="${i}" ${o.on?'checked':''}></td><td><b>${esc(o.raw)}</b><br>${o.c.some(x=>x.how==='이름 일치')?'<span class="tg tg-ok" style="margin:2px 0 0">이름 일치</span>':'<span class="tg tg-wait" style="margin:2px 0 0">이름 유사 · 확인</span>'}</td><td class="amt">${o.n}</td><td class="amt">${won(o.amt)}</td>
+          <td><select class="sel sm mLs" data-i="${i}" style="min-width:0;width:100%;max-width:210px">${o.c.map(x=>`<option value="${esc(x.n)}" ${x.n===o.pick?'selected':''}>${esc(x.n)}${SITES[x.n].comp?' ('+SITES[x.n].comp.slice(2,7).replace('-','.')+' 준공)':''}</option>`).join('')}</select></td></tr>`).join('')}
+        </tbody></table></div></div>`:''}
+      <p class="cap" style="margin-top:10px">${known.length?`기억된 연결 ${known.length}곳(${known.map(o=>esc(o.raw)).slice(0,6).join(', ')}${known.length>6?' 등':''})은 자동으로 연결됩니다 · `:''}등록 현장 후보가 없는 ${none.length}곳(${won(none.reduce((x,o)=>x+o.amt,0))}원)은 연도·월별 합계와 현장 순위에만 반영됩니다${fresh.some(r=>r.raw==='(현장 미상)')?` · 적요에 현장명이 없는 행 ${fresh.filter(r=>r.raw==='(현장 미상)').length}행은 「현장 미상」`:''}</p>
+      <div class="uptbl"><table class="ct"><thead><tr><th>일자</th><th>출고 현장명</th><th>품목</th><th class="amt">수량</th><th class="amt">금액(원)</th></tr></thead><tbody>${fresh.slice(0,20).map(r=>`<tr><td>${fmtD(r.date)}</td><td>${esc(r.raw)}</td><td>${esc(r.item)}</td><td class="amt ${r.qty<0?'neg':''}">${r.qty}</td><td class="amt">${r.amt==null?'<span class="cap">단가 없음</span>':won(r.amt)}</td></tr>`).join('')}</tbody></table></div>${fresh.length>20?`<p class="cap">외 ${fresh.length-20}행</p>`:''}`;
+    const b=document.getElementById('mGo'); b.disabled=!fresh.length; b.textContent=fresh.length?`${fresh.length}행 반영`:'반영';
+  };
+  fr.readAsArrayBuffer(file);
+}
+async function commitMat(){
+  if(!MUP || !MUP.fresh.length) return;
+  const rows = MUP.fresh.map(r=>({d:ymd(r.date), raw:r.raw, item:r.item, unit:'—', qty:r.qty, amt:r.amt==null?null:r.amt}));
+  const al={};
+  MUP.ask.forEach((o,i)=>{ const ck=document.querySelector(`.mLk[data-i="${i}"]`), sl=document.querySelector(`.mLs[data-i="${i}"]`);
+    al[o.raw] = ck&&ck.checked ? [...new Set([...(MCFG.alias[o.raw]||[]), sl.value])] : (MCFG.alias[o.raw]||[]); });
+  try{
+    if(Object.keys(al).length) await DB.collection('config').doc('mat').set({alias:{...MCFG.alias, ...al}, aliasAt:iso()},{merge:true});
+    for(let i=0;i<rows.length;i+=2500) await DB.collection('mats').add({rows:rows.slice(i,i+2500), at:iso(), by:ME()||'', n:Math.min(2500,rows.length-i)});
+  }catch(e){ toast('저장 실패 · '+(e.code||e.message)); return; }
+  const ys=MUP.fresh.map(r=>r.date.getFullYear()); if(ys.length && !ys.includes(Number(SF.mperiod))) SF.mperiod='all';
+  const lk=Object.values(al).filter(a=>a.length).length;
+  closeDrawer(); toast(`${rows.length}행 반영${lk?` · 등록 현장 ${lk}곳 연결`:''}`);
+}
+
+/* ── 현장 연결 · 단가표 ── */
+function openMatCfg(){
+  const A=MCFG.alias, linked=Object.entries(A).filter(([,v])=>v.length).sort((x,y)=>x[0].localeCompare(y[0])), no=Object.entries(A).filter(([,v])=>!v.length);
+  const amtOf=raw=>MATS.filter(m=>m.raw===raw).reduce((x,m)=>x+m.amt,0);
+  const pend=[...new Set(MATS.filter(m=>!m.site&&!A[m.raw]&&m.raw!=='(현장 미상)').map(m=>m.raw))].map(r=>({r,c:matCands(r)})).filter(x=>x.c.length);
+  const P=Object.assign({}, Object.fromEntries(Object.entries(PRICE_SEED).map(([k,v])=>[k,v[0]])), MCFG.price||{});
+  const items=Object.keys(P).sort();
+  openDrawer(`<div class="dh"><div class="k">하자 자재</div><h3>현장 연결 · 단가표</h3><div class="m">현장 연결은 예산 소진율 집계에, 단가표는 이카운트 원본 업로드 금액 계산에 쓰입니다</div><button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
+    <div class="db">
+      <div class="dsec"><h4>등록 현장 연결 <span class="cap" style="font-weight:400">${linked.length}곳 · 해제하면 그 현장명의 출고가 현장 집행액에서 빠집니다</span></h4>
+        ${pend.length?`<div class="alert warn" style="margin-bottom:10px"><b>연결 확인이 필요한 현장명 ${pend.length}곳</b><div class="cap">등록 현장 후보가 있지만 아직 정하지 않은 출고 현장명입니다</div></div>
+        <table class="ct mini"><tbody>${pend.map((x,i)=>`<tr><td><b>${esc(x.r)}</b><small class="d2i">${won(amtOf(x.r))}원</small></td><td><select class="sel sm" id="pd${i}" style="min-width:0;max-width:240px">${x.c.map(c=>`<option value="${esc(c.n)}">${esc(c.n)} · ${c.how}</option>`).join('')}</select></td><td style="white-space:nowrap"><button class="btn btn-line sm" onclick="matLink(${JSON.stringify(x.r).replace(/"/g,'&quot;')}, document.getElementById('pd${i}').value)">연결</button> <button class="btn btn-ghost sm" onclick="matLink(${JSON.stringify(x.r).replace(/"/g,'&quot;')}, null)">연결 안 함</button></td></tr>`).join('')}</tbody></table>`:''}
+        <table class="ct mini" style="margin-top:8px"><thead><tr><th>출고 현장명(적요)</th><th>등록 현장</th><th class="amt">출고 금액(원)</th><th></th></tr></thead><tbody>
+        ${linked.map(([r,v])=>`<tr><td>${esc(r)}</td><td>${v.map(esc).join('<br>')}</td><td class="amt">${won(amtOf(r))}</td><td><button class="lkb" onclick="matUnlink(${JSON.stringify(r).replace(/"/g,'&quot;')})">해제</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty">아직 연결한 현장이 없습니다</td></tr>'}
+        </tbody></table>
+        ${no.length?`<p class="cap note">연결 안 함으로 정한 현장명 ${no.length}곳 — ${no.map(([r])=>`${esc(r)} <button class="lkb" onclick="matUnlink(${JSON.stringify(r).replace(/"/g,'&quot;')})">다시 묻기</button>`).join(' · ')}</p>`:''}
+      </div>
+      <div class="dsec"><h4>자재 단가표 <span class="cap" style="font-weight:400">${items.length}개 품목 · 공급가액 기준(VAT 별도) · 단가를 바꾸면 이후 올리는 출고분부터 적용(이미 올린 행의 금액은 그대로)</span></h4>
+        <p class="cap">초기값: 하자자재_실금액_2026년 「단가참조표」의 품목별 최근 월 단가 · 칸을 고치면 바로 저장됩니다</p>
+        <table class="ct mini"><thead><tr><th>품목명(규격)</th><th class="amt" style="width:150px">단가(원)</th></tr></thead><tbody>
+        ${items.map(k=>`<tr><td>${esc(k)}${PRICE_SEED[k]&&(MCFG.price||{})[k]==null?`<small class="d2i">${PRICE_SEED[k][1]}</small>`:''}</td><td class="amt"><input class="inp amt-in mPr" data-k="${esc(k)}" value="${won(P[k])}" style="min-width:0;width:130px;text-align:right"></td></tr>`).join('')}
+        </tbody></table>
+        <div class="noteadd" style="margin-top:10px;grid-template-columns:1fr 140px auto"><input class="inp" id="npK" placeholder="새 품목명(규격) — 이카운트 품목명 그대로"><input class="inp amt-in" id="npV" placeholder="단가"><button class="btn btn-line sm" id="npGo">추가</button></div>
+      </div>
+    </div>
+    <div class="df"><span style="margin-right:auto"></span><button class="btn btn-ghost" onclick="closeDrawer()">닫기</button></div>`, true);
+  const fmt=i=>{ const v=i.value.replace(/[^0-9]/g,''); i.value=v?Number(v).toLocaleString('ko-KR'):''; };
+  drawer.querySelectorAll('.amt-in').forEach(i=>i.oninput=()=>fmt(i));
+  drawer.querySelectorAll('.mPr').forEach(i=>i.onchange=()=>matSavePrice(i.dataset.k, Number(i.value.replace(/[^0-9]/g,''))));
+  document.getElementById('npGo').onclick=()=>{ const k=document.getElementById('npK').value.trim(), v=Number(document.getElementById('npV').value.replace(/[^0-9]/g,'')); if(!k||!v){ toast('품목명과 단가를 입력하세요'); return; } matSavePrice(k,v,true); };
+}
+async function matSavePrice(k,v,re){
+  try{ await DB.collection('config').doc('mat').set({price:{...(MCFG.price||{}), [k]:v}, priceAt:iso()},{merge:true}); toast(`단가 저장 · ${k} ${won(v)}원`); if(re) setTimeout(openMatCfg,300); }
+  catch(e){ toast('저장 실패 · '+(e.code||e.message)); }
+}
+async function matLink(raw, site){
+  const v = site ? [...new Set([...(MCFG.alias[raw]||[]), site])] : [];
+  try{ await DB.collection('config').doc('mat').set({alias:{...MCFG.alias, [raw]:v}},{merge:true}); toast(site?`${raw} → ${site} 연결`:`${raw} 연결 안 함`); setTimeout(openMatCfg,300); }
+  catch(e){ toast('저장 실패 · '+(e.code||e.message)); }
+}
+async function matUnlink(raw){
+  if(!confirm(`「${raw}」 연결 기록을 지울까요? 다음 업로드 때 다시 확인합니다.`)) return;
+  try{ await DB.collection('config').doc('mat').update({alias:Object.fromEntries(Object.entries(MCFG.alias).filter(([k])=>k!==raw))}); toast(`${raw} 연결 해제`); setTimeout(openMatCfg,300); }
+  catch(e){ toast('저장 실패 · '+(e.code||e.message)); }
+}
+
+/* ── 집계 보조 ── */
+const matU = f => MATU.filter(f).reduce((a,m)=>a+m.amt,0);
+function matUNote(){ const t=MATU.reduce((a,m)=>a+m.amt,0); return t? ` · 현장 미연결 자재비 ${won(t)}원(등록 현장에 연결 안 된 출고)은 현장별 집행액에서 제외` : ''; }
+function matRankCard(){
+  const mm=MATS.filter(m=>inY(m.date,SF.mperiod)); if(!mm.length) return '';
+  const g={}; mm.forEach(m=>{ const k=m.site||m.raw; const o=g[k]||(g[k]={k,reg:!!m.site,amt:0,days:new Set(),it:{},last:m.date}); o.amt+=m.amt; if(m.qty>0) o.days.add(ymd(m.date)); o.it[m.item]=(o.it[m.item]||0)+m.amt; if(m.date>o.last) o.last=m.date; });
+  const L=Object.values(g).sort((a,b)=>b.amt-a.amt), tot=L.reduce((a,o)=>a+o.amt,0), regA=L.filter(o=>o.reg).reduce((a,o)=>a+o.amt,0), mx=Math.max(...L.map(o=>o.amt),1);
+  const shown=SF.rankAll?L:L.slice(0,10);
+  return `<div class="tcard" style="margin-top:14px"><div class="ch" style="padding:14px 16px 0"><h3>자재 출고 현장 순위</h3><span class="cap">${sLabel(SF.mperiod)} · 금액 순 · 등록 현장 ${won(regA)}원(${pct(regA,tot)}) · 미등록·미연결 ${won(tot-regA)}원(${pct(tot-regA,tot)})</span></div>
+    <table class="ct mt"><thead><tr><th style="width:44px" class="amt">순위</th><th>현장</th><th class="amt" style="width:90px">출고일 수</th><th class="amt" style="width:130px">금액(원)</th><th style="width:22%"></th><th>주요 품목</th><th style="width:110px">최근 출고</th></tr></thead><tbody>
+    ${shown.map((o,i)=>{ const ti=Object.entries(o.it).sort((a,b)=>b[1]-a[1])[0]; return `<tr><td class="amt">${i+1}</td><td><b>${esc(o.k)}</b>${o.reg?'<span class="tg tg-ok">등록</span>':''}</td><td class="amt">${o.days.size}</td><td class="amt"><b>${won(o.amt)}</b></td><td><div class="hb"><i style="width:${o.amt/mx*100}%;background:linear-gradient(90deg,#7cc8ff,var(--sky))"></i><span class="cap">${pct(o.amt,tot)}</span></div></td><td class="wrap-t">${ti?esc(ti[0]):'—'}</td><td>${fmtD(o.last)}</td></tr>`; }).join('')}
+    </tbody><tfoot><tr><td></td><td>${L.length}곳${L.length>10?` · <button class="lkb" onclick="SF.rankAll=!SF.rankAll;renderSummary()">${SF.rankAll?'상위 10곳만':'전체 보기'}</button>`:''}</td><td></td><td class="amt">${won(tot)}</td><td colspan="3"></td></tr></tfoot></table>
+    <p class="cap note" style="padding:0 16px 12px">현장명은 출고 전표 적요 원문 기준 · 「등록」은 등록 현장에 연결된 출고(예산 소진율에 반영) · 회수(반품)는 금액에서 차감</p></div>`;
+}
+function matYearCard(){
+  if(!MATS.length) return '';
+  const ys=[...new Set(MATS.map(m=>m.date.getFullYear()))].sort();
+  const r=ys.map(y=>{ const a=MATS.filter(m=>m.date.getFullYear()===y), reg=a.filter(m=>m.site).reduce((x,m)=>x+m.amt,0), all=a.reduce((x,m)=>x+m.amt,0); return {y,reg,un:all-reg,all,n:new Set(a.map(m=>m.site||m.raw)).size}; });
+  return `<div class="tcard" style="margin-top:14px"><div class="ch" style="padding:14px 16px 0"><h3>연도별 하자 자재비</h3><span class="cap">출고연도 기준 · ERP 출고 − 회수 · 현장 미연결분은 현장별 집행액에서 제외</span></div>
+    <table class="ct"><thead><tr><th>출고연도</th><th class="amt">출고 현장</th><th class="amt">등록 현장 연결(원)</th><th class="amt">미등록·미연결(원)</th><th class="amt">합계(원)</th><th class="amt">미연결 비중</th></tr></thead><tbody>
+    ${r.map(x=>`<tr><td><b>${x.y}년</b></td><td class="amt">${x.n}곳</td><td class="amt">${won(x.reg)}</td><td class="amt">${won(x.un)}</td><td class="amt"><b>${won(x.all)}</b></td><td class="amt">${pct(x.un,x.all)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+const _vOverview = vOverview; vOverview = function(){ return _vOverview() + matYearCard(); };
 
 document.getElementById('todayTag').textContent=TD+' 현재';
 /* 탭 */
