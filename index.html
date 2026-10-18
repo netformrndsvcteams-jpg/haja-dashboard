@@ -608,6 +608,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .notes{list-style:none;display:flex;flex-direction:column;gap:6px;margin:0 0 10px}.notes li{display:grid;grid-template-columns:52px 1fr auto auto;gap:10px;align-items:baseline;font-size:13px;padding:8px 10px;background:var(--bg2,#f6f8fb);border-radius:8px}.notes li span{font-weight:700;color:var(--sky-d)}.notes li p{margin:0;white-space:pre-wrap}.notes li em{font-style:normal;font-size:12px;color:var(--ink3,#8a94a6)}.notes li.cap{display:block;background:none;padding:0}
 .sumline{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;padding:10px 12px;background:var(--bg2,#f6f8fb);border-radius:8px;font-size:12.5px}.sumline em{font-style:normal;color:var(--ink3,#8a94a6);margin-right:6px}.viewtg{padding:16px 0 0;text-align:center}.logd summary{cursor:pointer;font-size:15px;font-weight:700;list-style-position:inside}.logd[open] summary{margin-bottom:12px}.cchk{margin-top:12px}.cchk td{padding:8px 10px}.cchk tr.tot td{border-top:2px solid var(--line2)}.tg-ok{background:#e6f6ec;color:#1d7a3e}
 .noteadd{display:grid;grid-template-columns:160px 1fr auto;gap:6px}.noteadd .inp,.kv .g2 .inp,.kv .g2 .sel{min-width:0;width:100%}
+.recl{display:flex;flex-direction:column;gap:6px;font-size:13px}.recl label{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}.recl label:has(input:checked){border-color:var(--sky);background:var(--bg2,#f6f8fb)}
 .dmgadd{display:grid;grid-template-columns:120px 1fr 1fr auto;gap:6px;margin-top:8px}
 .dmgadd .inp,.dmgadd .sel{min-width:0;height:36px}
 .bopt .radio{display:flex;gap:8px;align-items:baseline;padding:8px 0;font-size:13.5px;flex-wrap:wrap}
@@ -847,7 +848,7 @@ function renderRows(list){
       <td>${it.rc}</td>
       <td>${it.hd?it.hd+(swapped(it)?'<span class="tg tg-swap" title="시공소장 '+s.bld+'">교체</span>':''):'<span class="bd-pre">미배정</span>'}</td>
       <td>${esc(partTx(it))}</td>
-      <td>${esc(phTx(it))}${it.dmg&&it.dmg.length?`<span class="tg tg-dmg">2차 피해${it.dmg.length>1?' '+it.dmg.length:''}</span>`:''}</td>
+      <td>${esc(phTx(it))}${seqOf(it)>1?`<span class="tg tg-swap">재발 ${seqOf(it)}차</span>`:''}${it.dmg&&it.dmg.length?`<span class="tg tg-dmg">2차 피해${it.dmg.length>1?' '+it.dmg.length:''}</span>`:''}</td>
       <td><span class="stg s${it.st}"><i>${EI('st'+it.st)}</i>${STAGES[it.st]}</span></td>
       <td>${burdenChip(it)}</td>
       <td>${ddText(it)}</td>
@@ -2125,7 +2126,7 @@ function detail(id){
   const ALL = DV.all, show = a => ALL || st===7 || a.includes(st);
   openDrawer(`
     <div class="dh"><button class="x" aria-label="닫기">×</button>
-      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}${!ME()?' · <b style="color:var(--warn-tx)">작업자 미선택 — 이력에 이름이 남지 않습니다</b>':''}</div>
+      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}${seqOf(it)>1?` · <b style="color:var(--red)">재발 ${seqOf(it)}차</b>`:''}${!ME()?' · <b style="color:var(--warn-tx)">작업자 미선택 — 이력에 이름이 남지 않습니다</b>':''}</div>
       <h3>${esc(it.site)}</h3>
       <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}${yr?` · 보증 ${yr}년차`:''}${s.comp&&wMiss(s).includes('보증기간')?' · <b style="color:var(--warn-tx)">보증기간 미입력</b>':''}${wE?` · 만료 ${fmtD(wE)}`:''}${wX?' · <b style="color:var(--warn-tx)">접수일 기준 보증기간 경과</b>':''}${s.wait?' · <b style="color:var(--yel)">확인 대기 현장</b>':''}</div>
     </div>
@@ -2137,6 +2138,7 @@ function detail(id){
       ${show([1])?`<div class="dsec"><h4>하자 내용</h4>
         <dl class="kv"><dt>접수일</dt><dd><input type="date" class="inp" id="rcvD" value="${ymd(it.rcvAt)}" max="${ymd(TODAY)}" style="min-width:0;width:180px"></dd>
         <dt>부위 · 현상</dt><dd>${esc(partTx(it))} · ${esc(phTx(it))}</dd>
+        <dt>재발 연결</dt><dd><select class="sel" id="prevSel" style="min-width:0;width:100%"><option value="">없음 (새 하자)</option>${priorCases(it.site,it).map(i=>`<option value="${i.id}" ${it.prevId===i.id?'selected':''}>${i.id} · ${fmtD(i.rcvAt)} · ${esc(partTx(i))} · ${esc(phTx(i))}${sameContent(i,it)?' (같은 내용)':''}</option>`).join('')}</select>${it.prevId?`<button class="lkb" id="prevOpen" style="margin-top:6px">이전 건 ${it.prevId} 열기</button>`:''}</dd>
         <dt>하자 연락자</dt><dd><div class="g2"><select class="sel" data-cl="type">${[...new Set([...CALLER_T,(it.caller||{}).type].filter(Boolean))].map(t=>`<option ${(it.caller||{}).type===t?'selected':''}>${esc(t)}</option>`).join('')}</select><input class="inp" data-cl="name" placeholder="성함" value="${esc((it.caller||{}).name||'')}"></div>
           <div class="g2" style="margin-top:6px"><input class="inp" data-cl="phone" inputmode="tel" placeholder="연락처" value="${esc((it.caller||{}).phone||'')}"><input class="inp" data-cl="office" inputmode="tel" placeholder="관리사무소 연락처" value="${esc((it.caller||{}).office||'')}"></div></dd>
         ${it.txt?`<dt>상세</dt><dd style="white-space:pre-wrap">${esc(it.txt)}</dd>`:''}
@@ -2220,6 +2222,8 @@ function detail(id){
   const va=$('visitAt'); if(va) va.onchange=()=>dbCase(id,{visitAt:va.value},`방문 예정일 ${va.value}`);
 
   const vA=$('viewAll'); if(vA) vA.onclick=()=>{ DV.all=!DV.all; detail(id); };
+  const ps=$('prevSel'); if(ps) ps.onchange=()=>dbCase(id,{prevId:ps.value||null},ps.value?`재발 연결 · ${ps.value}`:'재발 연결 해제');
+  const po=$('prevOpen'); if(po) po.onclick=()=>{ if(ITEMS.find(i=>i.id===it.prevId)) detail(it.prevId); else toast('이전 건을 찾을 수 없습니다 (삭제됨)'); };
   /* 접수일 · 연락자 · 처리완료일 · 진행 내용 */
   const rd=$('rcvD'); if(rd) rd.onchange=()=>{ if(!rd.value||rd.value>ymd(TODAY)){ toast('접수일을 확인하세요'); rd.value=ymd(it.rcvAt); return; } dbCase(id,{rcvAt:new Date(rd.value+'T09:00:00').toISOString()},`접수일 ${rd.value}`); };
   drawer.querySelectorAll('[data-cl]').forEach(el=>el.onchange=()=>{ const c={...(it.caller||{})}; c[el.dataset.cl]=el.value.trim(); it.caller=c; dbCase(id,{caller:c},`하자 연락자 수정`); });
@@ -2319,6 +2323,7 @@ async function submitIntake(){
   const rcvD=document.getElementById('iRcv')?.value||ymd(TODAY);
   if(rcvD>ymd(TODAY)){ toast('접수일은 오늘 이후로 정할 수 없습니다'); return; }
   const g_=k=>(document.getElementById(k)||{}).value?.trim()||'';
+  const psel=(document.querySelector('[name=iPrev]:checked')||{}).value ?? 'auto';
   const caller={type:g_('iCt'), name:g_('iCn'), phone:g_('iCp'), office:g_('iCo')};
   const sb=document.getElementById('submit'); if(sb){ sb.disabled=true; sb.textContent='저장 중…'; }
   try{
@@ -2329,10 +2334,11 @@ async function submitIntake(){
       site=n; }
     const files=[...(document.getElementById('iPhoto')?.files||[])];
     const id = await nextId(), now=iso(), rcvAt = rcvD===ymd(TODAY)? now : new Date(rcvD+'T09:00:00').toISOString();
-    await DB.collection('cases').doc(id).set({site, rc:intake.rc, st:1, rcvAt, stAt:rcvAt, src:'PC', caller, notes:[],
+    const prevId = psel==='auto' ? autoPrev(site,{parts,phs}) : (psel||null);
+    await DB.collection('cases').doc(id).set({site, rc:intake.rc, st:1, rcvAt, stAt:rcvAt, src:'PC', caller, notes:[], prevId:prevId||null,
       part:parts[0], parts, partNote:(parts.includes('기타')?(document.getElementById('iPartN')||{}).value||'':'').trim(), ph:phs[0], phs, txt:document.getElementById('iTxt').value.trim(),
       dmg:[], photos:[], unseen:false, createdAt:now, log:[{at:now, by:intake.rc, msg:'접수 등록 (PC)'+(rcvD!==ymd(TODAY)?` · 접수일 ${rcvD}`:'')}]});
-    closeDrawer(); F.stage=1; F.chip=null; toast(`${id} 접수 등록 · ${site}`);
+    closeDrawer(); F.stage=1; F.chip=null; toast(`${id} 접수 등록 · ${site}${prevId?` · 재발(${prevId} 연결)`:''}`);
     if(files.length) uploadPhotos(id, site, files, '처리 전');
   }catch(e){ toast('접수 저장 실패 · '+(e.code||e.message)); if(sb){ sb.disabled=false; sb.textContent='접수 등록'; } }
 }
@@ -2891,7 +2897,7 @@ function intakeRes(){
   } else if(q && hits.length) h += `<div class="res">${hits.map(n=>{const s=SITES[n];return `<button data-site="${esc(n)}" class="${intake.site===n?'on':''}"><b>${esc(n)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}${wExpired(n,TODAY)?'<span class="tg tg-swap">보증 경과</span>':''}<small>${esc(s.co)} · ${s.comp?`준공 ${s.comp.slice(0,7).replace('-','.')} · 보증 ${gYear(n,TODAY)}년차`:'준공일 미입력'}${s.comp&&!s.wy?' · 보증기간 미입력':''}</small></button>`;}).join('')}</div>`;
   if(q && !hits.length) h += `<div class="noresult"><b>「${esc(q)}」</b> 현장이 마스터에 없습니다.<br>아는 정보 4가지만 넣어 간이 등록하면 접수를 바로 이어갈 수 있습니다. 나머지는 대금관리자가 채워 정식 등록합니다.<br><button class="btn btn-ter" style="margin-top:12px" id="goQuick">간이 등록으로 계속</button></div>`;
   if(!q) h += `<p class="cap">현장명 일부를 입력하세요. 비슷한 이름이 많으니 결과의 업체·준공 연월을 함께 확인하세요.</p>`;
-  if(intake.site) h += siteBox(intake.site) + intakeForm();
+  if(intake.site) h += siteBox(intake.site) + intakeForm() + histBox(intake.site);
   return h;
 }
 const PARTS=['슬라브','슁글','금속기와','배수로','파라펫','드레인 주변','조인트','옥탑 벽체','기타'];
@@ -2908,6 +2914,21 @@ function gtoks(t){ t=String(t||''); const o=[];
   return GONG_LIST.filter(g=>o.includes(g)); }
 function gongsOf(s){ if(!s) return ['기타']; const a = Array.isArray(s.gongs)&&s.gongs.length ? s.gongs.filter(g=>GONG_LIST.includes(g)) : gtoks(s.gong); return a.length? a : ['기타']; }
 const hasG=(x,g)=>(Array.isArray(x&&x.gongs)&&x.gongs.length? x.gongs : gongsOf(x)).includes(g);
+/* 재발 — 같은 현장에서 같은 내용(부위·현상이 겹침)으로 2회 이상 발생하면 재발. 새 접수로 받고 이전 건(prevId)과 연결, 차수는 연결을 따라 계산 */
+const sameContent=(a,b)=>partsOf(a).some(p=>partsOf(b).includes(p)) && phsOf(a).some(h=>phsOf(b).includes(h));
+function priorCases(site, it){ return ITEMS.filter(i=>i.site===site && (!it || (i.id!==it.id && i.rcvAt<=it.rcvAt))).sort((a,b)=>b.rcvAt-a.rcvAt); }
+function autoPrev(site, x){ const m=priorCases(site).find(i=>sameContent(i,x)); return m?m.id:null; }
+function seqOf(it){ let n=1, cur=it, g=0; while(cur && cur.prevId && g++<20){ n++; cur=ITEMS.find(i=>i.id===cur.prevId); } return n; }
+function histBox(site){
+  const L=priorCases(site); if(!L.length) return '';
+  return `<div class="dsec"><h4>이 현장 이전 접수 ${L.length}건 <span class="cap" style="font-weight:400">같은 부위·현상이면 재발로 연결됩니다</span></h4>
+    <div class="recl"><label><input type="radio" name="iPrev" value="auto" checked> 자동 판정 <span class="cap" id="iRecHint"></span></label>
+    <label><input type="radio" name="iPrev" value=""> 재발 아님 (새 하자)</label>
+    ${L.slice(0,12).map(i=>`<label><input type="radio" name="iPrev" value="${i.id}"> <b>${i.id}</b> · ${fmtD(i.rcvAt)} · ${esc(partTx(i))} · ${esc(phTx(i))} · ${STAGES[i.st]}${i.hd?` · ${esc(i.hd)}`:''}${seqOf(i)>1?` <span class="tg tg-swap">재발 ${seqOf(i)}차</span>`:''}</label>`).join('')}</div></div>`;
+}
+function recHint(){ const el=document.getElementById('iRecHint'); if(!el||!intake.site) return;
+  const id=autoPrev(intake.site,{parts:intake.parts||[], phs:intake.phs||[]}), p=id&&ITEMS.find(i=>i.id===id);
+  el.textContent = !(intake.parts||[]).length||!(intake.phs||[]).length ? '— 부위·현상을 고르면 판정합니다' : p ? `— ${p.id}와 같은 내용 → 재발 ${seqOf(p)+1}차로 접수` : '— 같은 내용의 이전 건 없음 → 새 하자'; }
 const PHS=['누수','들뜸','균열','박리','변색','오염'];
 function phsOf(it){ const a=(it&&it.phs&&it.phs.length? it.phs : [it&&it.ph]).filter(Boolean); return [...new Set(a)]; }
 const hasH=(r,h)=>phsOf(r).includes(h);
@@ -2959,8 +2980,9 @@ function bindIntake(){
   const rc=document.getElementById('iRc'); if(rc){ if(intake.rc && !RECV.includes(intake.rc)) intake.rc=''; rc.onchange=()=>{ intake.rc=rc.value; try{localStorage.setItem('lastRecv',intake.rc);}catch(e){} }; }
   const ipn=document.getElementById('iPartN');
   drawer.querySelectorAll('#iParts [data-p]').forEach(b=>b.onclick=()=>{ const p=b.dataset.p, P=intake.parts||(intake.parts=[]); const k=P.indexOf(p); if(k<0) P.push(p); else P.splice(k,1);
-    b.classList.toggle('on',k<0); if(ipn){ ipn.style.display=P.includes('기타')?'':'none'; if(p==='기타'&&k<0) ipn.focus(); } });
-  drawer.querySelectorAll('#iPhs [data-h]').forEach(b=>b.onclick=()=>{ const h=b.dataset.h, H=intake.phs||(intake.phs=[]); const k=H.indexOf(h); if(k<0) H.push(h); else H.splice(k,1); b.classList.toggle('on',k<0); });
+    b.classList.toggle('on',k<0); if(ipn){ ipn.style.display=P.includes('기타')?'':'none'; if(p==='기타'&&k<0) ipn.focus(); } recHint(); });
+  drawer.querySelectorAll('#iPhs [data-h]').forEach(b=>b.onclick=()=>{ const h=b.dataset.h, H=intake.phs||(intake.phs=[]); const k=H.indexOf(h); if(k<0) H.push(h); else H.splice(k,1); b.classList.toggle('on',k<0); recHint(); });
+  recHint();
   const ircv=document.getElementById('iRcv'); if(ircv) ircv.onchange=()=>{ intake.rcv=ircv.value; };
   const sb=document.getElementById('submit'); if(sb){ const ok=intake.site||intake.quick; sb.disabled=!ok; sb.style.opacity=ok?'':'.4'; sb.style.cursor=ok?'':'not-allowed'; sb.onclick=submitIntake; }
 }
