@@ -844,11 +844,11 @@ function renderRows(list){
   tb.innerHTML = list.map(it=>{ const s=SITES[it.site];
     return `<tr data-id="${it.id}" class="${it.unseen?'new':''} ${openId===it.id?'sel':''}">
       <td class="idc">${it.unseen?'<span class="ndot" title="앱 신규 · 미확인"></span>':''}${it.id}</td>
-      <td><span class="site">${it.site}${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}<small>${s.co}</small></span></td>
+      <td><span class="site">${it.site}${seqOf(it)>1?`<span class="tg tg-swap">재발 ${seqOf(it)}차</span>`:''}${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}<small>${s.co}</small></span></td>
       <td>${it.rc}</td>
       <td>${it.hd?it.hd+(swapped(it)?'<span class="tg tg-swap" title="시공소장 '+s.bld+'">교체</span>':''):'<span class="bd-pre">미배정</span>'}</td>
       <td>${esc(partTx(it))}</td>
-      <td>${esc(phTx(it))}${seqOf(it)>1?`<span class="tg tg-swap">재발 ${seqOf(it)}차</span>`:''}${it.dmg&&it.dmg.length?`<span class="tg tg-dmg">2차 피해${it.dmg.length>1?' '+it.dmg.length:''}</span>`:''}</td>
+      <td>${esc(phTx(it))}${it.dmg&&it.dmg.length?`<span class="tg tg-dmg">2차 피해${it.dmg.length>1?' '+it.dmg.length:''}</span>`:''}</td>
       <td><span class="stg s${it.st}"><i>${EI('st'+it.st)}</i>${STAGES[it.st]}</span></td>
       <td>${burdenChip(it)}</td>
       <td>${ddText(it)}</td>
