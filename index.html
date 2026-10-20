@@ -1422,7 +1422,7 @@ function vPay(){
   const late = s5.concat(s6).filter(i=>over(i)>0).sort((a,b)=>over(b)-over(a));
   return head('기안·지급','','업무 흐름 5~7단계를 돈 기준으로 봅니다 · 기안 대상은 노임·복구비 중 당사 지급분 (자재비 제외)', periodSel())
   + `<div class="flow3">
-      <div class="f3 s5"><span class="fi"><img class="e" src="${ICON.st5}" alt=""></span><small>5 비용 확인 중 <span class="ptag">${TD} 현재</span></small><b class="num">${s5.length}건</b><p>지급 예정 노임·복구비 <b>${won(pay5)}원</b><br>자재비 ${won(mat5)}원 확인 중${w5?`<br><span class="lock">확인 대기 현장 ${w5}건 금액 산정 보류</span>`:''}</p></div>
+      <div class="f3 s5"><span class="fi"><img class="e" src="${ICON.st5}" alt=""></span><small>5 비용 확인 중 <span class="ptag">${TD} 현재</span></small><b class="num">${s5.length}건</b><p>지급 예정 노임·복구비 <b>${won(pay5)}원</b>${w5?`<br><span class="lock">확인 대기 현장 ${w5}건 금액 산정 보류</span>`:''}</p></div>
       <div class="f3 s6 hot"><span class="fi"><img class="e" src="${ICON.st6}" alt=""></span><small>6 기안 진행 중 — 곧 나갈 돈 <span class="ptag">${TD} 현재</span></small><b class="num">${won(pay6)}원</b><p>기안 ${D.length}건 · 묶인 접수 ${s6.filter(payNeeded).length}건</p></div>
       <div class="f3 s7"><span class="fi"><img class="e" src="${ICON.st7}" alt=""></span><small>7 처리 완료 · 지급 <span class="ptag">${pLabel()}</span></small><b class="num">${won(paidA)}원</b><p>지급 완료 ${paid.length}건 · 기안 없이 종결 ${closedNoPay.length}건 (지급할 돈 없음)</p></div>
     </div>
@@ -2092,14 +2092,14 @@ async function nextId(){
 /* ── 집계 함수 교체 (실제 날짜 사용) ── */
 function allRecs(){
   const live = ITEMS.filter(i=>i.st>=6 && i.b && i.b[0]!=='부담 미정').map(i=>({
-    id:i.id, site:i.site, date:i.rcvAt, part:i.part, b:i.b, hd:i.hd, mat:i.mat||0, lab:costParts(i).lab+costParts(i).etc, rst:costParts(i).rst, sh:i.sh||0, ourAmt:ourPay(i),
+    id:i.id, site:i.site, date:i.rcvAt, part:i.part, b:i.b, hd:i.hd, mat:0, lab:costParts(i).lab+costParts(i).etc, rst:costParts(i).rst, sh:i.sh||0, ourAmt:ourPay(i),
     paidDate: i.st===7 && i.paid ? (i.paidAt||i.stAt) : null, live:i.st }));
   return HIST.concat(live);
 }
 function anaRecs(all){
   return ITEMS.filter(i=>SITES[i.site] && (all || SITES[i.site].comp)).map(i=>{ const s=SITES[i.site], d=i.rcvAt;
-    return {id:i.id, site:i.site, date:d, part:partsOf(i)[0], parts:partsOf(i), ph:phsOf(i)[0], phs:phsOf(i), cz:i.cz||null, dmg:(i.dmg||[]).map(x=>x[0]), mat:i.mat||0, lab:costParts(i).lab+costParts(i).etc, rst:costParts(i).rst, sh:i.sh||0, st:i.st, live:1,
-      gong:s.gong, gongs:s.gongs, m:d.getMonth()+1, se:SEASON(d.getMonth()+1), yr:gYear(i.site,d), prevId:i.prevId||null, cost:(i.mat||0)+costParts(i).lab+costParts(i).etc+costParts(i).rst}; });
+    return {id:i.id, site:i.site, date:d, part:partsOf(i)[0], parts:partsOf(i), ph:phsOf(i)[0], phs:phsOf(i), cz:i.cz||null, dmg:(i.dmg||[]).map(x=>x[0]), mat:0, lab:costParts(i).lab+costParts(i).etc, rst:costParts(i).rst, sh:i.sh||0, st:i.st, live:1,
+      gong:s.gong, gongs:s.gongs, m:d.getMonth()+1, se:SEASON(d.getMonth()+1), yr:gYear(i.site,d), prevId:i.prevId||null, cost:costParts(i).lab+costParts(i).etc+costParts(i).rst}; });
 }
 
 /* ── 부담 판정 ── */
@@ -2462,7 +2462,7 @@ function exportAll(){
   const wb=XLSX.utils.book_new();
   const add=(name,rows)=>XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length?rows:[{'':'데이터 없음'}]), name);
   add('현장', Object.values(SITES).map(s=>({현장명:s.name, 업체명:s.co, ERP코드:s.code||'', 계약유형:s.ct||'', 준공일:s.comp, 보증기간:s.wy, 확정매출액:s.rev||'', 하자예산:s.budget||'', 집행:s.spent||'', 공종:s.gong||'', 면적:s.area||'', 시공소장:s.bld, 주소:s.addr||'', 보증기산기준:s.wStartBasis||'준공일', 보증기산일:wStartOf(s)||'', 보증만료일:wEndOf(s)?ymd(wEndOf(s)):'', 만료일수동:s.wEndManual?'Y':'', pourpay연결:s.pp?'Y':'', pourpay완료일:s.ppDone||'', 확인대기:s.wait?'Y':''})));
-  add('접수', ITEMS.map(i=>({접수번호:i.id, 현장:i.site, 접수일:ymd(i.rcvAt), 접수자:i.rc, 단계:`${i.st} ${STAGES[i.st]}`, 부위:partTx(i), 현상:phTx(i), 상세:i.txt||'', 연락자유형:(i.caller||{}).type||'', 연락자:(i.caller||{}).name||'', 연락처:(i.caller||{}).phone||'', 관리사무소연락처:(i.caller||{}).office||'', 처리완료일:i.doneAt||'', 진행내용:(i.notes||[]).slice().sort((a,b)=>(a.d||'').localeCompare(b.d||'')).map(n=>`${n.d} ${n.txt}`).join('\n'), 처리소장:i.hd||'', 원인:i.cz||'', 부담:i.b?i.b[0]:'', 근거:i.b?i.b[1]:'', 조정사유:i.b&&i.b[2]||'', 자재비:i.mat||0, 일당:i.labRate||'', 시공인원:i.labCnt||'', 노임:i.lab||0, 복구비:costParts(i).rst, 기타경비:costParts(i).etc, 기타항목:extrasOf(i).map(e=>`${e.t==='기타'?e.name:e.t} ${e.amt}${e.our?'(당사지급)':''}${e.rcpt&&e.rcpt.length?' 영수증'+e.rcpt.length:''}`).join('; '), 당사지급:ourPay(i), 시공사몫:i.sh||0, 기안번호:i.draftNo||'', 지급일:i.paidAt?ymd(i.paidAt):'', '2차피해':(i.dmg||[]).map(d=>d.join('/')).join('; '), 사진수:(i.photos||[]).length})));
+  add('접수', ITEMS.map(i=>({접수번호:i.id, 현장:i.site, 접수일:ymd(i.rcvAt), 접수자:i.rc, 단계:`${i.st} ${STAGES[i.st]}`, 부위:partTx(i), 현상:phTx(i), 상세:i.txt||'', 연락자유형:(i.caller||{}).type||'', 연락자:(i.caller||{}).name||'', 연락처:(i.caller||{}).phone||'', 관리사무소연락처:(i.caller||{}).office||'', 처리완료일:i.doneAt||'', 진행내용:(i.notes||[]).slice().sort((a,b)=>(a.d||'').localeCompare(b.d||'')).map(n=>`${n.d} ${n.txt}`).join('\n'), 처리소장:i.hd||'', 원인:i.cz||'', 부담:i.b?i.b[0]:'', 근거:i.b?i.b[1]:'', 조정사유:i.b&&i.b[2]||'', 일당:i.labRate||'', 시공인원:i.labCnt||'', 노임:i.lab||0, 복구비:costParts(i).rst, 기타경비:costParts(i).etc, 기타항목:extrasOf(i).map(e=>`${e.t==='기타'?e.name:e.t} ${e.amt}${e.our?'(당사지급)':''}${e.rcpt&&e.rcpt.length?' 영수증'+e.rcpt.length:''}`).join('; '), 당사지급:ourPay(i), 시공사몫:i.sh||0, 기안번호:i.draftNo||'', 지급일:i.paidAt?ymd(i.paidAt):'', '2차피해':(i.dmg||[]).map(d=>d.join('/')).join('; '), 사진수:(i.photos||[]).length})));
   add('자재출고', MATS.map(m=>({일자:ymd(m.date), 현장:m.site, 품목:m.item, 단위:m.unit, 수량:m.qty, 금액:m.amt})));
   add('과거노임', HIST.filter(h=>h.lab).map(h=>({지급일:ymd(h.date), 현장:h.site, 노임:h.lab})));
   add('소장명부', allMgrs().map(m=>({이름:m.name, 연락처:m.phone||'', 상호:m.bizName||'', 사업자등록번호:m.bizNumber||'', 사업장주소:m.bizAddress||'', 출처:m.src==='pp'?'pour-pay':'직접 등록'})));
@@ -2991,7 +2991,6 @@ function costCheck(it, s){
     <dt>부담 판정</dt><dd>${it.b&&it.b[0]!=='부담 미정'?esc(it.b[0])+(it.b[1]==='조정'?` <span class="cap">(조정 · ${esc(it.b[2]||'')})</span>`:''):'<b style="color:var(--warn-tx)">미판정</b>'}</dd>
     <dt>2차 피해</dt><dd>${it.dmg.length?it.dmg.length+'건':'없음'}</dd></dl>
     <table class="ct cchk"><tbody>
-      ${row('자재비 <span class="cap">ERP 출고 − 회수 · 당사</span>', won(it.mat||0)+'원')}
       ${row(`노임 <span class="cap">일당 ${won(it.labRate||0)} × ${it.labCnt||0}명</span>`, won(p.lab)+'원')}
       ${ex.map(e=>row(`${esc(e.t==='기타'?(e.name||'기타'):e.t)} ${NO_RCPT.includes(e.t)?'':need(e)?(e.rcpt&&e.rcpt.length?`<span class="tg tg-ok">영수증 ${e.rcpt.length}</span>`:'<span class="tg tg-swap">영수증 없음</span>'):'<span class="cap">무상 처리 · 지급 대상 아님</span>'}`, won(e.amt)+'원')).join('')}
       ${row('<b>당사 지급 대상</b>', '<b>'+won(ourPay(it))+'원</b>', 'tot')}
@@ -3112,10 +3111,7 @@ function costSection(it, s, st){
       <div id="exList">${d.ex.map(exRow).join('')}</div>
       ${ed?`<button class="btn btn-dash" id="exAdd">＋ 기타항목 추가</button>`:''}</div>
     <div class="ctot"><span>총 비용 (노임 + 기타항목)</span><b id="cTot">${won(labT+exT)}원</b></div>
-    <div class="g2" style="margin-top:14px"><div class="field"><label>자재 출고 (ERP)</label><input class="inp amt-in" id="cOut" inputmode="numeric" value="${won(d.out)}" ${ed?'':'disabled'}></div>
-      <div class="field"><label>자재 회수 (ERP 반품)</label><input class="inp amt-in" id="cRet" inputmode="numeric" value="${won(d.ret)}" ${ed?'':'disabled'}></div></div>
     <table class="cost"><tbody>
-      <tr><td>자재비 <span class="cap">출고 − 회수 · 판정과 무관하게 당사</span></td><td class="amt">${won((it.mat||0))}</td></tr>
       ${it.sh?`<tr><td>└ 시공사 몫 <span class="cap">공동 부담 · 당사 지출 아님</span></td><td class="amt" style="color:var(--ink2)">${won(it.sh)}</td></tr>`:''}
       <tr class="tot"><td>당사 지급 대상 <span class="cap">저장된 값 기준</span></td><td class="amt">${won(ourPay(it))}</td></tr></tbody></table>
     ${ed?`<p class="cap" id="cStat" style="margin-top:12px">${it.costAt?`입력하면 자동 저장됩니다 · 마지막 저장 ${fmtD(new Date(it.costAt))} ${hhmm(new Date(it.costAt))}`:'입력하면 자동 저장됩니다'}</p>`:''}
@@ -3131,7 +3127,6 @@ function bindCost(it){
   const r=document.getElementById('cRate'), c=document.getElementById('cCnt');
   if(r){ r.oninput=()=>{ r.value=fmt(r.value); d.rate=num(r.value); dirty(); recalc(); }; r.onchange=save; }
   if(c){ c.oninput=()=>{ c.value=c.value.replace(/[^0-9.]/g,''); d.cnt=Number(c.value)||0; dirty(); recalc(); }; c.onchange=save; }
-  ['cOut','cRet'].forEach(k=>{ const e=document.getElementById(k); if(e){ e.oninput=()=>{ e.value=fmt(e.value); d[k==='cOut'?'out':'ret']=num(e.value); dirty(); }; e.onchange=save; } });
   sec.querySelectorAll('.exrow').forEach(row=>{ const k=+row.dataset.k, e=d.ex[k];
     row.querySelector('[data-f=t]').onchange=ev=>{ e.t=ev.target.value; dirty(); save(); detail(it.id); };   // 종류에 따라 항목명·영수증 칸이 바뀌므로 바로 다시 그림
     const nm=row.querySelector('[data-f=name]'); if(nm){ nm.oninput=()=>{ e.name=nm.value; dirty(); }; nm.onchange=save; }
@@ -3145,11 +3140,10 @@ function bindCost(it){
 }
 async function saveCost(it, d, quiet){
   d = d || CD[it.id] || costDraft(ITEMS.find(i=>i.id===it.id)||it);
-  if(d.ret>d.out){ toast('자재 회수액이 출고액보다 클 수 없습니다 — 저장하지 않았습니다'); const s_=document.getElementById('cStat'); if(s_) s_.textContent='저장 안 됨 · 자재 회수액 확인'; return; }
   const ex=d.ex.map(e=>({t:e.t, name:e.t==='기타'?(e.name||''):'', amt:Number(e.amt)||0, our:!!e.our, rcpt:e.rcpt}));   // 자동 저장: 빈 줄도 유지(× 로 삭제)
   const lab=Math.round(d.rate*d.cnt), rst=sumAmt(ex.filter(e=>e.t==='2차 피해 복구비')), etc=sumAmt(ex.filter(e=>e.t!=='2차 피해 복구비'));
-  try{ await dbCase(it.id,{labRate:d.rate, labCnt:d.cnt, lab, extras:ex, rst, etc, matOut:d.out, matRet:d.ret, mat:d.out-d.ret, costAt:iso()},
-      `비용 저장 · 노임 ${won(d.rate)}×${d.cnt}품=${won(lab)} · 기타 ${won(rst+etc)} · 자재 ${won(d.out-d.ret)}`); }catch(e){ return; }
+  try{ await dbCase(it.id,{labRate:d.rate, labCnt:d.cnt, lab, extras:ex, rst, etc, costAt:iso()},
+      `비용 저장 · 노임 ${won(d.rate)}×${d.cnt}품=${won(lab)} · 기타 ${won(rst+etc)}`); }catch(e){ return; }
   d.dirty=false; delete CD[it.id]; if(!quiet) toast('비용을 저장했습니다');
   const s_=document.getElementById('cStat'); if(s_) s_.textContent='자동 저장됨 · '+hhmm(new Date());
 }
