@@ -1199,6 +1199,7 @@ function vSites(){
   const reg = list.filter(x=>!x.s.wait);
   return head('현장·예산','등록 '+Object.values(SITES).filter(s=>!s.wait).length+'곳','준공 시점에 현장을 등록하면 하자예산이 자동 편성됩니다 · 과거 준공 현장도 같은 방식으로 등록해 연도별 예산을 맞춥니다'+matUNote(),
      `<button class="btn btn-line" onclick="openMatUpload()"><img class="bi" src="${ICON.c_out}" alt="">자재 출고 올리기</button>
+      <button class="btn btn-line" onclick="openMatCfg()">현장 연결 · 단가표</button>
       <button class="btn btn-line" onclick="openLaborUpload()"><img class="bi" src="${ICON.c_subpay}" alt="">과거 노임 불러오기</button>
       <button class="btn btn-line" onclick="dlTemplate()"><img class="bi" src="${ICON.c_xls}" alt="">양식 받기</button>
       <button class="btn btn-line" onclick="openUpload()"><img class="bi" src="${ICON.c_up}" alt="">엑셀 일괄 등록</button>
@@ -1879,7 +1880,7 @@ function renderSummary(){
         <p class="cap note">나머지 ${phs.slice(3).map(p=>`${p[0]} ${p[1]}`).join(' · ')}</p></a>
     </div>
 
-    ${band('자재별 소모량',sLabel(SF.mperiod),`<label class="psel"><span>기간</span>${sSel('mperiod')}</label><button class="btn btn-line sm" onclick="openMatUpload()"><img class="bi" src="${ICON.c_up}" alt="">ERP 출고 내역 올리기</button><button class="btn btn-ghost sm" onclick="openMatCfg()">현장 연결 · 단가표</button>`)}
+    ${band('자재별 소모량',sLabel(SF.mperiod),`<label class="psel"><span>기간</span>${sSel('mperiod')}</label>`)}
     <div class="tcard"><table class="ct mt"><thead><tr><th>품목</th><th style="width:60px">단위</th><th class="amt" style="width:100px">출고 수량</th><th class="amt" style="width:90px">회수(반품)</th><th class="amt" style="width:100px">순사용</th><th class="amt" style="width:130px">금액(원)</th><th style="width:220px">비중</th><th class="amt" style="width:90px">사용 현장</th></tr></thead><tbody>
       ${shown.map(o=>`<tr><td><b>${o.item}</b></td><td>${o.unit}</td><td class="amt">${won(o.out)}</td><td class="amt ${o.ret?'':'mut'}">${o.ret?won(o.ret):'—'}</td><td class="amt"><b>${won(o.out-o.ret)}</b></td><td class="amt">${won(o.amt)}</td>
         <td><div class="hb"><i style="width:${o.amt/iMax*100}%;background:linear-gradient(90deg,#7cc8ff,var(--sky))"></i><span class="cap">${pct(o.amt,mTot)}</span></div></td><td class="amt">${o.sites.size}곳</td></tr>`).join('')||'<tr><td colspan="8" class="empty">이 기간 출고 내역이 없습니다</td></tr>'}
