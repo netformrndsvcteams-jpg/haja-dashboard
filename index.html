@@ -184,6 +184,7 @@ tr.new .idc{font-weight:700;color:var(--ink)}
 .scrim.on{opacity:1;pointer-events:auto}
 .drawer{position:fixed;top:12px;right:12px;bottom:12px;width:560px;max-width:calc(100vw - 24px);background:#fff;z-index:41;transform:translateX(110%);transition:transform .22s cubic-bezier(.2,0,.38,.9);display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(15,40,70,.22);border-radius:24px;overflow:hidden}
 .drawer.on{transform:none}
+.drawer.center{left:50%;right:auto;transform:translate(-50%,24px);opacity:0;visibility:hidden;transition:transform .22s cubic-bezier(.2,0,.38,.9),opacity .18s,visibility 0s .22s}.drawer.center.on{transform:translate(-50%,0);opacity:1;visibility:visible;transition:transform .22s cubic-bezier(.2,0,.38,.9),opacity .18s}
 @media (prefers-reduced-motion:reduce){.drawer,.scrim{transition:none}}
 .dh{padding:24px 28px 18px;border-bottom:1px solid var(--line);position:relative;background:linear-gradient(180deg,#f0f8ff,#fff)}
 .dh .x{position:absolute;top:16px;right:16px;width:38px;height:38px;font-size:20px;color:var(--ink2);border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(20,90,160,.1)}
@@ -696,7 +697,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
       </tr></thead>
       <tbody id="rows"></tbody>
     </table></div>
-    <p class="foot">단계별 처리 기한(일): 접수 1 · 배정·일정조율 3 · 처리중 7 · 보수 완료 3 · 비용 확인 5 · 기안 진행 7 (임시) · 저장소: Firebase · 사진: 구글 드라이브</p>
+    <p class="foot">처리 기한: 배정·일정조율까지 접수 후 2일 · 보수 완료까지 접수 후 14일 · 비용 확인까지 보수 완료 후 2일 · 처리 완료까지 보수 완료 후 10일 · 저장소: Firebase · 사진: 구글 드라이브</p>
   </main>
 </div>
 
@@ -714,7 +715,10 @@ const ICON={c_people:'data:image/webp;base64,UklGRggRAABXRUJQVlA4WAoAAAAQAAAA/wA
 const EI=k=>`<img class="e" src="${ICON[k]}" alt="">`;
 const TODAY = (()=>{ const d=new Date(); d.setHours(0,0,0,0); return d; })();
 const CY=TODAY.getFullYear(), CM=TODAY.getMonth()+1, TD=`${String(CM).padStart(2,'0')}.${String(TODAY.getDate()).padStart(2,'0')}`, PL0=`${CY}년 1~${CM}월`, QN=Math.floor(TODAY.getMonth()/3);
-const SLA = {1:1,2:3,3:7,4:3,5:5,6:7};
+const SLA = {1:2,2:2,3:14,4:2,5:2,6:10};   // 1~3단계: 접수 후 누적(배정·일정조율까지 2일, 보수 완료까지 14일) · 4~6단계: 보수 완료(처리완료일) 후 누적(비용 확인까지 2일, 처리 완료까지 10일)
+const SLA_CUM = st => st<=3;
+const dDoneOf = it => it.dDone!=null ? it.dDone : it.dIn;   // 처리완료일이 없으면 그 단계 체류 일수로 대신
+function slaTx(it){ const st=it.st; return SLA_CUM(st) ? `접수 후 ${it.rcv}일째 · 기한 접수 후 ${SLA[st]}일(${st<=2?'배정·일정조율까지':'보수 완료까지'})` : `보수 완료 후 ${dDoneOf(it)}일째 · 기한 보수 완료 후 ${SLA[st]}일(${st<=5?'비용 확인까지':'처리 완료까지'})`; }
 const STAGES = ['','접수','배정·일정조율','처리중','보수 완료','비용 확인','기안 진행','처리 완료'];
 const RECV = [];
 const WORKERS = [];
@@ -736,7 +740,7 @@ function zone(site, yr){ const s=SITES[site]; if(!s.ct) return null; if(s.ct==='
 function ourPay(it){ if(!it.b) return 0; const t=it.b[0]; const tot=(it.lab||0)+(it.rst||0);
   if(t==='당사 부담'||t==='당사 대납') return tot; if(t==='공동 부담') return tot-(it.sh||0); return 0; }
 function payNeeded(it){ return ourPay(it)>0; }
-function over(it){ if(it.st===7) return null; return it.dIn - SLA[it.st]; }
+function over(it){ if(it.st===7) return null; return (SLA_CUM(it.st)? it.rcv : dDoneOf(it)) - SLA[it.st]; }
 function swapped(it){ return it.hd && it.hd!==SITES[it.site].bld; }
 
 /* ── 상태 ── */
@@ -759,7 +763,7 @@ function renderTrack(){
     h += `<button class="st s${n} ${s.tot?'has':''} ${F.stage===n?'on':''}" data-st="${n}" aria-pressed="${F.stage===n}">
       <span class="dot">${EI('st'+n)}</span>
       <span class="nm"><em class="no">${n}</em>${STAGES[n]}${bn&&bn.n===n?`<span class="tag-bn"><img src="${ICON.fire}" alt="">병목</span>`:''}</span>
-      <span class="sla">기한 ${SLA[n]}일 · ${n<=4?'영업':'대금관리'}</span>
+      <span class="sla">기한 ${n<=3?'접수 후 ':'보수 완료 후 '}${SLA[n]}일 · ${n<=4?'영업':'대금관리'}</span>
       <span class="cnt"><b>${s.tot}</b><small>건</small></span>
       <span class="bar">${s.ok?`<i class="ok" style="width:${s.ok/max*100}%"></i>`:''}${s.ov?`<i class="ov" style="width:${s.ov/max*100}%"></i>`:''}</span>
       <span class="lg">기한 내 ${s.ok} · ${s.ov?`<em>초과 ${s.ov}</em>`:'초과 0'}</span>
@@ -859,7 +863,7 @@ function render(){ renderTrack(); const l=visible(); renderChips(l); renderRows(
 
 /* ── 상세 서랍 ── */
 const scrim=document.getElementById('scrim'), drawer=document.getElementById('drawer');
-function openDrawer(html, keep){ const db0=drawer.querySelector('.db'), sy=keep&&db0?db0.scrollTop:0; drawer.classList.remove('wide'); drawer.innerHTML=html; drawer.classList.add('on'); scrim.classList.add('on'); drawer.setAttribute('aria-hidden','false'); const f=drawer.querySelector('.x'); f&&f.focus({preventScroll:true}); if(keep){ const db=drawer.querySelector('.db'); if(db) db.scrollTop=sy; } }
+function openDrawer(html, keep){ const db0=drawer.querySelector('.db'), sy=keep&&db0?db0.scrollTop:0; drawer.classList.remove('wide','center'); drawer.innerHTML=html; drawer.classList.add('on'); scrim.classList.add('on'); drawer.setAttribute('aria-hidden','false'); const f=drawer.querySelector('.x'); f&&f.focus({preventScroll:true}); if(keep){ const db=drawer.querySelector('.db'); if(db) db.scrollTop=sy; } }
 function closeDrawer(){ drawer.classList.remove('on'); scrim.classList.remove('on'); drawer.setAttribute('aria-hidden','true'); openId=null; render(); }
 scrim.onclick=closeDrawer;
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&drawer.classList.contains('on')) closeDrawer();
@@ -887,7 +891,7 @@ function detail(id){
     </div>
     <div class="db">
       <div class="dsec"><h4>진행</h4>${progHtml(it)}
-        ${it.st<7?`<p class="cap" style="margin-top:12px">현재 ${it.st}단계 ${STAGES[it.st]} · 이 단계 ${it.dIn}일째 · 기한 ${SLA[it.st]}일 ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:'<p class="cap" style="margin-top:12px">처리 완료 · 종결</p>'}
+        ${it.st<7?`<p class="cap" style="margin-top:12px">현재 ${it.st}단계 ${STAGES[it.st]} · ${slaTx(it)} ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:'<p class="cap" style="margin-top:12px">처리 완료 · 종결</p>'}
       </div>
       <div class="dsec"><h4>하자 내용</h4>
         <dl class="kv"><dt>부위</dt><dd>${it.part}</dd><dt>현상</dt><dd>${it.ph}</dd>
@@ -2028,7 +2032,7 @@ function _rebuild(){
     if(!SITES[c.site]){ orphan++; return; }
     const rcvAt = toD(c.rcvAt)||TODAY, stAt = toD(c.stAt)||rcvAt;
     ITEMS.push({...c, id, rcvAt, stAt, paidAt:toD(c.paidAt), visitAt:c.visitAt||'',
-      rcv: dDiff(rcvAt,TODAY), dIn: dDiff(stAt,TODAY),
+      rcv: dDiff(rcvAt,TODAY), dIn: dDiff(stAt,TODAY), dDone: c.doneAt ? dDiff(toD(c.doneAt),TODAY) : null,
       dmg: (c.dmg||[]).map(o=>[o.t,o.loc||'',o.fix||'']), b: c.b||null, photos: c.photos||[], log: c.log||[]});
   });
   ITEMS.sort((a,b)=>b.rcvAt-a.rcvAt || (b.id>a.id?1:-1));
@@ -2142,7 +2146,7 @@ function detail(id){
     </div>
     <div class="db">
       <div class="dsec"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 바로 이동합니다</span></h4>${progHtml(it)}${missNote(it)}${sumLine(it,s)}
-        ${st<7?`<p class="cap" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · 이 단계 ${it.dIn}일째 · 기한 ${SLA[st]}일 ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
+        ${st<7?`<p class="cap" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · ${slaTx(it)} ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
       </div>
 
       ${show([1])?`<div class="dsec"><h4>하자 내용</h4>
@@ -2225,6 +2229,7 @@ function detail(id){
       ${st<6?`<button class="btn btn-pri" id="nextSt">${st===5&&!payNeeded(it)?'7단계 종결 (지급 없음)':st===5?'6단계 기안으로':(st+1)+'단계로 넘기기'}</button>`:''}
       ${st===6?`<button class="btn btn-pri" id="paidBtn">지급 완료 · 처리 완료</button>`:''}
     </div>`, keepScroll);
+  drawer.classList.add('center');   // 접수 건 상세는 화면 가운데에 표시
 
   drawer.querySelector('.x').onclick=closeDrawer; drawer.querySelector('.x2').onclick=closeDrawer;
   const $ = q => document.getElementById(q);
