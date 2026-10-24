@@ -185,6 +185,9 @@ tr.new .idc{font-weight:700;color:var(--ink)}
 .drawer{position:fixed;top:12px;right:12px;bottom:12px;width:560px;max-width:calc(100vw - 24px);background:#fff;z-index:41;transform:translateX(110%);transition:transform .22s cubic-bezier(.2,0,.38,.9);display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(15,40,70,.22);border-radius:24px;overflow:hidden}
 .drawer.on{transform:none}
 .drawer.center{left:50%;right:auto;transform:translate(-50%,24px);opacity:0;visibility:hidden;transition:transform .22s cubic-bezier(.2,0,.38,.9),opacity .18s,visibility 0s .22s}.drawer.center.on{transform:translate(-50%,0);opacity:1;visibility:visible;transition:transform .22s cubic-bezier(.2,0,.38,.9),opacity .18s}
+.tip{position:relative;display:inline-block;margin-left:6px}.tip>button{height:24px;padding:0 10px;border:1px solid var(--line2);border-radius:999px;background:#fff;font-size:12px;color:var(--tx2,#55657a);cursor:default}.tip .tipc{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:5;white-space:nowrap;background:#1f2d3d;color:#fff;font-size:12.5px;padding:8px 12px;border-radius:10px;box-shadow:0 8px 20px rgba(15,40,70,.2)}.tip:hover .tipc,.tip:focus-within .tipc{display:block}
+.phq{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.phq span{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 10px;border:1px solid var(--line2);border-radius:999px;font-size:12.5px;background:#f6f9fc}.phq button{border:0;background:none;cursor:pointer;font-size:14px;color:#8a97a8}
+.inedit .ptg{margin:4px 0 8px}.inedit textarea{width:100%;min-height:80px}.edbar{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
 @media (prefers-reduced-motion:reduce){.drawer,.scrim{transition:none}}
 .dh{padding:24px 28px 18px;border-bottom:1px solid var(--line);position:relative;background:linear-gradient(180deg,#f0f8ff,#fff)}
 .dh .x{position:absolute;top:16px;right:16px;width:38px;height:38px;font-size:20px;color:var(--ink2);border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(20,90,160,.1)}
@@ -697,7 +700,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
       </tr></thead>
       <tbody id="rows"></tbody>
     </table></div>
-    <p class="foot">처리 기한: 배정·일정조율까지 접수 후 2일 · 보수 완료까지 접수 후 14일 · 비용 확인까지 보수 완료 후 2일 · 처리 완료까지 보수 완료 후 10일 · 저장소: Firebase · 사진: 구글 드라이브</p>
+    <p class="foot">처리 기한: 접수 1일 · 배정·일정조율 2일 · 처리중 8일 · 보수 완료 3일 (접수~보수 완료 14일) · 비용 확인 3일 · 기안 진행 7일 (비용 확인~처리 완료 10일) · 저장소: Firebase · 사진: 구글 드라이브</p>
   </main>
 </div>
 
@@ -715,10 +718,8 @@ const ICON={c_people:'data:image/webp;base64,UklGRggRAABXRUJQVlA4WAoAAAAQAAAA/wA
 const EI=k=>`<img class="e" src="${ICON[k]}" alt="">`;
 const TODAY = (()=>{ const d=new Date(); d.setHours(0,0,0,0); return d; })();
 const CY=TODAY.getFullYear(), CM=TODAY.getMonth()+1, TD=`${String(CM).padStart(2,'0')}.${String(TODAY.getDate()).padStart(2,'0')}`, PL0=`${CY}년 1~${CM}월`, QN=Math.floor(TODAY.getMonth()/3);
-const SLA = {1:2,2:2,3:14,4:2,5:2,6:10};   // 1~3단계: 접수 후 누적(배정·일정조율까지 2일, 보수 완료까지 14일) · 4~6단계: 보수 완료(처리완료일) 후 누적(비용 확인까지 2일, 처리 완료까지 10일)
-const SLA_CUM = st => st<=3;
-const dDoneOf = it => it.dDone!=null ? it.dDone : it.dIn;   // 처리완료일이 없으면 그 단계 체류 일수로 대신
-function slaTx(it){ const st=it.st; return SLA_CUM(st) ? `접수 후 ${it.rcv}일째 · 기한 접수 후 ${SLA[st]}일(${st<=2?'배정·일정조율까지':'보수 완료까지'})` : `보수 완료 후 ${dDoneOf(it)}일째 · 기한 보수 완료 후 ${SLA[st]}일(${st<=5?'비용 확인까지':'처리 완료까지'})`; }
+const SLA = {1:1,2:2,3:8,4:3,5:3,6:7};   // 단계별 체류 일수 기준 · 접수~보수 완료 14일(1+2+8+3) · 비용 확인~처리 완료 10일(3+7)
+function slaTx(it){ return `이 단계 ${it.dIn}일째 · 기한 ${SLA[it.st]}일`; }
 const STAGES = ['','접수','배정·일정조율','처리중','보수 완료','비용 확인','기안 진행','처리 완료'];
 const RECV = [];
 const WORKERS = [];
@@ -740,7 +741,7 @@ function zone(site, yr){ const s=SITES[site]; if(!s.ct) return null; if(s.ct==='
 function ourPay(it){ if(!it.b) return 0; const t=it.b[0]; const tot=(it.lab||0)+(it.rst||0);
   if(t==='당사 부담'||t==='당사 대납') return tot; if(t==='공동 부담') return tot-(it.sh||0); return 0; }
 function payNeeded(it){ return ourPay(it)>0; }
-function over(it){ if(it.st===7) return null; return (SLA_CUM(it.st)? it.rcv : dDoneOf(it)) - SLA[it.st]; }
+function over(it){ if(it.st===7) return null; return it.dIn - SLA[it.st]; }
 function swapped(it){ return it.hd && it.hd!==SITES[it.site].bld; }
 
 /* ── 상태 ── */
@@ -763,7 +764,7 @@ function renderTrack(){
     h += `<button class="st s${n} ${s.tot?'has':''} ${F.stage===n?'on':''}" data-st="${n}" aria-pressed="${F.stage===n}">
       <span class="dot">${EI('st'+n)}</span>
       <span class="nm"><em class="no">${n}</em>${STAGES[n]}${bn&&bn.n===n?`<span class="tag-bn"><img src="${ICON.fire}" alt="">병목</span>`:''}</span>
-      <span class="sla">기한 ${n<=3?'접수 후 ':'보수 완료 후 '}${SLA[n]}일 · ${n<=4?'영업':'대금관리'}</span>
+      <span class="sla">기한 ${SLA[n]}일</span>
       <span class="cnt"><b>${s.tot}</b><small>건</small></span>
       <span class="bar">${s.ok?`<i class="ok" style="width:${s.ok/max*100}%"></i>`:''}${s.ov?`<i class="ov" style="width:${s.ov/max*100}%"></i>`:''}</span>
       <span class="lg">기한 내 ${s.ok} · ${s.ov?`<em>초과 ${s.ov}</em>`:'초과 0'}</span>
@@ -2135,7 +2136,7 @@ function detail(id){
   const photos = it.photos||[];
   const kinds = ['처리 전','처리 후','2차 피해','기타'];
     const isAdj = it.b && it.b[1]==='조정';
-  if(DV.id!==id){ DV.id=id; DV.all=false; DV.k=null; }
+  if(DV.id!==id){ DV.id=id; DV.all=false; DV.k=null; DV.ed=null; }
   if(DV.k!==id+'|'+st){ DV.k=id+'|'+st; PH_KIND = st===1?'처리 전':'처리 후'; }
   const ALL = DV.all, show = a => ALL || st===7 || a.includes(st);
   openDrawer(`
@@ -2149,13 +2150,18 @@ function detail(id){
         ${st<7?`<p class="cap" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · ${slaTx(it)} ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
       </div>
 
-      ${show([1])?`<div class="dsec"><h4>하자 내용</h4>
+      ${show([1])?`<div class="dsec"><h4>하자 내용 ${st<7&&!DV.ed?'<button class="btn btn-line sm" id="edIn" style="margin-left:8px">수정</button>':''}</h4>
+        ${DV.ed?`<div class="inedit"><div class="field"><label>발생 부위 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="eParts">${PARTS.map(p=>`<button type="button" data-p="${p}" class="${DV.ed.parts.includes(p)?'on':''}">${p}</button>`).join('')}</div>
+          <input class="inp" id="ePartN" placeholder="기타 부위를 입력하세요" value="${esc(DV.ed.partNote||'')}" style="display:${DV.ed.parts.includes('기타')?'':'none'}"></div>
+          <div class="field"><label>하자 현상 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="ePhs">${PHS.map(h=>`<button type="button" data-h="${h}" class="${DV.ed.phs.includes(h)?'on':''}">${h}</button>`).join('')}</div></div>
+          <div class="field"><label>상세 내용</label><textarea class="inp" id="eTxt" placeholder="세대·위치, 연락받은 경위 등">${esc(DV.ed.txt||'')}</textarea></div>
+          <div class="edbar"><button class="btn btn-line sm" id="edCancel">취소</button><button class="btn btn-yel sm" id="edSave">저장</button></div></div>`:''}
         <dl class="kv"><dt>접수일</dt><dd><input type="date" class="inp" id="rcvD" value="${ymd(it.rcvAt)}" max="${ymd(TODAY)}" style="min-width:0;width:180px"></dd>
-        <dt>부위 · 현상</dt><dd>${esc(partTx(it))} · ${esc(phTx(it))}</dd>
+        ${DV.ed?'':`<dt>부위 · 현상</dt><dd>${esc(partTx(it))} · ${esc(phTx(it))}</dd>`}
         <dt>재발 연결</dt><dd><select class="sel" id="prevSel" style="min-width:0;width:100%"><option value="">없음 (새 하자)</option>${priorCases(it.site,it).map(i=>`<option value="${i.id}" ${it.prevId===i.id?'selected':''}>${i.id} · ${fmtD(i.rcvAt)} · ${esc(partTx(i))} · ${esc(phTx(i))}${sameContent(i,it)?' (같은 내용)':''}</option>`).join('')}</select>${it.prevId?`<button class="lkb" id="prevOpen" style="margin-top:6px">이전 건 ${it.prevId} 열기</button>`:''}</dd>
         <dt>하자 연락자</dt><dd><div class="g2"><select class="sel" data-cl="type">${[...new Set([...CALLER_T,(it.caller||{}).type].filter(Boolean))].map(t=>`<option ${(it.caller||{}).type===t?'selected':''}>${esc(t)}</option>`).join('')}</select><input class="inp" data-cl="name" placeholder="성함" value="${esc((it.caller||{}).name||'')}"></div>
           <div class="g2" style="margin-top:6px"><input class="inp" data-cl="phone" inputmode="tel" placeholder="연락처" value="${esc((it.caller||{}).phone||'')}"><input class="inp" data-cl="office" inputmode="tel" placeholder="관리사무소 연락처" value="${esc((it.caller||{}).office||'')}"></div></dd>
-        ${it.txt?`<dt>상세</dt><dd style="white-space:pre-wrap">${esc(it.txt)}</dd>`:''}
+        ${it.txt&&!DV.ed?`<dt>상세</dt><dd style="white-space:pre-wrap">${esc(it.txt)}</dd>`:''}
         </dl></div>`:''}
       ${show([2])?`<div class="dsec"><h4>배정 · 일정</h4><dl class="kv">
         <dt>시공소장</dt><dd>${bldsOf(s).map(b=>{ const m=mgrOf(b); return esc(b)+(m&&m.phone?` <span class="cap">${esc(m.phone)}</span>`:''); }).join(', ')||'—'} <span class="cap">(보증 책임자)</span></dd>
@@ -2167,7 +2173,7 @@ function detail(id){
 
       ${show([2,3])?`<div class="dsec"><h4>진행 내용 <span class="cap" style="font-weight:400">조율·진행 경과를 날짜순으로 기록</span></h4>
         <ol class="notes">${(it.notes||[]).map((n,k)=>({...n,k})).sort((a,b)=>(a.d||'').localeCompare(b.d||'')||(a.at||'').localeCompare(b.at||'')).map(n=>`<li><span>${(n.d||'').slice(5).replace('-','/')}</span><p>${esc(n.txt)}</p><em>${esc(n.by||'')}</em><button class="lkb" data-delnote="${n.k}">삭제</button></li>`).join('')||'<li class="cap">아직 기록이 없습니다</li>'}</ol>
-        <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><input class="inp" id="nT" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"><button class="btn btn-line sm" id="nAdd">추가</button></div>
+        <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><input class="inp" id="nT" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"></div><p class="cap" id="nStat" style="margin-top:6px">입력하면 자동 저장됩니다 · Enter를 누르면 다음 줄을 새로 씁니다</p>
       </div>`:''}
 
       ${show([4])?`<div class="dsec"><h4>보수 결과</h4>
@@ -2253,9 +2259,33 @@ function detail(id){
   const rd=$('rcvD'); if(rd) rd.onchange=()=>{ if(!rd.value||rd.value>ymd(TODAY)){ toast('접수일을 확인하세요'); rd.value=ymd(it.rcvAt); return; } dbCase(id,{rcvAt:new Date(rd.value+'T09:00:00').toISOString()},`접수일 ${rd.value}`); };
   drawer.querySelectorAll('[data-cl]').forEach(el=>el.onchange=()=>{ const c={...(it.caller||{})}; c[el.dataset.cl]=el.value.trim(); it.caller=c; dbCase(id,{caller:c},`하자 연락자 수정`); });
   const dd=$('doneD'); if(dd) dd.onchange=()=>dbCase(id,{doneAt:dd.value||null},`처리완료일 ${dd.value||'해제'}`);
-  const na=$('nAdd'); if(na) na.onclick=()=>{ const d=$('nD').value, t=$('nT').value.trim(); if(!t){ toast('진행 내용을 입력하세요'); return; }
-    dbCase(id,{notes:[...(it.notes||[]),{d:d||ymd(TODAY), txt:t, by:ME()||'', at:iso()}]},`진행 내용 추가 · ${d}`); };
-  const nt=$('nT'); if(nt) nt.onkeydown=e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); na.click(); } };
+  /* 접수 내용 수정 */
+  const ei=$('edIn'); if(ei) ei.onclick=()=>{ DV.ed={parts:partsOf(it).filter(p=>PARTS.includes(p)), phs:phsOf(it).filter(h=>PHS.includes(h)), partNote:it.partNote||'', txt:it.txt||''}; detail(id); };
+  if(DV.ed){
+    const pn=$('ePartN');
+    drawer.querySelectorAll('#eParts [data-p]').forEach(b=>b.onclick=()=>{ const P=DV.ed.parts, p=b.dataset.p, k=P.indexOf(p); if(k<0) P.push(p); else P.splice(k,1); b.classList.toggle('on',k<0); if(pn) pn.style.display=P.includes('기타')?'':'none'; });
+    drawer.querySelectorAll('#ePhs [data-h]').forEach(b=>b.onclick=()=>{ const H=DV.ed.phs, h=b.dataset.h, k=H.indexOf(h); if(k<0) H.push(h); else H.splice(k,1); b.classList.toggle('on',k<0); });
+    if(pn) pn.oninput=()=>{ DV.ed.partNote=pn.value; };
+    const et=$('eTxt'); if(et) et.oninput=()=>{ DV.ed.txt=et.value; };
+    $('edCancel').onclick=()=>{ DV.ed=null; detail(id); };
+    $('edSave').onclick=async()=>{ const e=DV.ed, parts=PARTS.filter(p=>e.parts.includes(p)), phs=PHS.filter(h=>e.phs.includes(h));
+      if(!parts.length) return toast('발생 부위를 하나 이상 고르세요'); if(!phs.length) return toast('하자 현상을 하나 이상 고르세요');
+      if(parts.includes('기타') && !e.partNote.trim()) return toast('기타 부위 내용을 입력하세요');
+      try{ await dbCase(id,{parts, part:parts[0], phs, ph:phs[0], partNote:parts.includes('기타')?e.partNote.trim():'', txt:e.txt.trim()}, `접수 내용 수정 · ${parts.join('·')} / ${phs.join('·')}`); DV.ed=null; toast('접수 내용을 수정했습니다'); detail(id); }catch(err){} };
+  }
+  /* 진행 내용 — 입력하면 자동 저장 (같은 줄은 계속 고쳐 씀, Enter면 다음 줄) */
+  const nt=$('nT'), nd=$('nD'), ns=$('nStat');
+  if(nt){ let dAt=null, tm=null;
+    const cur=()=>((ITEMS.find(i=>i.id===id)||it).notes||[]);
+    const save=async()=>{ clearTimeout(tm); tm=null; const t=nt.value.trim(), d=(nd&&nd.value)||ymd(TODAY); const a=[...cur()]; const k=dAt?a.findIndex(n=>n.at===dAt):-1;
+      if(!t){ if(k>=0){ a.splice(k,1); await dbCase(id,{notes:a}); dAt=null; if(ns) ns.textContent='입력하면 자동 저장됩니다 · Enter를 누르면 다음 줄을 새로 씁니다'; } return; }
+      let first=false; if(k>=0) a[k]={...a[k], d, txt:t}; else { dAt=iso(); first=true; a.push({d, txt:t, by:ME()||'', at:dAt}); }
+      try{ await dbCase(id,{notes:a}, first?`진행 내용 추가 · ${d}`:null); if(ns) ns.textContent=`자동 저장됨 · ${hhmm(new Date())}`; }catch(e){} };
+    nt.oninput=()=>{ clearTimeout(tm); if(ns) ns.textContent='저장 중…'; tm=setTimeout(save,700); };
+    nt.onblur=()=>{ if(tm) save(); };
+    if(nd) nd.onchange=()=>{ if(dAt||nt.value.trim()) save(); };
+    nt.onkeydown=async e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); if(!nt.value.trim()) return; await save(); nt.value=''; dAt=null; if(ns) ns.textContent='저장됨 · 다음 내용을 입력하세요'; } };
+  }
   drawer.querySelectorAll('[data-delnote]').forEach(b=>b.onclick=()=>{ const k=+b.dataset.delnote; const a=[...(it.notes||[])]; const r=a.splice(k,1)[0]; if(!confirm('이 진행 내용을 삭제할까요?')) return; dbCase(id,{notes:a},`진행 내용 삭제 · ${r&&r.d||''}`); });
 
   /* 사진 */
@@ -2366,7 +2396,7 @@ async function submitIntake(){
       if(!n||!co||!cp||!b){ toast('간이 등록 4개 항목을 모두 입력하세요'); if(sb){sb.disabled=false; sb.textContent='접수 등록';} return; }
       if(!SITES[n]) await DB.collection('sites').doc(sid(n)).set({name:n, co, ct:null, comp:cp, bld:b, blds:b.split(/\s*,\s*/).filter(Boolean), wy:5, wStartBasis:'준공일', wait:true, reg:ymd(TODAY), createdAt:iso()},{merge:true});
       site=n; }
-    const files=[...(document.getElementById('iPhoto')?.files||[])];
+    const files=[...(intake.files||[])];
     const id = await nextId(), now=iso(), rcvAt = rcvD===ymd(TODAY)? now : new Date(rcvD+'T09:00:00').toISOString();
     const prevId = psel==='auto' ? autoPrev(site,{parts,phs}) : (psel||null);
     await DB.collection('cases').doc(id).set({site, rc:intake.rc, st:1, rcvAt, stAt:rcvAt, src:'PC', caller, notes:[], prevId:prevId||null,
@@ -2917,7 +2947,7 @@ function siteBox(name){
   if(s.wait) return `<div class="confirm"><h5>${esc(name)} <span class="tg tg-wait">확인 대기</span></h5><dl class="kv"><dt>업체</dt><dd>${esc(s.co)}</dd><dt>공종</dt><dd>${esc(gongsOf(s).join(', '))}</dd>${wRows}<dt>시공소장</dt><dd>${bl}</dd><dt>예산</dt><dd class="cap">정식 등록 후 산정</dd></dl>${exAlert}</div>`;
   const p=s.budget? s.spent/s.budget*100 : 0;
   return `<div class="confirm"><h5>${esc(name)}</h5><dl class="kv">
-    <dt>업체</dt><dd>${esc(s.co)}${con&&con.contactName?` <span class="cap">담당 ${esc(con.contactName)} ${esc(con.contactPhone||'')}</span>`:''}</dd><dt>계약유형</dt><dd>${s.ct} · 적용률 ${rate(s.ct)*100}%</dd>
+    <dt>업체</dt><dd>${esc(s.co)}${con&&(con.contactName||con.contactPhone)?`<span class="tip"><button type="button" tabindex="0">담당</button><span class="tipc">${esc(con.contactName||'')} ${esc(con.contactPhone||'')}</span></span>`:''}</dd><dt>계약유형</dt><dd>${esc(s.ct||'미등록')}</dd>
     <dt>공종</dt><dd>${esc(gongsOf(s).join(', '))}</dd>
     ${wRows}
     <dt>시공소장</dt><dd>${bl}</dd>
@@ -3023,8 +3053,11 @@ function intakeForm(){
     <input class="inp" id="iPartN" placeholder="기타 부위를 입력하세요 (예: 계단실 지붕)" style="margin-top:8px;display:${P.includes('기타')?'':'none'}"></div>
   <div class="field"><label>하자 현상 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="iPhs">${PHS.map(h=>`<button type="button" data-h="${h}" class="${(intake.phs||[]).includes(h)?'on':''}">${h}</button>`).join('')}</div></div>
   <div class="field"><label>상세 내용</label><textarea id="iTxt" placeholder="세대·위치, 연락받은 경위 등"></textarea></div>
-  <div class="field"><label>현장 사진 (처리 전 · 여러 장 가능 · 자동 압축)</label><input type="file" id="iPhoto" accept="image/*" multiple class="inp" style="padding:8px"></div></div>`;
+  <div class="field"><label>현장 사진 (처리 전 · 여러 장 가능 · 자동 압축)</label><input type="file" id="iPhoto" accept="image/*" multiple class="inp" style="padding:8px"><div class="phq" id="iPhq">${phqHtml()}</div><p class="cap" style="margin-top:6px">여러 장을 한 번에 고르거나, 여러 번 나눠 추가할 수 있습니다</p></div></div>`;
 }
+/* 접수 사진 대기열 — 파일 선택을 여러 번 해도 앞서 고른 사진이 유지되도록 모아 둠 */
+function phqHtml(){ const a=intake.files||[]; return a.length? a.map((f,k)=>`<span>${esc(f.name)}<button type="button" data-phq="${k}" aria-label="빼기">×</button></span>`).join('')+`<span class="cap" style="border:0;background:none">${a.length}장 선택됨</span>` : ''; }
+function bindPhq(){ const q=document.getElementById('iPhq'); if(!q) return; q.innerHTML=phqHtml(); q.querySelectorAll('[data-phq]').forEach(b=>b.onclick=()=>{ intake.files.splice(+b.dataset.phq,1); bindPhq(); }); }
 const partTx = it => partsOf(it).map(p=>p==='기타'&&it.partNote?`기타(${it.partNote})`:p).join(', ');
 function bindIntake(){
   drawer.querySelectorAll('[data-site]').forEach(b=>b.onclick=()=>{ intake.site=b.dataset.site; drawIntake(); });
@@ -3037,6 +3070,8 @@ function bindIntake(){
   drawer.querySelectorAll('#iPhs [data-h]').forEach(b=>b.onclick=()=>{ const h=b.dataset.h, H=intake.phs||(intake.phs=[]); const k=H.indexOf(h); if(k<0) H.push(h); else H.splice(k,1); b.classList.toggle('on',k<0); recHint(); });
   recHint();
   const ircv=document.getElementById('iRcv'); if(ircv) ircv.onchange=()=>{ intake.rcv=ircv.value; };
+  const iph=document.getElementById('iPhoto'); if(iph) iph.onchange=()=>{ const A=intake.files||(intake.files=[]); [...iph.files].forEach(f=>{ if(!A.some(x=>x.name===f.name&&x.size===f.size&&x.lastModified===f.lastModified)) A.push(f); }); iph.value=''; bindPhq(); };
+  bindPhq();
   const sb=document.getElementById('submit'); if(sb){ const ok=intake.site||intake.quick; sb.disabled=!ok; sb.style.opacity=ok?'':'.4'; sb.style.cursor=ok?'':'not-allowed'; sb.onclick=submitIntake; }
 }
 function drawIntake(){
