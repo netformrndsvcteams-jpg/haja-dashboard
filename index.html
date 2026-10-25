@@ -183,7 +183,7 @@ tr.new .idc{font-weight:700;color:var(--ink)}
 .scrim{position:fixed;inset:0;background:rgba(15,40,70,.35);opacity:0;pointer-events:none;transition:opacity .15s;z-index:40}
 .scrim.on{opacity:1;pointer-events:auto}
 .drawer{position:fixed;top:12px;right:12px;bottom:12px;width:560px;max-width:calc(100vw - 24px);background:#fff;z-index:41;transform:translateX(110%);transition:transform .22s cubic-bezier(.2,0,.38,.9);display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(15,40,70,.22);border-radius:24px;overflow:hidden}
-.drawer.on{transform:none}
+.drawer.on{transform:none}.site small.grpl{display:block;margin-top:3px;color:#1f6fb8;font-size:11.5px}
 .drawer.center{left:50%;right:auto;transform:translate(-50%,24px);opacity:0;visibility:hidden;transition:transform .22s cubic-bezier(.2,0,.38,.9),opacity .18s,visibility 0s .22s}.drawer.center.on{transform:translate(-50%,0);opacity:1;visibility:visible;transition:transform .22s cubic-bezier(.2,0,.38,.9),opacity .18s}
 .tip{position:relative;display:inline-block;margin-left:6px}.tip>button{height:24px;padding:0 10px;border:1px solid var(--line2);border-radius:999px;background:#fff;font-size:12px;color:var(--tx2,#55657a);cursor:default}.tip .tipc{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:5;white-space:nowrap;background:#1f2d3d;color:#fff;font-size:12.5px;padding:8px 12px;border-radius:10px;box-shadow:0 8px 20px rgba(15,40,70,.2)}.tip:hover .tipc,.tip:focus-within .tipc{display:block}
 .phq{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.phq span{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 10px;border:1px solid var(--line2);border-radius:999px;font-size:12.5px;background:#f6f9fc}.phq button{border:0;background:none;cursor:pointer;font-size:14px;color:#8a97a8}
@@ -1232,7 +1232,7 @@ function vSites(){
         <td>${compCell(x)}</td>
         <td colspan="${D?7:4}" class="wait-msg">정식 등록 후 산정 — 확정매출액·계약유형이 없어 하자예산을 편성할 수 없습니다 · 진행 중 접수 ${blocked(x.nm)}건</td>
         <td></td><td>${stTag(x)}</td><td><button class="btn btn-yel sm" onclick="openSiteForm('${x.nm}',true)">정식 등록</button></td></tr>`;
-      return `<tr><td><span class="site">${x.nm}<small>${s.co}${s.code?' · ERP '+s.code:''} · 시공소장 ${s.bld}${s.pp?' · <b style="color:var(--sky)">pour-pay</b>':''}</small></span></td>
+      return `<tr><td><span class="site">${x.nm}<small>${s.co}${s.code?' · ERP '+s.code:''} · 시공소장 ${s.bld}${s.pp?' · <b style="color:var(--sky)">pour-pay</b>':''}</small>${grpLine(x.nm)}</span></td>
         <td>${s.ct}<small class="d2">적용률 ${(rate(s.ct)*100).toFixed(1)}%</small></td>
         <td>${compCell(x)}</td>
         <td class="amt">${won(s.rev)}</td><td class="amt"><b>${won(s.budget)}</b></td>
@@ -1308,7 +1308,7 @@ function openUpload(){
   UP=[];
   openDrawer(`<div class="dh"><div class="k">현장 마스터 · 일괄 등록</div><h3>엑셀로 여러 현장 등록</h3><div class="m">과거 준공 현장을 한 번에 올릴 때 사용합니다 · 한 줄 = 현장 하나</div><button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
     <div class="db"><div class="dsec">
-      <ol class="steps"><li><b>양식 받기</b><span>열 순서: ${XCOLS.join(' · ')}</span><button class="btn btn-line sm" onclick="dlTemplate()">양식 받기</button></li>
+      <ol class="steps"><li><b>양식 받기</b><span>열 순서: ${XCOLS2.join(' · ')} · 보증 기산기준부터는 선택 · 예산연도는 준공일을 모를 때만 (준공일이 있으면 준공 연도로 귀속)</span><button class="btn btn-line sm" onclick="dlTemplate()">양식 받기</button></li>
       <li><b>작성 후 파일 선택</b><span>계약유형은 컨설팅 / 기술자문컨설팅 / 기술자문(직영) 중 하나 · 특허료 현장 제외</span>
         <label class="drop"><input type="file" accept=".xlsx,.xls,.csv" onchange="readUpload(this.files[0])"><img class="bi2" src="${ICON.c_up}" alt=""><span>파일을 끌어다 놓거나 눌러서 선택</span></label></li>
       <li><b>미리보기 확인 후 등록</b><span>이미 있는 현장명은 건너뜁니다 · 오류가 있는 줄은 등록되지 않습니다</span></li></ol>
@@ -2046,10 +2046,12 @@ function _rebuild(){
   /* 출고 행은 전부 보관(raw = 적요 현장명) · 현장은 「현장 연결」(config/mat.alias)로만 정함 · 금액 없는 행은 단가표로 계산 */
   Object.values(RAW.mats).forEach(b=>(b.rows||[]).forEach(r=>{ const d=new Date(r.d), raw=r.raw||r.site||'(현장 미상)';
     const amt = r.amt!=null ? r.amt : Math.round((r.qty||0)*(matPrice(r.item)||0));
-    let site=matSiteFor(raw,d) || (!r.raw && SITES[r.site] ? r.site : null);
-    if(site){ const e=wEndOf(SITES[site]); if(e && d>e) site=null; }   /* 보증 만료 후 출고는 현장 예산 집행에서 제외 */
-    MATS.push({date:d, site, raw, item:r.item, unit:r.unit||'—', qty:r.qty, amt}); }));
+    /* 같은 단지 여러 계약은 단지 하나로 연결 · 보증 중인 계약이 하나뿐일 때만 계약 배정, 아니면 단지 공통(grp) · 보증 밖 출고는 집행 제외 */
+    let {site, grp}=matAssign(raw,d);
+    if(!site && !grp && !r.raw && SITES[r.site]){ const e=wEndOf(SITES[r.site]); if(!(e && d>e)) site=r.site; }
+    MATS.push({date:d, site, grp, raw, item:r.item, unit:r.unit||'—', qty:r.qty, amt}); }));
   MATU = MATS.filter(m=>!m.site);
+  MATG = MATS.filter(m=>m.grp);
   MATS_SRC = MATS.length ? '업로드' : 'none';
   /* 현장 집행 — 등록 현장에 연결된 자재 출고(기간 무관) + 운영 시작일 이전 과거 노임 */
   HIST.length = 0;
@@ -2422,7 +2424,7 @@ async function commitUpload(){
   const ok = UP.filter(o=>o.st==='new'||o.st==='formal'); if(!ok.length && !gu.length) return;
   try{
     for(let i=0;i<ok.length;i+=400){ const bt=DB.batch();
-      ok.slice(i,i+400).forEach(o=>bt.set(DB.collection('sites').doc(sid(o.nm)),{name:o.nm, co:o.co, code:o.code, ct:o.ct, comp:o.comp, wy:o.wy, rev:o.rev, gong:(o.gongs.length?o.gongs.join('·'):o.gong)||'기타', gongs:o.gongs.length?o.gongs:['기타'], area:o.area, bld:o.bld, blds:o.blds, addr:o.addr, wStartBasis:o.wStartBasis, wStart:o.wStart, wNote:o.wNote, wEndManual:o.wEndManual, wEnd:o.wEnd, wait:false, updatedAt:iso(), ...(o.st==='new'?{createdAt:iso()}:{})},{merge:true}));
+      ok.slice(i,i+400).forEach(o=>bt.set(DB.collection('sites').doc(sid(o.nm)),{name:o.nm, co:o.co, code:o.code, ct:o.ct, comp:o.comp, wy:o.wy, rev:o.rev, gong:(o.gongs.length?o.gongs.join('·'):o.gong)||'기타', gongs:o.gongs.length?o.gongs:['기타'], area:o.area, bld:o.bld, blds:o.blds, addr:o.addr, wStartBasis:o.wStartBasis, wStart:o.wStart, wNote:o.wNote, wEndManual:o.wEndManual, wEnd:o.wEnd, wait:false, updatedAt:iso(), ...(o.byr?{byr:o.byr}:{}), ...(o.st==='new'?{createdAt:iso()}:{})},{merge:true}));
       await bt.commit(); }
     for(let i=0;i<gu.length;i+=400){ const bt=DB.batch(); gu.slice(i,i+400).forEach(o=>bt.set(DB.collection('sites').doc(sid(o.nm)),{gongs:o.gongs, gong:o.gongs.join('·'), updatedAt:iso()},{merge:true})); await bt.commit(); }
   }catch(e){ toast('등록 실패 · '+(e.code||e.message)); return; }
@@ -2840,7 +2842,6 @@ function openSiteForm(nm, formal){
   const v = (k,d='')=> s[k]!==undefined&&s[k]!==null? s[k] : d;
   window.FG = nm ? gongsOf(s).filter(g=>g!=='기타'||gongsOf(s).length===1) : [];
   const basis = v('wStartBasis','준공일');
-  window.FBYR = Number(s.byr)||null;
   openDrawer(`<div class="dh"><div class="k">${mode==='new'?'현장 마스터 · 신규':mode==='formal'?'확인 대기 → 정식 등록':'현장 마스터 · 수정'}</div><h3>${mode==='new'?'현장 등록':esc(nm)}</h3>
       <div class="m">${mode==='formal'?`간이 등록 ${(s.reg||'').replace(/-/g,'.')} · 비어 있는 계약유형·확정매출액을 채우면 하자예산이 편성됩니다`:'준공 시점에 등록 · 하자예산은 확정매출액 × 적용률로 자동 계산'}${s.pp?` · <b>pour-pay 연결</b>${s.ppDone?` (완료 ${s.ppDone.replace(/-/g,'.')})`:''}`:''}</div>
       <button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
@@ -2858,6 +2859,7 @@ function openSiteForm(nm, formal){
     <div class="dsec"><h4>하자보증</h4>
       <div class="g2"><div class="field"><label>준공일 <span class="cap">(모르면 비워 두기)</span></label><input class="inp" type="date" id="fComp" value="${v('comp')}" oninput="calcBudget()"></div>
       <div class="field"><label>보증기간 (년)</label><select class="sel" id="fWy" oninput="calcBudget()"><option value="" ${(nm?(s.wy||''):5)===''?'selected':''}>미입력</option>${wyList(nm?s.wy:5).map(y=>`<option value="${y}" ${(nm?(s.wy||''):5)==y?'selected':''}>${y}</option>`).join('')}</select></div></div>
+      <div class="field" id="fByrW"><label>예산연도 <span class="cap">(준공일을 모를 때 · 하자예산을 넣을 연도)</span></label><select class="sel" id="fByr" onchange="calcBudget()"><option value="">선택 안 함</option>${byrList(s.byr).map(y=>`<option value="${y}" ${Number(s.byr)===y?'selected':''}>${y}년</option>`).join('')}</select><p class="cap" style="margin-top:6px">준공일을 입력하면 준공 연도로 귀속되어 이 칸은 쓰지 않습니다</p></div>
       <div class="g2"><div class="field"><label>보증 기산 기준</label><select class="sel" id="fWb" onchange="calcBudget()">${W_BASIS.map(b=>`<option ${basis===b?'selected':''}>${b}</option>`).join('')}</select></div>
       <div class="field"><label>보증 기산일</label><input class="inp" type="date" id="fWs" value="${basis==='준공일'?v('comp'):v('wStart')}" oninput="calcBudget()"></div></div>
       <div class="field" id="fWnW"><label>기산 기준 메모 (기타일 때)</label><input class="inp" id="fWn" value="${esc(v('wNote'))}" placeholder="예: 입주자대표회의 인수인계일"></div>
@@ -2873,10 +2875,11 @@ function formW(){
   const comp=g('fComp').value, wy=Number(g('fWy').value)||null, basis=g('fWb').value, man=g('fWm').checked;
   const ws=g('fWs'); if(basis==='준공일'){ ws.value=comp; ws.disabled=true; } else ws.disabled=false;
   g('fWnW').style.display = basis==='기타'?'':'none';
+  g('fByrW').style.display = comp?'none':'';   /* 예산연도는 준공일이 비었을 때만 */
   const start = basis==='준공일'? comp : ws.value;
   const auto = wCalcEnd(start, wy), we=g('fWe');
   we.readOnly=!man; if(!man) we.value = auto? ymd(auto) : '';
-  return {comp, wy, basis, start, man, end: man&&we.value? new Date(we.value) : auto, auto};
+  return {comp, wy, basis, start, man, end: man&&we.value? new Date(we.value) : auto, auto, byr: comp? null : Number(g('fByr').value)||null};
 }
 function calcBudget(){
   const ct=(document.querySelector('#fCt button.on')||{}).dataset?.v, rev=Number((document.getElementById('fRev').value||'').replace(/,/g,''))||0;
@@ -2888,7 +2891,7 @@ function calcBudget(){
   }
   document.getElementById('bud').innerHTML = `<h5>하자예산 · 보증 미리보기</h5><dl class="kv"><dt>적용률</dt><dd>${r?(r*100).toFixed(1)+'%':'계약유형 선택'}</dd><dt>하자예산</dt><dd><b class="num big">${b!==null?won(b)+'원':'—'}</b></dd>
     <dt>보증기간</dt><dd>${w.start?fmtD(new Date(w.start)):'—'} ~ ${w.end?fmtD(w.end):'—'}${w.man&&w.auto&&w.end&&ymd(w.auto)!==ymd(w.end)?' <span class="tg tg-swap">수동</span>':''}</dd>
-    <dt>부담 구간</dt><dd>${zoneTx}</dd><dt>예산 귀속</dt><dd>${w.comp?w.comp.slice(0,4)+'년 준공 예산':window.FBYR?window.FBYR+'년 예산':'준공일 미정 (입력하면 해당 연도로 귀속)'}</dd></dl>`;
+    <dt>부담 구간</dt><dd>${zoneTx}</dd><dt>예산 귀속</dt><dd>${w.comp?w.comp.slice(0,4)+'년 준공 예산':w.byr?w.byr+'년 예산 (예산연도)':'준공일 미정 (입력하면 해당 연도로 귀속)'}</dd></dl>`;
 }
 async function saveSite(mode){
   const g=id=>document.getElementById(id).value.trim();
@@ -2900,19 +2903,24 @@ async function saveSite(mode){
   const wasWait = SITES[nm] && SITES[nm].wait;
   const data={name:nm, co:g('fCo'), code:g('fCode'), ct, comp:w.comp||null, wy:w.wy||null, rev, gongs:GONG_LIST.filter(x=>(window.FG||[]).includes(x)).length? GONG_LIST.filter(x=>FG.includes(x)) : ['기타'], gong:(GONG_LIST.filter(x=>(window.FG||[]).includes(x)).join('·')||'기타'), area:num(g('fArea'))||null, blds, bld:blds.join(', '), addr:g('fAddr'),
     wStartBasis:w.basis, wStart:w.basis==='준공일'?null:w.start, wNote:w.basis==='기타'?g('fWn'):'', wEndManual:w.man, wEnd:w.man?g('fWe'):null, wait:false, updatedAt:iso()};
+  if(!w.comp) data.byr = w.byr;   /* 준공일이 있으면 예산연도는 건드리지 않음(준공 연도 우선) */
   if(mode==='new') data.createdAt=iso();
   try{ await DB.collection('sites').doc(sid(nm)).set(data,{merge:true}); }catch(e){ toast('저장 실패 · '+(e.code||e.message)); return; }
   closeDrawer();
   const b=budgetOf(rev,ct);
-  toast(mode==='formal'||wasWait ? `정식 등록 완료 — 하자예산 ${won(b)}원 편성 · 걸린 접수가 비용 확인으로 진행할 수 있습니다` : mode==='new'? `${nm} 등록 — 하자예산 ${won(b)}원 (${data.comp?data.comp.slice(0,4)+'년 준공 예산':'준공일 미정'})` : '저장했습니다');
+  toast(mode==='formal'||wasWait ? `정식 등록 완료 — 하자예산 ${won(b)}원 편성 · 걸린 접수가 비용 확인으로 진행할 수 있습니다` : mode==='new'? `${nm} 등록 — 하자예산 ${won(b)}원 (${data.comp?data.comp.slice(0,4)+'년 준공 예산':data.byr?data.byr+'년 예산':'준공일 미정'})` : '저장했습니다');
 }
 
-/* ── 엑셀 일괄 등록 (하자보증 열 추가 · 뒤 4열은 선택) ── */
-const XCOLS2 = ['현장명','업체명','ERP 프로젝트코드','계약유형','준공일','보증기간(년)','확정매출액','공종','면적(㎡)','시공소장','현장 주소','보증 기산기준','보증 기산일','보증 만료일'];
+/* ── 엑셀 일괄 등록 (하자보증 열 추가 · 뒤 4열은 선택 · 예산연도는 준공일을 모를 때만) ── */
+const XCOLS2 = ['현장명','업체명','ERP 프로젝트코드','계약유형','준공일','보증기간(년)','확정매출액','공종','면적(㎡)','시공소장','현장 주소','보증 기산기준','보증 기산일','보증 만료일','예산연도'];
+/* 예산연도 선택지 — 내년~2018년 + 저장된 값이 그 밖이면 함께 표시 */
+function byrList(cur){ const L=[]; for(let y=CY+1;y>=2018;y--) L.push(y); const n=Number(cur); if(n>0 && !L.includes(n)) L.push(n); return L.sort((a,b)=>b-a); }
+/* 엑셀 예산연도 읽기 — 2023 · 2023년 · 23 모두 허용 · 비우면 null · 형식이 틀리면 NaN */
+function byrOf(v){ const t=String(v??'').trim(); if(!t) return null; const m=t.match(/^(\d{2}|\d{4})\s*년?$/); if(!m) return NaN; const y=Number(m[1].length===2?'20'+m[1]:m[1]); return y>=2000&&y<=CY+1? y : NaN; }
 function dlTemplate(){
   if(typeof XLSX==='undefined'){ toast('엑셀 모듈을 불러오지 못했습니다 · 인터넷 연결을 확인하세요'); return; }
-  const ws = XLSX.utils.aoa_to_sheet([XCOLS2,['예시)OO마을1단지','OO건설','01234','컨설팅','2023-06-30',5,640000000,'슬라브(듀얼)',12300,'홍길동','경기도 OO시 OO로 12','준공일','','']]);
-  ws['!cols']=XCOLS2.map((c,i)=>({wch:[20,14,14,14,12,10,14,12,10,14,24,16,12,12][i]}));
+  const ws = XLSX.utils.aoa_to_sheet([XCOLS2,['예시)OO마을1단지','OO건설','01234','컨설팅','2023-06-30',5,640000000,'슬라브(듀얼)',12300,'홍길동','경기도 OO시 OO로 12','준공일','','','']]);
+  ws['!cols']=XCOLS2.map((c,i)=>({wch:[20,14,14,14,12,10,14,12,10,14,24,16,12,12,10][i]}));
   const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '현장마스터'); XLSX.writeFile(wb, '하자현장_일괄등록양식.xlsx');
 }
 function readUpload(file){
@@ -2928,10 +2936,11 @@ function readUpload(file){
       const blds=String(r['시공소장']).split(/\s*,\s*/).filter(Boolean), basis=String(r['보증 기산기준']||'').trim()||'준공일';
       const o = {nm:String(r['현장명']).trim(), co:String(r['업체명']).trim(), code:String(r['ERP 프로젝트코드']).trim(), ct:String(r['계약유형']).trim(), comp:dt(r['준공일'])||null, wy:Number(r['보증기간(년)'])||null,
         rev:num(r['확정매출액']), gong:String(r['공종']??'').trim(), gongs:gtoks(r['공종']??''), area:Number(r['면적(㎡)'])||null, blds, bld:blds.join(', '), addr:String(r['현장 주소']||'').trim(),
-        wStartBasis:W_BASIS.includes(basis)?basis:'기타', wStart:dt(r['보증 기산일'])||null, wEnd:dt(r['보증 만료일'])||null, wNote:W_BASIS.includes(basis)?'':basis};
+        wStartBasis:W_BASIS.includes(basis)?basis:'기타', wStart:dt(r['보증 기산일'])||null, wEnd:dt(r['보증 만료일'])||null, wNote:W_BASIS.includes(basis)?'':basis, byr:byrOf(r['예산연도'])};
       o.wEndManual=!!o.wEnd; if(o.wStartBasis==='준공일') o.wStart=null;
+      const byrBad = Number.isNaN(o.byr); if(o.comp || byrBad) o.byr=null;   /* 준공일이 있으면 준공 연도 우선 */
       const err=[]; if(!o.co)err.push('업체명'); if(o.ct==='특허료')err.push('특허료 현장은 편성 제외'); else if(!rate(o.ct))err.push('계약유형'); if(o.comp && !/^\d{4}-\d{2}-\d{2}$/.test(o.comp))err.push('준공일 형식'); if(String(r['확정매출액']).trim()==='')err.push('확정매출액'); if(!blds.length)err.push('시공소장');
-      if(o.wStartBasis!=='준공일' && !/^\d{4}-\d{2}-\d{2}$/.test(o.wStart||'')) err.push('보증 기산일'); if(o.wEnd && !/^\d{4}-\d{2}-\d{2}$/.test(o.wEnd)) err.push('보증 만료일');
+      if(o.wStartBasis!=='준공일' && !/^\d{4}-\d{2}-\d{2}$/.test(o.wStart||'')) err.push('보증 기산일'); if(o.wEnd && !/^\d{4}-\d{2}-\d{2}$/.test(o.wEnd)) err.push('보증 만료일'); if(byrBad && !o.comp) err.push('예산연도(예: 2023)');
       o.st = SITES[o.nm]? (SITES[o.nm].wait?'formal':'dup') : err.length? 'err':'new';
       if(o.st==='dup' && o.gongs.length && gongsOf(SITES[o.nm]).join('·')!==o.gongs.join('·')){ o.st='gong'; o.gFrom=gongsOf(SITES[o.nm]).join('·'); }   /* 이미 등록된 현장: 공종만 갱신 */
       if(GONLY && o.st==='err') o.st='skip';   /* 공종만 있는 파일(대조표): 미등록 현장은 오류 대신 건너뜀 */
@@ -2939,7 +2948,7 @@ function readUpload(file){
       return o; });
     const n = UP.filter(o=>o.st==='new'||o.st==='formal'||o.st==='gong').length, ng=UP.filter(o=>o.st==='gong').length;
     document.getElementById('upPrev').innerHTML = `<div class="upsum"><span class="stt st-ok">등록 ${n-ng}</span>${ng?`<span class="stt st-ok">공종 갱신 ${ng}</span>`:''}${GONLY?`<span class="stt st-end">미등록 현장 건너뜀 ${UP.filter(o=>o.st==='skip').length}</span>`:''}<span class="stt st-end">이미 등록 ${UP.filter(o=>o.st==='dup').length}</span><span class="stt st-over">오류 ${UP.filter(o=>o.st==='err').length}</span></div>
-      <div class="uptbl"><table class="ct"><thead><tr><th>현장명</th><th>계약유형</th><th>준공일</th><th>보증 만료</th><th class="amt">하자예산(원)</th><th>결과</th></tr></thead><tbody>${UP.map(o=>`<tr><td>${esc(o.nm)}${o.sim.length?`<small class="d2 warn">비슷한 현장: ${esc(o.sim.join(', '))}</small>`:''}</td><td>${esc(o.ct||'—')}</td><td>${o.comp||'<span class="cap">미입력</span>'}</td><td>${(()=>{ const e=wEndOf(o); return e&&!isNaN(e)?fmtD(e):o.comp&&!o.wy?'<span class="cap">보증기간 미입력</span>':'—'; })()}</td><td class="amt">${rate(o.ct)?won(budgetOf(o.rev,o.ct)):'—'}</td>
+      <div class="uptbl"><table class="ct"><thead><tr><th>현장명</th><th>계약유형</th><th>준공일</th><th>보증 만료</th><th class="amt">하자예산(원)</th><th>결과</th></tr></thead><tbody>${UP.map(o=>`<tr><td>${esc(o.nm)}${o.sim.length?`<small class="d2 warn">비슷한 현장: ${esc(o.sim.join(', '))}</small>`:''}</td><td>${esc(o.ct||'—')}</td><td>${o.comp||`<span class="cap">미입력${o.byr?` · ${o.byr}년 예산`:''}</span>`}</td><td>${(()=>{ const e=wEndOf(o); return e&&!isNaN(e)?fmtD(e):o.comp&&!o.wy?'<span class="cap">보증기간 미입력</span>':'—'; })()}</td><td class="amt">${rate(o.ct)?won(budgetOf(o.rev,o.ct)):'—'}</td>
       <td>${o.st==='new'?'<span class="stt st-ok">등록</span>':o.st==='formal'?'<span class="stt st-ok">확인 대기 → 정식 등록</span>':o.st==='gong'?`<span class="stt st-ok">공종 갱신 · ${esc(o.gFrom)} → ${esc(o.gongs.join('·'))}</span>`:o.st==='skip'?'<span class="stt st-end">미등록 현장 · 건너뜀</span>':o.st==='dup'?'<span class="stt st-end">건너뜀</span>':`<span class="stt st-over">오류 · ${o.err.join(', ')}</span>`}</td></tr>`).join('')}</tbody></table></div>`;
     const b=document.getElementById('upGo'); b.disabled=!n; b.textContent=n?(n-ng?`${n-ng}곳 등록`:'')+(n-ng&&ng?' · ':'')+(ng?`공종 ${ng}곳 갱신`:''):'등록';
   };
@@ -3306,6 +3315,30 @@ const MCFG = {alias:{}, price:null};
 let MATU = [];
 const matPrice = it => { const P = MCFG.price || {}; if(P[it]!=null) return Number(P[it]); const s=PRICE_SEED[it]; return s? s[0] : null; };
 const matRaw = s => { let t=String(s==null?'':s).replace(/\s+/g,' ').trim(); t=t.replace(/\s*하자\s*$/,'').trim(); return (!t||t==='하자'||/^\(?누락\)?$/.test(t)) ? '' : t; };
+/* ── 같은 단지(같은 이름) 여러 계약 — 자재는 단지 하나로 연결하고, 계약 배정은 근거가 있을 때만 (A안 · 2026-10-25)
+   ① 연결된 현장과 이름이 같은 현장(괄호·「아파트」·띄어쓰기 무시)을 모두 같은 단지로 묶음
+   ② 출고일에 보증기간 안인 계약이 하나뿐이면 그 계약에 배정
+   ③ 둘 이상이거나 준공일 미입력 계약이 있으면 「단지 공통 자재비」 — 계약별 집행에서 빼고 단지 합계에만 반영
+   ④ 모든 계약이 출고일에 보증기간 밖이면(준공 전·만료 후) 현장 집행에서 제외 */
+const grpKey = n => String(n||'').replace(/\(.*?\)/g,'').replace(/아파트|\s/g,'');
+function grpOf(n){ const k=grpKey(n); return Object.keys(SITES).filter(x=>!SITES[x].wait && grpKey(x)===k); }
+let MATG = [];
+function matAssign(raw, d){
+  const L=(MCFG.alias[raw]||[]).filter(n=>SITES[n]); if(!L.length) return {site:null, grp:null};
+  const G=[...new Set(L.flatMap(n=>{ const g=grpOf(n); return g.length? g : [n]; }))];
+  if(G.length===1){ const s=SITES[G[0]], e=wEndOf(s); return (e && d>e) ? {site:null, grp:null} : {site:G[0], grp:null}; }
+  const act=G.filter(n=>{ const s=SITES[n]; if(!s.comp) return false; const c=new Date(s.comp), e=wEndOf(s); return c<=d && (!e || d<=e); });
+  const unk=G.filter(n=>!SITES[n].comp);
+  if(act.length===1 && !unk.length) return {site:act[0], grp:null};
+  if(!act.length && !unk.length) return {site:null, grp:null};
+  return {site:null, grp:grpKey(G[0])};
+}
+const grpAmt = k => MATG.filter(m=>m.grp===k).reduce((a,m)=>a+m.amt,0);
+function grpLine(nm){
+  const G=grpOf(nm); if(G.length<2) return '';
+  const k=grpKey(nm), ga=grpAmt(k), st=G.map(siteStat), b=st.reduce((a,x)=>a+(x.s.budget||0),0), sp=st.reduce((a,x)=>a+(x.spent||0),0)+ga;
+  return `<small class="grpl">같은 단지 계약 ${G.length}건 · 단지 합계 예산 ${won(b)} / 집행 ${won(sp)}원${ga?` (단지 공통 자재 ${won(ga)}원 포함)`:''} · ${pct(sp,b)}</small>`;
+}
 function matSiteFor(raw, d){
   const L=(MCFG.alias[raw]||[]).filter(n=>SITES[n]); if(!L.length) return null; if(L.length===1) return L[0];
   const b=L.filter(n=>SITES[n].comp && new Date(SITES[n].comp)<=d).sort((x,y)=>new Date(SITES[y].comp)-new Date(SITES[x].comp));
@@ -3463,7 +3496,7 @@ async function matUnlink(raw){
 
 /* ── 집계 보조 ── */
 const matU = f => MATU.filter(f).reduce((a,m)=>a+m.amt,0);
-function matUNote(){ const t=MATU.reduce((a,m)=>a+m.amt,0); return t? ` · 현장 미연결 자재비 ${won(t)}원(등록 현장에 연결 안 된 출고)은 현장별 집행액에서 제외` : ''; }
+function matUNote(){ const g=MATG.reduce((a,m)=>a+m.amt,0), t=MATU.reduce((a,m)=>a+m.amt,0)-g; return (t? ` · 현장 미연결 자재비 ${won(t)}원(등록 현장에 연결 안 된 출고)은 현장별 집행액에서 제외` : '') + (g? ` · 단지 공통 자재비 ${won(g)}원(같은 단지 여러 계약 중 어느 계약인지 정할 수 없는 출고)은 계약별 집행에서 빼고 단지 합계에만 반영` : ''); }
 function matRankCard(){
   const mm=MATS.filter(m=>inY(m.date,SF.mperiod)); if(!mm.length) return '';
   const g={}; mm.forEach(m=>{ const k=m.site||m.raw; const o=g[k]||(g[k]={k,reg:!!m.site,amt:0,days:new Set(),it:{},last:m.date}); o.amt+=m.amt; if(m.qty>0) o.days.add(ymd(m.date)); o.it[m.item]=(o.it[m.item]||0)+m.amt; if(m.date>o.last) o.last=m.date; });
@@ -3478,7 +3511,7 @@ function matRankCard(){
 function matYearCard(){
   if(!MATS.length) return '';
   const ys=[...new Set(MATS.map(m=>m.date.getFullYear()))].sort();
-  const r=ys.map(y=>{ const a=MATS.filter(m=>m.date.getFullYear()===y), reg=a.filter(m=>m.site).reduce((x,m)=>x+m.amt,0), all=a.reduce((x,m)=>x+m.amt,0); return {y,reg,un:all-reg,all,n:new Set(a.map(m=>m.site||m.raw)).size}; });
+  const r=ys.map(y=>{ const a=MATS.filter(m=>m.date.getFullYear()===y), reg=a.filter(m=>m.site||m.grp).reduce((x,m)=>x+m.amt,0), all=a.reduce((x,m)=>x+m.amt,0); return {y,reg,un:all-reg,all,n:new Set(a.map(m=>m.site||m.raw)).size}; });
   return `<div class="tcard" style="margin-top:14px"><div class="ch" style="padding:14px 16px 0"><h3>연도별 하자 자재비</h3><span class="cap">출고연도 기준 · ERP 출고 − 회수 · 현장 미연결분은 현장별 집행액에서 제외</span></div>
     <table class="ct"><thead><tr><th>출고연도</th><th class="amt">출고 현장</th><th class="amt">등록 현장 연결(원)</th><th class="amt">미등록·미연결(원)</th><th class="amt">합계(원)</th><th class="amt">미연결 비중</th></tr></thead><tbody>
     ${r.map(x=>`<tr><td><b>${x.y}년</b></td><td class="amt">${x.n}곳</td><td class="amt">${won(x.reg)}</td><td class="amt">${won(x.un)}</td><td class="amt"><b>${won(x.all)}</b></td><td class="amt">${pct(x.un,x.all)}</td></tr>`).join('')}
