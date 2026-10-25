@@ -1002,8 +1002,8 @@ function submitIntake(){
 }
 
 /* ── 이벤트 ── */
-document.getElementById('track').addEventListener('click',e=>{ const b=e.target.closest('[data-st]'); if(!b) return; const n=+b.dataset.st; F.stage=F.stage===n?0:n; render(); });
-document.getElementById('chips').addEventListener('click',e=>{ const c=e.target.closest('[data-chip]'); if(c){ F.chip=F.chip===c.dataset.chip?null:c.dataset.chip; render(); return; } if(e.target.closest('[data-clear]')){ F.stage=0; F.chip=null; render(); } });
+document.getElementById('track').addEventListener('click',e=>{ const b=e.target.closest('[data-st]'); if(!b) return; const n=+b.dataset.st; F.stage=F.stage===n?0:n; if(F.stage) F.chip=null; render(); });
+document.getElementById('chips').addEventListener('click',e=>{ const c=e.target.closest('[data-chip]'); if(c){ F.chip=F.chip===c.dataset.chip?null:c.dataset.chip; if(F.chip) F.stage=0; render(); return; } if(e.target.closest('[data-clear]')){ F.stage=0; F.chip=null; render(); } });
 document.getElementById('rows').addEventListener('click',e=>{ const r=e.target.closest('tr[data-id]'); if(r) detail(r.dataset.id); });
 document.getElementById('brandIco').innerHTML=EI('brand');document.getElementById('entryIco').innerHTML=EI('entry');
 document.querySelectorAll('[data-open-intake]').forEach(b=>b.onclick=openIntake);
@@ -1853,7 +1853,7 @@ function renderSummary(){
     ${band('지금',TD+' 현재')}
     <div class="now">
       <a class="nt" href="#work"><span class="ki">${AI('k_cnt')}</span><small>진행 중</small><b class="num">${act.length}건</b><em>1~6단계 · 오늘 접수 ${ITEMS.filter(i=>i.rcv===0).length}건</em></a>
-      <a class="nt warn" href="#work" onclick="setTimeout(()=>{F.chip='over';render();},30)"><span class="ki"><img class="e" src="${ICON.over}" alt=""></span><small>기한 초과</small><b class="num">${ov.length}건</b><em>${(()=>{ const bn={}; ov.forEach(i=>bn[i.st]=(bn[i.st]||0)+1); const k=Object.entries(bn).sort((a,b)=>b[1]-a[1])[0]; return k?`가장 많은 단계: ${STAGES[k[0]]} ${k[1]}건`:'없음'; })()}</em></a>
+      <a class="nt warn" href="#work" onclick="setTimeout(()=>{F.chip='over';F.stage=0;render();},30)"><span class="ki"><img class="e" src="${ICON.over}" alt=""></span><small>기한 초과</small><b class="num">${ov.length}건</b><em>${(()=>{ const bn={}; ov.forEach(i=>bn[i.st]=(bn[i.st]||0)+1); const k=Object.entries(bn).sort((a,b)=>b[1]-a[1])[0]; return k?`가장 많은 단계: ${STAGES[k[0]]} ${k[1]}건`:'없음'; })()}</em></a>
       <a class="nt pink" href="#cost/pay"><span class="ki"><img class="e" src="${ICON.st6}" alt=""></span><small>곧 나갈 돈 · 기안 진행</small><b class="num">${won(pay6)}원</b><em>기안 대기 ${s6.filter(payNeeded).length}건 · 노임·복구비</em></a>
       <a class="nt yel" href="#cost/sites"><span class="ki"><img class="e" src="${ICON.wait}" alt=""></span><small>확인 대기 현장</small><b class="num">${wait.length}곳</b><em>${wait.length?`정식 등록 필요 · 걸린 접수 ${ITEMS.filter(i=>SITES[i.site].wait&&i.st<7).length}건`:'없음'}</em></a>
     </div>
@@ -3631,6 +3631,64 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .hdc small{font-weight:400;color:var(--ink3,#8a94a6)}.hdc button{border:0;background:none;font-size:16px;line-height:1;color:var(--ink3,#8a94a6);cursor:pointer;padding:0 4px}
 .hdp .hdadd{min-width:0;width:auto;color:var(--sky-d,#1270c4)}
 </style>`);
+
+/* ════════════════════════════════════════════
+   긴 목록 페이지 나눔 (2026-10-25)
+   - 화면 어디서든 본문 행이 PG_SIZE 넘는 표를 자동으로 페이지로 나눔
+   - 펼침 행(tr.det)은 바로 위 행과 같은 페이지 · 합계 행(tr.tot)은 항상 표시
+   - 다시 그려져도(실시간 반영·필터) 보던 페이지 유지 · 전체 건수가 바뀌면 1페이지로
+   ════════════════════════════════════════════ */
+const PG_SIZE = 20, PGS = {};
+document.head.insertAdjacentHTML('beforeend', `<style>
+.pgr{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin:12px 0 4px;font-size:13px}
+.pgr .pgi{color:var(--ink3,#8a94a6)}
+.pgr .pgb{display:flex;flex-wrap:wrap;gap:4px}
+.pgr button{min-width:34px;height:32px;padding:0 10px;border:1.5px solid var(--line2);border-radius:8px;background:#fff;font-size:13px;font-weight:600;color:var(--ink2);cursor:pointer}
+.pgr button.on{border-color:var(--sky);background:var(--sky);color:#fff}
+.pgr button:disabled{opacity:.4;cursor:default}
+.pgr .gap{padding:0 4px;color:var(--ink3,#8a94a6);align-self:center}
+</style>`);
+function pgKey(t, i){ const c=t.closest('.card,.dsec,.drawer,section'); const h=c&&c.querySelector('h3,h4'); return (location.hash||'')+'|'+(t.id||'')+'|'+(h?h.textContent.trim().slice(0,40):'')+'|'+i; }
+function pgUnits(tb){
+  const U=[], fixed=[];
+  [...tb.rows].forEach(r=>{
+    if(r.classList.contains('tot')) fixed.push(r);
+    else if(r.classList.contains('det') && U.length) U[U.length-1].push(r);
+    else U.push([r]);
+  });
+  return {U, fixed};
+}
+function pgApply(t, key){
+  const tb=t.tBodies[0]; if(!tb) return;
+  const {U}=pgUnits(tb), n=U.length;
+  let pg=t.nextElementSibling && t.nextElementSibling.classList.contains('pgr') ? t.nextElementSibling : null;
+  if(n<=PG_SIZE || tb.querySelector('tr.grp')){ U.flat().forEach(r=>{ if(r.dataset.pgh){ r.style.display=''; delete r.dataset.pgh; } }); if(pg) pg.remove(); return; }
+  const st=PGS[key]||(PGS[key]={p:1,n}); if(st.n!==n){ st.p=1; st.n=n; }
+  const max=Math.ceil(n/PG_SIZE); st.p=Math.min(Math.max(1,st.p),max);
+  const a=(st.p-1)*PG_SIZE, b=a+PG_SIZE;
+  U.forEach((u,i)=>u.forEach(r=>{ const hide=i<a||i>=b; if(hide){ r.style.display='none'; r.dataset.pgh='1'; } else if(r.dataset.pgh){ r.style.display=''; delete r.dataset.pgh; } }));
+  const nums=[]; for(let k=1;k<=max;k++){ if(k===1||k===max||Math.abs(k-st.p)<=2) nums.push(k); else if(nums[nums.length-1]!=='…') nums.push('…'); }
+  if(!pg){ pg=document.createElement('div'); pg.className='pgr'; t.after(pg); }
+  pg.innerHTML=`<span class="pgi">전체 ${n}건 · ${a+1}–${Math.min(b,n)}</span><span class="pgb">
+    <button type="button" data-pg="${st.p-1}" ${st.p===1?'disabled':''}>이전</button>
+    ${nums.map(k=>k==='…'?'<span class="gap">…</span>':`<button type="button" data-pg="${k}" class="${k===st.p?'on':''}">${k}</button>`).join('')}
+    <button type="button" data-pg="${st.p+1}" ${st.p===max?'disabled':''}>다음</button></span>`;
+  pg.querySelectorAll('[data-pg]').forEach(btn=>btn.onclick=e=>{ e.stopPropagation(); st.p=+btn.dataset.pg; pgRun();
+    const top=t.getBoundingClientRect().top; if(top<0) t.scrollIntoView({block:'start'}); });
+}
+let _pgObs=null, _pgQ=0;
+function pgRun(){
+  if(_pgObs) _pgObs.disconnect();
+  try{
+    const seen={};
+    document.querySelectorAll('table').forEach(t=>{ if(t.closest('[data-nopage]')||!t.offsetParent&&!t.closest('.drawer.on')) return;
+      const base=pgKey(t,''); seen[base]=(seen[base]||0)+1; pgApply(t, base+seen[base]); });
+  }catch(e){ console.warn('pager', e); }
+  if(_pgObs) _pgObs.observe(document.body, {childList:true, subtree:true});
+}
+_pgObs = new MutationObserver(()=>{ if(_pgQ) return; _pgQ=requestAnimationFrame(()=>{ _pgQ=0; pgRun(); }); });
+_pgObs.observe(document.body, {childList:true, subtree:true});
+window.addEventListener('hashchange', ()=>setTimeout(pgRun, 50));
 
 document.getElementById('todayTag').textContent=TD+' 현재';
 /* 탭 */
