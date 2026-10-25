@@ -2572,7 +2572,8 @@ function zone(site, yr){ const s=SITES[site]; if(!s||!s.ct||!s.comp||!s.wy) retu
 /* 준공일·보증기간 미입력 허용 — 하자 처리 중 확인되면 현장 수정에서 채움. 미입력이면 연차·책임 구간·부담은 자동 판정하지 않음 */
 /* 보증기간 선택지 — 1~6년 + 저장된 값이 그 밖이면 함께 표시(저장 시 값이 사라지지 않도록) */
 function wyList(cur){ const L=[1,2,3,4,5,6], n=Number(cur); if(n>0 && !L.includes(n)) L.push(n); return L.sort((a,b)=>a-b); }
-function cYear(s){ return s&&s.comp? Number(String(s.comp).slice(0,4)) : '미정'; }
+/* 예산 귀속 연도 — 준공일 연도 우선, 준공일이 없으면 등록 시 정한 예산연도(byr, 현장 폴더 연도) */
+function cYear(s){ return s&&s.comp? Number(String(s.comp).slice(0,4)) : (s&&Number(s.byr)) || '미정'; }
 function yLab(y, suf=''){ return y==='미정'? '준공일 미정' : y+'년'+suf; }
 function wMiss(s){ return !s? [] : [!s.comp&&'준공일', !s.wy&&!(s.wEndManual&&s.wEnd)&&'보증기간'].filter(Boolean); }
 function compCell(x){ const s=x.s, m=wMiss(s);
@@ -2839,6 +2840,7 @@ function openSiteForm(nm, formal){
   const v = (k,d='')=> s[k]!==undefined&&s[k]!==null? s[k] : d;
   window.FG = nm ? gongsOf(s).filter(g=>g!=='기타'||gongsOf(s).length===1) : [];
   const basis = v('wStartBasis','준공일');
+  window.FBYR = Number(s.byr)||null;
   openDrawer(`<div class="dh"><div class="k">${mode==='new'?'현장 마스터 · 신규':mode==='formal'?'확인 대기 → 정식 등록':'현장 마스터 · 수정'}</div><h3>${mode==='new'?'현장 등록':esc(nm)}</h3>
       <div class="m">${mode==='formal'?`간이 등록 ${(s.reg||'').replace(/-/g,'.')} · 비어 있는 계약유형·확정매출액을 채우면 하자예산이 편성됩니다`:'준공 시점에 등록 · 하자예산은 확정매출액 × 적용률로 자동 계산'}${s.pp?` · <b>pour-pay 연결</b>${s.ppDone?` (완료 ${s.ppDone.replace(/-/g,'.')})`:''}`:''}</div>
       <button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
@@ -2886,7 +2888,7 @@ function calcBudget(){
   }
   document.getElementById('bud').innerHTML = `<h5>하자예산 · 보증 미리보기</h5><dl class="kv"><dt>적용률</dt><dd>${r?(r*100).toFixed(1)+'%':'계약유형 선택'}</dd><dt>하자예산</dt><dd><b class="num big">${b!==null?won(b)+'원':'—'}</b></dd>
     <dt>보증기간</dt><dd>${w.start?fmtD(new Date(w.start)):'—'} ~ ${w.end?fmtD(w.end):'—'}${w.man&&w.auto&&w.end&&ymd(w.auto)!==ymd(w.end)?' <span class="tg tg-swap">수동</span>':''}</dd>
-    <dt>부담 구간</dt><dd>${zoneTx}</dd><dt>예산 귀속</dt><dd>${w.comp?w.comp.slice(0,4)+'년 준공 예산':'준공일 미정 (입력하면 해당 연도로 귀속)'}</dd></dl>`;
+    <dt>부담 구간</dt><dd>${zoneTx}</dd><dt>예산 귀속</dt><dd>${w.comp?w.comp.slice(0,4)+'년 준공 예산':window.FBYR?window.FBYR+'년 예산':'준공일 미정 (입력하면 해당 연도로 귀속)'}</dd></dl>`;
 }
 async function saveSite(mode){
   const g=id=>document.getElementById(id).value.trim();
