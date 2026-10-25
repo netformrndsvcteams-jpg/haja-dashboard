@@ -2151,7 +2151,6 @@ function detail(id){
       ${chainHtml(it)}
     </div>
     <div class="db">
-      ${it.prevId&&ITEMS.find(i=>i.id===it.prevId)?`<div class="dsec"><div class="field" style="margin:0"><label for="linkNote">이전 회차와 이어지는 점 <span class="cap">(${it.prevId} 다음 회차 · 입력하면 자동 저장)</span></label><input class="inp" id="linkNote" placeholder="예: 1차에 재시공한 4동 캐노피 상도 미도포분이 남아 다시 처리" value="${esc(it.linkNote||'')}"></div></div>`:''}
       ${SITES[it.site] && wMiss(s).length && st<7?`<div class="dsec"><div class="alert warn" style="margin:0"><b>${wMiss(s).join('·')} 미입력</b> — 보증 연차·부담이 자동 판정되지 않습니다. 확인되면 바로 입력하세요.${compForm(it.site)}</div></div>`:''}
       <div class="dsec"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 바로 이동합니다</span></h4>${progHtml(it)}${missNote(it)}${sumLine(it,s)}
         ${st<7?`<p class="cap" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · ${slaTx(it)} ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
@@ -2268,8 +2267,6 @@ function detail(id){
   const dd=$('doneD'); if(dd) dd.onchange=()=>dbCase(id,{doneAt:dd.value||null},`처리완료일 ${dd.value||'해제'}`);
   /* 재발 묶음 — 회차 탭 · 이어지는 문제 · 이전 회차와 이어지는 점 */
   drawer.querySelectorAll('[data-chain]').forEach(b=>b.onclick=()=>{ if(b.dataset.chain!==id) detail(b.dataset.chain); });
-  const cht=$('chTitle'); if(cht) cht.onchange=()=>{ const r=rootOf(it); dbCase(r.id,{issueTitle:cht.value.trim()},`재발 묶음 · 이어지는 문제 ${cht.value.trim()?'입력':'삭제'}`); };
-  const lnk=$('linkNote'); if(lnk) lnk.onchange=()=>dbCase(id,{linkNote:lnk.value.trim()},'이전 회차와 이어지는 점 입력');
   /* 접수 내용 수정 */
   const ei=$('edIn'); if(ei) ei.onclick=()=>{ DV.ed={parts:partsOf(it).filter(p=>PARTS.includes(p)), phs:phsOf(it).filter(h=>PHS.includes(h)), partNote:it.partNote||'', txt:it.txt||''}; detail(id); const sc=$('secIn'); if(sc) sc.scrollIntoView({block:'start',behavior:'smooth'}); };
   if(DV.ed){
@@ -3076,7 +3073,6 @@ function chainHtml(it){
   const r=ch[0], tot=ch.reduce((a,i)=>a+caseCost(i),0);
   return `<div class="chain">
     <div class="chs"><span class="cl">재발 묶음 · ${ch.length}회 접수</span><span><em>기간</em><b>${fmtD(r.rcvAt)} ~ ${fmtD(ch[ch.length-1].rcvAt)}</b></span><span><em>누적 비용</em><b>${won(tot)}원</b></span></div>
-    <div class="cht"><label for="chTitle">이어지는 문제</label><input class="inp" id="chTitle" placeholder="예: 구조물 하단부 시트 끝단·이음부 마감 불량" value="${esc(r.issueTitle||'')}"></div>
     <div class="ctabs" role="tablist" aria-label="회차 이동">${ch.map((c,k)=>`<button type="button" role="tab" data-chain="${c.id}" aria-selected="${c.id===it.id}" class="${c.id===it.id?'on':''}"><small>${c.id}</small><b>${k+1}차 접수</b><i>${STAGES[c.st]}${caseCost(c)?` · ${won(caseCost(c))}원`:''}</i></button>`).join('')}</div>
   </div>`;
 }
@@ -3174,6 +3170,7 @@ function drawIntake(){
   openDrawer(`<div class="dh"><button class="x" aria-label="닫기">×</button><div class="k">신규 접수 · PC</div><h3>하자 접수</h3><div class="m">현장 선택 → 접수자 → 하자 내용 순서로 입력합니다</div></div>
     <div class="db" style="padding-top:20px">${body}</div>
     <div class="df"><button class="btn btn-ghost x2">취소</button><button class="btn btn-pri" id="submit">접수 등록</button></div>`);
+  drawer.classList.add('center');   // 접수 화면도 상세 화면처럼 가운데
   drawer.querySelector('.x').onclick=closeDrawer; drawer.querySelector('.x2').onclick=closeDrawer;
   const iq=document.getElementById('iq');
   if(iq){ iq.focus(); iq.setSelectionRange(iq.value.length,iq.value.length);
