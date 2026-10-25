@@ -2148,6 +2148,7 @@ function detail(id){
       <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}${yr?` · 보증 ${yr}년차`:''}${s.comp&&wMiss(s).includes('보증기간')?' · <b style="color:var(--warn-tx)">보증기간 미입력</b>':''}${wE?` · 만료 ${fmtD(wE)}`:''}${wX?' · <b style="color:var(--warn-tx)">접수일 기준 보증기간 경과</b>':''}${s.wait?' · <b style="color:var(--yel)">확인 대기 현장</b>':''}</div>
     </div>
     <div class="db">
+      ${SITES[it.site] && wMiss(s).length && st<7?`<div class="dsec"><div class="alert warn" style="margin:0"><b>${wMiss(s).join('·')} 미입력</b> — 보증 연차·부담이 자동 판정되지 않습니다. 확인되면 바로 입력하세요.${compForm(it.site)}</div></div>`:''}
       <div class="dsec"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 바로 이동합니다</span></h4>${progHtml(it)}${missNote(it)}${sumLine(it,s)}
         ${st<7?`<p class="cap" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · ${slaTx(it)} ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
       </div>
@@ -2938,6 +2939,58 @@ function readUpload(file){
   fr.readAsArrayBuffer(file);
 }
 
+/* ── 준공일·보증기간 바로 입력 (접수 화면 · 접수 건 상세) ──
+   영업이 접수하면서 확인한 준공일을 그 자리에서 저장 → 현장 마스터(sites)에 반영
+   → 하자예산 준공연도 귀속·보증 연차·책임 구간이 다시 계산되고,
+   이 현장의 4단계 이후 「부담 미정」 접수 건은 보증 기준으로 자동 판정 */
+function compForm(name){
+  const s=SITES[name]; if(!s) return '';
+  const mi=wMiss(s); if(!mi.length) return '';
+  /* 빈 값만 채움 — 이미 등록된 준공일·보증기간은 값만 보여주고, 바꾸려면 현장·예산 화면의 「수정」에서 */
+  const wyOpts=[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}">${n}년</option>`).join('');
+  const fixed = v => `<p style="margin:0;padding:9px 0;font-weight:600">${v}</p>`;
+  return `<div class="compin" data-cf-site="${esc(name)}" style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:10px">
+    <div class="field" style="margin:0"><label>준공일</label>${s.comp?fixed(s.comp.replace(/-/g,'.')):`<input type="date" class="inp" data-cf="comp" max="${ymd(TODAY)}" style="min-width:0;width:170px">`}</div>
+    <div class="field" style="margin:0"><label>하자보증</label>${s.wy?fixed(s.wy+'년'):`<select class="sel" data-cf="wy" style="min-width:0;width:100px"><option value="">선택</option>${wyOpts}</select>`}</div>
+    <button type="button" class="btn btn-yel sm" data-cf-save>저장</button>
+    <span class="cap" style="flex-basis:100%">비어 있는 값만 입력합니다 · 저장하면 하자예산 준공연도와 부담 판정에 바로 반영됩니다</span></div>`;
+}
+async function saveSiteW(name, comp, wy){
+  const s=SITES[name]; if(!s) return;
+  if(!DB) return toast('저장소에 연결되지 않았습니다');
+  if(s.comp) comp='';   // 이미 등록된 값은 접수 화면에서 바꾸지 않음
+  if(s.wy) wy='';
+  if(!comp && !wy){ toast(!s.comp?'준공일을 입력하세요':'하자보증 기간을 선택하세요'); return; }
+  if(comp && !/^\d{4}-\d{2}-\d{2}$/.test(comp)){ toast('준공일 형식이 올바르지 않습니다'); return; }
+  if(comp && comp>ymd(TODAY)){ toast('준공일은 오늘 이후로 정할 수 없습니다'); return; }
+  const data={updatedAt:iso(), compSetBy:ME()||'미지정', compSetAt:iso()};
+  if(comp) data.comp=comp;
+  if(wy) data.wy=Number(wy);
+  try{ await DB.collection('sites').doc(sid(name)).set(data,{merge:true}); }catch(e){ toast('저장 실패 · '+(e.code||e.message)); return; }
+  /* 화면 갱신을 기다리지 않고 바로 계산 — 스냅샷이 오면 같은 값으로 다시 맞춰짐 */
+  if(comp) s.comp=comp; if(wy) s.wy=Number(wy);
+  if(RAW.sites[sid(name)]) Object.assign(RAW.sites[sid(name)], comp?{comp}:{}, wy?{wy:Number(wy)}:{});
+  let n=0;
+  for(const it of ITEMS.filter(i=>i.site===name && i.st>=4 && i.st<7 && (!i.b || i.b[0]==='부담 미정'))){
+    const a=autoBurden(it); if(!a) continue;
+    try{ await dbCase(it.id,{b:a, sh:0},`부담 판정 · ${a[0]} (보증 기준 · 준공일 입력으로 자동)`); n++; }catch(e){}
+  }
+  const yr=gYear(name,TODAY), left=wMiss(s);
+  toast(`${name} 준공일 저장${s.comp?` · ${s.comp.slice(0,4)}년 준공 예산으로 편성`:''}${yr?` · 보증 ${yr}년차`:''}${n?` · 부담 자동 판정 ${n}건`:''}${left.length?` · ${left.join('·')} 아직 미입력`:''}`);
+  rebuild();
+  /* 열려 있는 화면 다시 그리기 (접수 화면은 입력 중인 하자 내용을 지우지 않도록 현장 정보 칸만 교체) */
+  const box=drawer.querySelector('.confirm');
+  if(openId) detail(openId);
+  else if(box && intake && intake.site===name){ box.outerHTML=siteBox(name); }
+}
+document.addEventListener('click', e=>{
+  const b=e.target.closest('[data-cf-save]'); if(!b) return;
+  const w=b.closest('[data-cf-site]'); if(!w) return;
+  const comp=(w.querySelector('[data-cf=comp]')||{}).value||'', wy=(w.querySelector('[data-cf=wy]')||{}).value||'';
+  b.disabled=true; b.textContent='저장 중…';
+  saveSiteW(w.dataset.cfSite, comp, wy).finally(()=>{ if(document.body.contains(b)){ b.disabled=false; b.textContent='저장'; } });
+});
+
 /* ── 접수 서랍 현장 정보 (보증 만료 표시) ── */
 function siteBox(name){
   const s=SITES[name], yr=gYear(name,TODAY), e=wEndOf(s), ex=wExpired(name,TODAY), z=ex?null:zone(name,yr), mi=wMiss(s);
@@ -2947,7 +3000,7 @@ function siteBox(name){
     <dt>하자보증</dt><dd>${s.wy?s.wy+'년':'<span class="zt over">미입력</span>'} <span class="cap">${ws?fmtD(new Date(ws)):'—'} ~ ${e?fmtD(e):'—'}${s.wStartBasis&&s.wStartBasis!=='준공일'?` · 기산 ${esc(s.wStartBasis)}`:''}</span></dd>
     <dt>현재</dt><dd>${ex?'<span class="zt over">보증기간 경과</span>':!yr?'<span class="cap">준공일 입력 후 연차 계산</span>':`보증 <b>${yr}년차</b>${z?` <span class="zt ${z==='당사'?'our':'bld'}">${z} 책임 구간</span>`:''}`}</dd>`;
   const exAlert = ex?`<div class="alert warn" style="margin-top:10px"><b>보증기간 경과</b> — ${fmtD(e)}에 만료된 현장입니다. 접수는 가능하지만 부담은 자동 판정되지 않고 직접 정합니다.</div>`
-    : mi.length?`<div class="alert warn" style="margin-top:10px"><b>${mi.join('·')} 미입력</b> — 접수는 가능하지만 부담은 자동 판정되지 않고 직접 정합니다. 확인되면 현장·예산 화면에서 현장을 「수정」해 입력하세요.</div>`:'';
+    : mi.length?`<div class="alert warn" style="margin-top:10px"><b>${mi.join('·')} 미입력</b> — 접수는 가능하지만 부담이 자동 판정되지 않습니다. 확인되면 바로 입력하세요.${compForm(name)}</div>`:'';
   if(s.wait) return `<div class="confirm"><h5>${esc(name)} <span class="tg tg-wait">확인 대기</span></h5><dl class="kv"><dt>업체</dt><dd>${esc(s.co)}</dd><dt>공종</dt><dd>${esc(gongsOf(s).join(', '))}</dd>${wRows}<dt>시공소장</dt><dd>${bl}</dd><dt>예산</dt><dd class="cap">정식 등록 후 산정</dd></dl>${exAlert}</div>`;
   const p=s.budget? s.spent/s.budget*100 : 0;
   return `<div class="confirm"><h5>${esc(name)}</h5><dl class="kv">
