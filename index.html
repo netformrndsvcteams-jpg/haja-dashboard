@@ -54,7 +54,7 @@ img.e{display:block;width:100%;height:100%;object-fit:contain;pointer-events:non
 .tabs a{display:flex;align-items:center;padding:0 16px;height:38px;border-radius:999px;color:var(--ink2);text-decoration:none;font-weight:500;font-size:15px}
 .tabs a:hover{color:var(--ink);background:var(--s1)}
 .tabs a.on{color:var(--sky-d);font-weight:700;background:var(--sky-10)}
-.nav-r{margin-left:auto;display:flex;align-items:center;gap:16px}
+.nav-r{margin-left:auto;display:flex;align-items:center;gap:16px}.nav-r .melb{font-size:12px;color:var(--ink2);font-weight:600;margin-right:-10px;white-space:nowrap}
 .btn{height:38px;padding:0 18px;display:inline-flex;align-items:center;gap:8px;white-space:nowrap;border-radius:999px;font-weight:600;transition:background .12s,transform .12s}
 .btn-pri,.btn-sec{background:var(--sky);color:#fff;box-shadow:0 4px 12px rgba(26,156,255,.3)}
 .btn-pri:hover,.btn-sec:hover{background:var(--sky-hv)}
@@ -661,7 +661,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
     <a href="#cost" data-t="cost">비용·예산</a>
   </nav>
   <div class="nav-r">
-    <span class="cap sync" id="sync">저장소 연결 중…</span><span class="cap stor" id="stor" hidden></span><select class="sel sm me" id="me" title="작업자 — 처리 이력에 이름이 남습니다"><option value="">작업자 선택</option></select><button class="btn btn-ghost gear" onclick="openSettings()" title="설정">⚙</button>
+    <span class="cap sync" id="sync">저장소 연결 중…</span><span class="cap stor" id="stor" hidden></span><label class="melb" for="me">작성자</label><select class="sel sm me" id="me" title="작성자 — 처리 이력에 이름이 남습니다"><option value="">작성자 선택</option></select><button class="btn btn-ghost gear" onclick="openSettings()" title="설정">⚙</button>
     <button class="btn btn-sec" data-open-intake>＋ 하자 접수</button>
   </div>
 </header>
@@ -673,7 +673,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
     <select class="sel" id="fRecv"><option value="">전체</option></select>
     <label for="fQ">현장</label>
     <input class="inp" id="fQ" placeholder="현장명·접수번호 검색">
-    <span class="cap sp">공용 계정 · 입력할 때마다 담당자를 선택합니다</span>
+    <span class="cap sp">공용 계정 · 오른쪽 위 작성자를 먼저 선택하세요</span>
   </div>
 
   <main class="wrap">
@@ -942,7 +942,7 @@ function detail(id){
 /* ── 접수 서랍 ── */
 let intake={site:null,q:'',quick:false,rc:localStorage?.getItem?.('lastRecv')||''};
 try{ intake.rc=localStorage.getItem('lastRecv')||''; }catch(e){ intake.rc=''; }
-function openIntake(){ intake={site:null,q:'',quick:false,rc:intake.rc}; openId=null; drawIntake(); }
+function openIntake(){ intake={site:null,q:'',quick:false,rc:(RECV.includes(ME())?ME():intake.rc)};   /* 작성자가 접수자 명단에 있으면 접수자로 미리 채움 */ openId=null; drawIntake(); }
 function siteBox(name){
   const s=SITES[name], yr=gYear(name,TODAY);
   if(s.wait) return `<div class="confirm"><h5>${name} <span class="tg tg-wait">확인 대기</span></h5><dl class="kv"><dt>업체</dt><dd>${s.co}</dd><dt>준공일</dt><dd>${s.comp.replace(/-/g,'.')} · 보증 ${yr}년차</dd><dt>시공소장</dt><dd>${s.bld}</dd><dt>예산</dt><dd class="cap">정식 등록 후 산정</dd></dl></div>`;
@@ -1483,7 +1483,7 @@ function costRoute(sub){ CF.view = CVIEWS.some(v=>v[0]===sub)? sub : 'overview';
    하자 분석 탭 (R&D)
    ════════════════════════════════════════════ */
 const PARTS6 = ['일반면','배수로','파라펫','드레인 주변','조인트','옥탑 벽체','기타'];
-const PHS6   = ['누수','물고임','들뜸','균열','박리','변색','오염'];
+const PHS6   = ['누수','물고임','들뜸','균열','박리','훼손','변색','오염'];
 const CAUSES = ['시공 불량','자재 결함','외부 요인','경년 열화','사용자 과실','기타'];
 const GONGS  = ['슬라브','슁글','금속기와','PVC','배수로','옥탑','우레탄','재도장','기타'];
 const DMGS   = ['세대 내부','방충망·창호','주차 차량','공용시설','기타'];
@@ -2084,7 +2084,7 @@ function rerender(){
 function fillPeople(){
   const fr=document.getElementById('fRecv'); if(fr){ const v=fr.value; fr.innerHTML='<option value="">전체</option>'+RECV.map(r=>`<option ${v===r?'selected':''}>${esc(r)}</option>`).join(''); }
   const me=document.getElementById('me'); if(me){ const v=ME(); const ppl=[...new Set([...RECV, CFG.payMgr].filter(Boolean))];
-    me.innerHTML='<option value="">작업자 선택</option>'+ppl.map(p=>`<option ${v===p?'selected':''}>${esc(p)}</option>`).join('')+`<option ${v==='기타'?'selected':''}>기타</option>`; }
+    me.innerHTML='<option value="">작성자 선택</option>'+ppl.map(p=>`<option ${v===p?'selected':''}>${esc(p)}</option>`).join('')+`<option ${v==='기타'?'selected':''}>기타</option>`; }
 }
 function setupNotice(){
   const el=document.getElementById('setupNote'); if(!el) return;
@@ -2149,7 +2149,7 @@ function detail(id){
   const ALL = DV.all, show = a => ALL || st===7 || a.includes(st);
   openDrawer(`
     <div class="dh"><button class="x" aria-label="닫기">×</button>
-      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}${seqOf(it)>1?` · <b style="color:var(--red)">재발 ${seqOf(it)}차</b>`:''}${!ME()?' · <b style="color:var(--warn-tx)">작업자 미선택 — 이력에 이름이 남지 않습니다</b>':''}</div>
+      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}${seqOf(it)>1?` · <b style="color:var(--red)">재발 ${seqOf(it)}차</b>`:''}${!ME()?' · <b style="color:var(--warn-tx)">작성자 미선택 — 이력에 이름이 남지 않습니다</b>':''}</div>
       <h3>${esc(it.site)}</h3>
       <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}${yr?` · 보증 ${yr}년차`:''}${s.comp&&wMiss(s).includes('보증기간')?' · <b style="color:var(--warn-tx)">보증기간 미입력</b>':''}${wE?` · 만료 ${fmtD(wE)}`:''}${wX?' · <b style="color:var(--warn-tx)">접수일 기준 보증기간 경과</b>':''}${s.wait?' · <b style="color:var(--yel)">확인 대기 현장</b>':''}</div>
       ${chainHtml(it)}
@@ -2221,7 +2221,7 @@ function detail(id){
       ${(it.prevPays||[]).length?`<div class="dsec"><h4>이전 지급 기록 <span class="cap" style="font-weight:400">종결 해제 전 지급분 · 삭제하지 않고 보관</span></h4>
         <ul class="notes">${it.prevPays.map(p=>`<li><span>${p.paidAt?fmtD(new Date(p.paidAt)):'—'}</span><p>${won(p.amt||0)}원 · 기안 ${esc(p.draftNo||'—')}</p><em>${esc(p.by||'')} 해제 · ${esc(p.why||'')}</em><em></em></li>`).join('')}</ul></div>`:''}
       ${st===7?`<div class="dsec" id="reopenBox" hidden><h4>종결 해제</h4>
-        ${it.paid&&ME()!==CFG.payMgr?`<p class="cap" style="color:var(--warn-tx)">지급 완료된 건은 대금관리자${CFG.payMgr?`(${esc(CFG.payMgr)})`:''}로 선택된 경우에만 해제할 수 있습니다. 오른쪽 위 작업자를 대금관리자로 바꿔 주세요.</p>`
+        ${it.paid&&ME()!==CFG.payMgr?`<p class="cap" style="color:var(--warn-tx)">지급 완료된 건은 대금관리자${CFG.payMgr?`(${esc(CFG.payMgr)})`:''}로 선택된 경우에만 해제할 수 있습니다. 오른쪽 위 작성자를 대금관리자로 바꿔 주세요.</p>`
         :`<div class="g2"><div class="field"><label>되돌릴 단계</label><select class="sel" id="roTo" style="min-width:0;width:100%">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===(it.paid||payNeeded(it)?6:5)?'selected':''}>${n}단계 ${STAGES[n]}</option>`).join('')}</select></div>
         <div class="field"><label>해제 사유 <span class="cap">(필수)</span></label><input class="inp" id="roWhy" placeholder="예: 비용 금액 입력 오류 정정" style="min-width:0;width:100%"></div></div>
         ${it.paid?`<p class="cap">지급일·기안번호·지급액은 지우지 않고 「이전 지급 기록」으로 남습니다.</p>`:''}
@@ -2250,7 +2250,7 @@ function detail(id){
 
   drawer.querySelector('.x').onclick=closeDrawer; drawer.querySelector('.x2').onclick=closeDrawer;
   const $ = q => document.getElementById(q);
-  if(!ME() && !window._meWarned){ window._meWarned=true; toast('오른쪽 위에서 작업자를 먼저 선택하면 처리 이력에 이름이 남습니다'); }   // 페이지를 연 뒤 한 번만
+  if(!ME() && !window._meWarned){ window._meWarned=true; toast('오른쪽 위에서 작성자를 먼저 선택하면 처리 이력에 이름이 남습니다'); }   // 페이지를 연 뒤 한 번만
 
   /* 처리소장 · 방문일 */
   const sel=$('selHd');
@@ -3108,7 +3108,7 @@ function histBox(site){
     </div></div>`;
 }
 function recHint(){}
-const PHS=['누수','물고임','들뜸','균열','박리','변색','오염'];
+const PHS=['누수','물고임','들뜸','균열','박리','훼손','변색','오염'];
 function phsOf(it){ const a=(it&&it.phs&&it.phs.length? it.phs : [it&&it.ph]).filter(Boolean); return [...new Set(a)]; }
 const hasH=(r,h)=>phsOf(r).includes(h);
 const phTx = it => phsOf(it).join(', ');
@@ -3144,11 +3144,11 @@ function intakeForm(){
   <div class="field"><label>하자 연락자 <span class="cap">(실제로 하자를 알려 온 분)</span></label>
     <div class="g2"><select class="sel" id="iCt">${CALLER_T.map(t=>`<option>${t}</option>`).join('')}</select><input class="inp" id="iCn" placeholder="성함 (예: 홍길동)"></div>
     <div class="g2" style="margin-top:8px"><input class="inp" id="iCp" inputmode="tel" placeholder="연락처 (예: 010-1234-5678)"><input class="inp" id="iCo" inputmode="tel" placeholder="관리사무소 연락처 (예: 031-000-0000)"></div></div>
+  <div class="field"><label>상세 내용 <span class="cap">(먼저 입력하면 아래 부위·현상이 자동으로 선택됩니다 · 확인 후 고치세요)</span></label><textarea id="iTxt" placeholder="받은 내용을 그대로 적으세요 (예: 302동 옥상 배수구 쪽에서 물이 새서 최상층 천장이 젖었다고 함)">${esc(intake.txt||'')}</textarea></div>
   <div class="field"><label>발생 부위 <span class="cap">(여러 개 선택 가능 · 공종은 현장 정보에서 자동 적용)</span></label><div class="ptg" id="iParts">${PARTS.map(p=>`<button type="button" data-p="${p}" class="${P.includes(p)?'on':''}"${p==='일반면'?` title="${esc(gongsOf(SITES[intake.site]).join('·'))} 바닥·지붕면 자체"`:''}>${p}</button>`).join('')}</div>
     <p class="cap" style="margin:6px 0 0">「일반면」 = 이 현장 공종(${esc(gongsOf(SITES[intake.site]).join('·'))})의 바닥·지붕면 자체 · 그 밖의 위치는 세부 부위를 고르세요</p>
     <input class="inp" id="iPartN" placeholder="기타 부위를 입력하세요 (예: 계단실 지붕)" style="margin-top:8px;display:${P.includes('기타')?'':'none'}"></div>
   <div class="field"><label>하자 현상 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="iPhs">${PHS.map(h=>`<button type="button" data-h="${h}" class="${(intake.phs||[]).includes(h)?'on':''}">${h}</button>`).join('')}</div></div>
-  <div class="field"><label>상세 내용</label><textarea id="iTxt" placeholder="세대·위치, 연락받은 경위 등"></textarea></div>
   <div class="field"><label>현장 사진 (처리 전 · 여러 장 가능 · 자동 압축)</label><input type="file" id="iPhoto" accept="image/*" multiple class="inp" style="padding:8px"><div class="phq" id="iPhq">${phqHtml()}</div><p class="cap" style="margin-top:6px">여러 장을 한 번에 고르거나, 여러 번 나눠 추가할 수 있습니다</p></div></div>`;
 }
 /* 접수 사진 대기열 — 파일 선택을 여러 번 해도 앞서 고른 사진이 유지되도록 모아 둠 */
@@ -3162,8 +3162,9 @@ function bindIntake(){
   const rc=document.getElementById('iRc'); if(rc){ if(intake.rc && !RECV.includes(intake.rc)) intake.rc=''; rc.onchange=()=>{ intake.rc=rc.value; try{localStorage.setItem('lastRecv',intake.rc);}catch(e){} }; }
   const ipn=document.getElementById('iPartN');
   drawer.querySelectorAll('#iParts [data-p]').forEach(b=>b.onclick=()=>{ const p=b.dataset.p, P=intake.parts||(intake.parts=[]); const k=P.indexOf(p); if(k<0) P.push(p); else P.splice(k,1);
-    b.classList.toggle('on',k<0); if(ipn){ ipn.style.display=P.includes('기타')?'':'none'; if(p==='기타'&&k<0) ipn.focus(); } recHint(); });
-  drawer.querySelectorAll('#iPhs [data-h]').forEach(b=>b.onclick=()=>{ const h=b.dataset.h, H=intake.phs||(intake.phs=[]); const k=H.indexOf(h); if(k<0) H.push(h); else H.splice(k,1); b.classList.toggle('on',k<0); recHint(); });
+    b.classList.toggle('on',k<0); b.classList.remove('auto'); (intake.manP||(intake.manP=[])).push(p); if(ipn){ ipn.style.display=P.includes('기타')?'':'none'; if(p==='기타'&&k<0) ipn.focus(); } recHint(); });
+  drawer.querySelectorAll('#iPhs [data-h]').forEach(b=>b.onclick=()=>{ const h=b.dataset.h, H=intake.phs||(intake.phs=[]); const k=H.indexOf(h); if(k<0) H.push(h); else H.splice(k,1); b.classList.toggle('on',k<0); b.classList.remove('auto'); (intake.manH||(intake.manH=[])).push(h); recHint(); });
+  bindAutoTag();
   recHint();
   const ircv=document.getElementById('iRcv'); if(ircv) ircv.onchange=()=>{ intake.rcv=ircv.value; };
   const iph=document.getElementById('iPhoto'); if(iph) iph.onchange=()=>{ const A=intake.files||(intake.files=[]); [...iph.files].forEach(f=>{ if(!A.some(x=>x.name===f.name&&x.size===f.size&&x.lastModified===f.lastModified)) A.push(f); }); iph.value=''; bindPhq(); };
@@ -3550,7 +3551,7 @@ function delayHtml(it){
   const box = st<7 ? `<div class="dly ${ov>0&&!cur.txt?'need':''}">
       <label>${st}단계 ${STAGES[st]} 지연 사유${ov>0?` <b style="color:var(--red)">· 기한 ${ov}일 초과${cur.txt?'':' · 사유 미기재'}</b>`:''}</label>
       <textarea class="inp" id="dlyT" placeholder="기한을 넘겼거나 넘길 것 같으면 사유를 적어 두세요 (입주민 일정, 우천, 자재 대기, 소장 일정 등) · 입력 후 다른 곳을 누르면 저장">${esc(cur.txt||'')}</textarea>
-      ${cur.txt&&cur.at?`<em>${esc(cur.by||'작업자 미선택')} · ${String(cur.at).slice(0,10).replace(/-/g,'.')} 기록</em>`:''}
+      ${cur.txt&&cur.at?`<em>${esc(cur.by||'작성자 미선택')} · ${String(cur.at).slice(0,10).replace(/-/g,'.')} 기록</em>`:''}
     </div>` : '';
   const hist = past.length ? `<ul class="dlyh">${past.map(n=>`<li><span>${n}단계 ${STAGES[n]}</span><p>${esc(D[n].txt)}</p><em>${esc(D[n].by||'')}</em></li>`).join('')}</ul>` : '';
   return box||hist ? `<div class="dlyw">${box}${hist}</div>` : '';
@@ -3802,6 +3803,61 @@ function renderCards(list){
     g.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const c=e.target.closest('[data-cid]'); if(c) detail(c.dataset.cid); } }); }
   document.getElementById('chips').addEventListener('click',e=>{ const b=e.target.closest('[data-wv]'); if(!b) return; WV=b.dataset.wv; try{ localStorage.setItem('wview',WV); }catch(x){} render(); });
 })();
+
+/* ── 하자 접수: 상세 내용 → 부위·현상 자동 선택 (2026-10-25) ──
+   이관 118건 시험: 현상 88% 자동 선택 · 부위는 세부 위치를 적은 경우만(36%)
+   접수자가 직접 누른 버튼은 이후 자동으로 바꾸지 않음 · 「일반면」「기타」는 자동 대상 아님 */
+const AUTO_PH = {
+  '누수':  /누수|샌다|새는|새요|새고|물이\s*떨어|물떨어|물이\s*새|젖|얼룩|스며|침투|물자국|곰팡|빗물\s*유입|물\s*유입|유입되|물이\s*흘러|흘러내/,
+  '물고임':/물\s*고임|고임|고여|고인|고이|역구배|구배\s*불량|물이\s*찼|배수\s*(가\s*)?안|배수\s*불량|물이\s*안\s*빠|역류/,
+  '들뜸':  /들뜸|들뜬|들떠|들뜨|떠서|떠\s*있|부풀|부풂|부푼|기포|배부름|물침대|물주머니|울렁|꿀렁|에어포켓|솟아|울어|울음/,
+  '균열':  /균열|크랙|갈라|금이|금감|금\s*가|쪼개/,
+  '박리':  /박리|벗겨|탈락|뜯겨/,
+  '훼손':  /훼손|찢|파손|뚫|구멍|손상|깨짐|깨져|깨진|터짐|터져/,
+  '변색':  /변색|색\s*바|색이\s*변|탈색|백화|누렇|황변/,
+  '오염':  /오염|이끼|잡초|더러|녹물|녹\s*발생/
+};
+const AUTO_PH_LEAK = /물침대|물주머니|에어포켓|꿀렁|울렁/;   // 시트 아래 물이 찬 상태 → 들뜸 + 누수
+const AUTO_PT = {
+  '배수로':     /배수로|트렌치|배수\s*골|홈통|측구/,
+  '파라펫':     /파라펫|파라핏|패러핏|난간|두겁/,
+  '드레인 주변':/드레인|배수구|우수관|배수\s*구멍|집수/,
+  '조인트':     /조인트|이음|겹침|줄눈|신축|코킹|실리콘|접합/,
+  '옥탑 벽체':  /옥탑|벽체|외벽|계단실\s*벽|물탱크/
+};
+function autoDetect(t){
+  t = t||'';
+  const ph = Object.keys(AUTO_PH).filter(k=>AUTO_PH[k].test(t));
+  if(AUTO_PH_LEAK.test(t) && !ph.includes('누수')) ph.unshift('누수');
+  const pt = Object.keys(AUTO_PT).filter(k=>AUTO_PT[k].test(t));
+  return {ph, pt};
+}
+function applyAuto(){
+  const ta=document.getElementById('iTxt'); if(!ta) return;
+  intake.txt = ta.value;
+  const d = autoDetect(ta.value), P=intake.parts||(intake.parts=[]), H=intake.phs||(intake.phs=[]);
+  const mp=intake.manP||[], mh=intake.manH||[];
+  drawer.querySelectorAll('#iParts [data-p]').forEach(b=>{ const p=b.dataset.p; if(!AUTO_PT[p] || mp.includes(p)) return;
+    const on=d.pt.includes(p), k=P.indexOf(p); if(on&&k<0) P.push(p); if(!on&&k>=0&&b.classList.contains('auto')) P.splice(k,1);
+    if(on){ b.classList.add('on','auto'); } else if(b.classList.contains('auto')){ b.classList.remove('on','auto'); } });
+  drawer.querySelectorAll('#iPhs [data-h]').forEach(b=>{ const h=b.dataset.h; if(!AUTO_PH[h] || mh.includes(h)) return;
+    const on=d.ph.includes(h), k=H.indexOf(h); if(on&&k<0) H.push(h); if(!on&&k>=0&&b.classList.contains('auto')) H.splice(k,1);
+    if(on){ b.classList.add('on','auto'); } else if(b.classList.contains('auto')){ b.classList.remove('on','auto'); } });
+  if(typeof recHint==='function') recHint();
+}
+let _autoT=0;
+function bindAutoTag(){
+  const ta=document.getElementById('iTxt'); if(!ta) return;
+  /* 다시 그려졌을 때 자동 표시 복원 */
+  const d=autoDetect(ta.value), mp=intake.manP||[], mh=intake.manH||[];
+  drawer.querySelectorAll('#iParts [data-p]').forEach(b=>{ if(b.classList.contains('on') && d.pt.includes(b.dataset.p) && !mp.includes(b.dataset.p)) b.classList.add('auto'); });
+  drawer.querySelectorAll('#iPhs [data-h]').forEach(b=>{ if(b.classList.contains('on') && d.ph.includes(b.dataset.h) && !mh.includes(b.dataset.h)) b.classList.add('auto'); });
+  ta.addEventListener('input', ()=>{ clearTimeout(_autoT); _autoT=setTimeout(applyAuto, 250); });
+}
+document.head.insertAdjacentHTML('beforeend', `<style>
+.ptg button.auto{position:relative;border-style:dashed}
+.ptg button.auto::after{content:"자동";margin-left:6px;font-size:10.5px;font-weight:700;color:var(--sky-d,#1270c4);background:#fff;border-radius:999px;padding:1px 6px}
+</style>`);
 
 document.getElementById('todayTag').textContent=TD+' 현재';
 /* 탭 */
