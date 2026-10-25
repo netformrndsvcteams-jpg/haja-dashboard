@@ -702,6 +702,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
       </tr></thead>
       <tbody id="rows"></tbody>
     </table></div>
+    <div class="cgrid" id="cards" hidden></div>
     <p class="foot">처리 기한(영업일 · 주말 제외): 접수 1일 · 배정·일정조율 2일 · 처리중 8일 · 보수 완료 3일 (접수~보수 완료 14일) · 비용 확인 3일 · 기안 진행 7일 (비용 확인~처리 완료 10일) · 저장소: Firebase · 사진: 구글 드라이브</p>
   </main>
 </div>
@@ -812,7 +813,7 @@ function renderChips(list){
     return `<button class="chip c-${c.k} ${F.chip===c.k?'on':''}" data-chip="${c.k}" aria-pressed="${F.chip===c.k}"><span class="ci">${EI(c.k)}</span>${c.l} <b>${n}</b></button>`; }).join('');
   const filt = F.stage||F.chip;
   h += `<span class="cnt">${F.stage?`${F.stage}단계 ${STAGES[F.stage]} · `:'진행 중 전체 · '}${list.length}건 · 기한 넘긴 일수 순${filt?` · <button class="clear" data-clear>필터 해제</button>`:''}</span>`;
-  document.getElementById('chips').innerHTML = h;
+  document.getElementById('chips').innerHTML = h + viewTg();
 }
 
 /* ── 부담 표기 ── */
@@ -862,7 +863,7 @@ function renderRows(list){
     </tr>`; }).join('');
 }
 
-function render(){ renderTrack(); const l=visible(); renderChips(l); renderRows(l); }
+function render(){ renderTrack(); const l=visible(); renderChips(l); renderRows(l); renderCards(l); }
 
 /* ── 상세 서랍 ── */
 const scrim=document.getElementById('scrim'), drawer=document.getElementById('drawer');
@@ -3689,6 +3690,118 @@ function pgRun(){
 _pgObs = new MutationObserver(()=>{ if(_pgQ) return; _pgQ=requestAnimationFrame(()=>{ _pgQ=0; pgRun(); }); });
 _pgObs.observe(document.body, {childList:true, subtree:true});
 window.addEventListener('hashchange', ()=>setTimeout(pgRun, 50));
+
+/* ════════════════════════════════════════════
+   하자 처리 목록 — 리스트형 / 카드형 전환 (2026-10-25)
+   - 마지막 선택은 브라우저별 기억 · 좁은 화면(760px 미만)은 처음에 카드형
+   - 카드형은 12장씩 페이지 나눔 · 정렬·단계·필터는 리스트형과 동일
+   ════════════════════════════════════════════ */
+const CARD_PG = 12, CPG = {p:1, n:-1, k:''};
+let WV = (()=>{ try{ const v=localStorage.getItem('wview'); if(v) return v; }catch(e){} return window.innerWidth<760 ? 'card' : 'list'; })();
+document.head.insertAdjacentHTML('beforeend', `<style>
+.wvt{display:inline-flex;gap:0;margin-left:10px;border:1.5px solid var(--line2);border-radius:8px;overflow:hidden;vertical-align:middle}
+.wvt button{height:28px;padding:0 12px;border:0;background:#fff;font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer}
+.wvt button+button{border-left:1.5px solid var(--line2)}
+.wvt button.on{background:var(--sky);color:#fff}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:6px}
+.hcard{display:flex;flex-direction:column;gap:10px;background:#fff;border-radius:var(--r-l);box-shadow:var(--sh);padding:16px 16px 14px;cursor:pointer;border:1.5px solid transparent;text-align:left;min-width:0}
+.hcard:hover{border-color:var(--sky-l,#cfe6fb)}
+.hcard.new{border-color:var(--sky)}
+.hcard.ov{box-shadow:var(--sh),inset 4px 0 0 #e45b5b}
+.hcard .ct1{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink3,#8a94a6)}
+.hcard .ct1 .idc{font-variant-numeric:tabular-nums}
+.hcard .ct1 .rt{margin-left:auto;display:flex;align-items:center;gap:4px}
+.hcard .ct1 .tg{margin-left:0}
+.hcard h5{margin:0;font-size:16px;line-height:1.35;color:var(--ink)}
+.hcard h5 small{display:block;font-size:12px;font-weight:400;color:var(--ink3,#8a94a6);margin-top:2px}
+.hcard h5 .tg{vertical-align:2px}
+.hcard .cbody{display:flex;gap:12px;min-width:0}
+.hcard .cph{flex:0 0 76px;height:76px;border-radius:8px;object-fit:cover;background:var(--bg2,#f6f8fb)}
+.hcard dl{margin:0;display:grid;grid-template-columns:56px 1fr;gap:4px 8px;font-size:12.5px;min-width:0;flex:1}
+.hcard dt{color:var(--ink3,#8a94a6)}.hcard dd{margin:0;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.hcard dd .bd,.hcard dd .bsub{font-size:11.5px}
+.hcard .cnote{font-size:12.5px;color:var(--ink2);background:var(--bg2,#f6f8fb);border-radius:8px;padding:8px 10px}.hcard .cnote>span,.hcard .cdly>span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.5}
+.hcard .cnote b{color:var(--sky-d,#1270c4);margin-right:6px}
+.hcard .cdly{font-size:12.5px;color:#b23a3a;background:#fff4f4;border-radius:8px;padding:8px 10px}
+.hcard .cdly.ok{color:var(--ink2);background:#eef6ff}
+.cgrid .empty{grid-column:1/-1;background:#fff;border-radius:var(--r-l);padding:40px;text-align:center;color:var(--ink3,#8a94a6)}
+@media (max-width:760px){.cgrid{grid-template-columns:1fr}}
+@media (max-width:520px){.now{grid-template-columns:1fr!important}}
+/* 상단 메뉴 — 좁은 화면에서 글자가 세로로 깨지지 않게 (줄바꿈 금지 · 메뉴는 아랫줄 가로 스크롤) */
+.tabs a{white-space:nowrap;flex:0 0 auto}
+@media (max-width:900px){
+  .nav{height:auto;flex-wrap:wrap;padding:8px 12px;gap:6px 8px}
+  .brand{margin-right:auto;font-size:15px}
+  .nav-r{margin-left:0;gap:8px}
+  .nav-r .cap{display:none}
+  .nav-r .me{max-width:110px}
+  .tabs{order:3;width:100%;height:auto;overflow-x:auto;gap:2px;scrollbar-width:none}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs a{padding:0 12px;height:34px;font-size:14px}
+  .fbar{height:auto;flex-wrap:wrap;padding:10px 12px;gap:8px}
+  .fbar .sp{display:none}
+  .fbar .inp{flex:1;min-width:0}
+  .wrap{padding:4px 12px 48px}
+  .sec-h{flex-wrap:wrap;gap:6px 10px}.sec-h h2{white-space:nowrap;font-size:19px}.sec-h .r{margin-left:0;width:100%}
+  .cwrap{padding:12px 12px 48px;gap:12px}
+  .vh{flex-direction:column;align-items:stretch;gap:10px}.vh h2{white-space:nowrap;font-size:19px}.vh-r{flex-wrap:wrap;justify-content:flex-start;gap:6px}
+  .kpis{grid-template-columns:1fr!important}
+  .entry{min-height:0;padding:16px 18px}.entry b{font-size:20px}.entry .ico{width:52px;height:52px;top:auto;bottom:14px}.entry small{display:none}
+}
+</style>`);
+function viewTg(){ return `<span class="wvt" role="group" aria-label="목록 보기 방식"><button type="button" data-wv="list" class="${WV==='list'?'on':''}" aria-pressed="${WV==='list'}">리스트</button><button type="button" data-wv="card" class="${WV==='card'?'on':''}" aria-pressed="${WV==='card'}">카드</button></span>`; }
+function cardNote(it){
+  const N=(it.notes||[]).slice().sort((a,b)=>(b.d||'').localeCompare(a.d||''))[0];
+  if(!N||!N.txt) return '';
+  const d=(N.d||'').slice(5).replace('-','/');
+  return `<div class="cnote" title="${esc(N.txt)}"><span>${d?`<b>${d}</b>`:''}${esc(String(N.txt).replace(/\s*\n\s*/g,' '))}</span></div>`;
+}
+function cardDly(it){
+  if(it.st===7) return '';
+  const t=((it.delay||{})[it.st]||{}).txt, o=over(it);
+  if(t) return `<div class="cdly ${o>0?'':'ok'}" title="${esc(t)}"><span>지연 사유 · ${esc(t)}</span></div>`;
+  return o>0 ? `<div class="cdly">기한 ${o}일 초과 · 지연 사유 미기재</div>` : '';
+}
+function cardHtml(it){
+  const s=SITES[it.site]||{}, ph=(it.photos||[])[0];
+  return `<article class="hcard ${it.unseen?'new':''} ${over(it)>0?'ov':''}" data-cid="${it.id}" tabindex="0">
+    <div class="ct1"><span class="idc">${it.unseen?'<span class="ndot" title="앱 신규 · 미확인"></span>':''}${it.id}</span><span class="stg s${it.st}"><i>${EI('st'+it.st)}</i>${STAGES[it.st]}</span><span class="rt">${ddText(it)}</span></div>
+    <h5>${esc(it.site)}${seqOf(it)>1?`<span class="tg tg-swap">재발 ${seqOf(it)}차</span>`:''}${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}<small>${esc(s.co||'')}${it.rcvAt?' · 접수 '+fmtD(it.rcvAt):''} · ${esc(it.rc||'')}</small></h5>
+    <div class="cbody">${ph&&ph.id?`<img class="cph" loading="lazy" src="https://drive.google.com/thumbnail?id=${ph.id}&sz=w240" alt="">`:''}
+      <dl><dt>부위·현상</dt><dd>${esc(partTx(it))} · ${esc(phTx(it))}${it.dmg&&it.dmg.length?' <span class="tg tg-dmg">2차 피해</span>':''}</dd>
+        <dt>처리소장</dt><dd>${hdTx(it)?esc(hdTx(it))+(swapped(it)?' <span class="tg tg-swap">교체</span>':''):'<span class="bd-pre">미배정</span>'}</dd>
+        ${it.visitAt&&it.st<4?`<dt>방문 예정</dt><dd>${it.visitAt.replace(/-/g,'.')}</dd>`:''}
+        <dt>비용부담</dt><dd>${burdenChip(it)}</dd></dl></div>
+    ${cardDly(it)}${cardNote(it)}
+  </article>`;
+}
+function renderCards(list){
+  const tc=document.getElementById('rows').closest('.tcard'), g=document.getElementById('cards');
+  if(!g) return;
+  if(WV!=='card'){ g.hidden=true; tc.hidden=false; return; }
+  tc.hidden=true; g.hidden=false;
+  const k=(F.stage||0)+'|'+(F.chip||'');
+  if(CPG.n!==list.length || CPG.k!==k){ CPG.p=1; CPG.n=list.length; CPG.k=k; }
+  const max=Math.max(1,Math.ceil(list.length/CARD_PG)); CPG.p=Math.min(CPG.p,max);
+  const a=(CPG.p-1)*CARD_PG, b=a+CARD_PG;
+  let h = list.length ? list.slice(a,b).map(cardHtml).join('') : `<p class="empty">조건에 맞는 건이 없습니다. 위 필터를 해제하거나 다른 단계를 선택하세요.</p>`;
+  g.innerHTML = h;
+  let pg = g.nextElementSibling && g.nextElementSibling.classList.contains('pgr') ? g.nextElementSibling : null;
+  if(list.length<=CARD_PG){ if(pg) pg.remove(); return; }
+  const nums=[]; for(let i=1;i<=max;i++){ if(i===1||i===max||Math.abs(i-CPG.p)<=2) nums.push(i); else if(nums[nums.length-1]!=='…') nums.push('…'); }
+  if(!pg){ pg=document.createElement('div'); pg.className='pgr'; g.after(pg); }
+  pg.innerHTML=`<span class="pgi">전체 ${list.length}건 · ${a+1}–${Math.min(b,list.length)}</span><span class="pgb">
+    <button type="button" data-cpg="${CPG.p-1}" ${CPG.p===1?'disabled':''}>이전</button>
+    ${nums.map(i=>i==='…'?'<span class="gap">…</span>':`<button type="button" data-cpg="${i}" class="${i===CPG.p?'on':''}">${i}</button>`).join('')}
+    <button type="button" data-cpg="${CPG.p+1}" ${CPG.p===max?'disabled':''}>다음</button></span>`;
+  pg.querySelectorAll('[data-cpg]').forEach(btn=>btn.onclick=()=>{ CPG.p=+btn.dataset.cpg; renderCards(visible()); const t=g.getBoundingClientRect().top; if(t<0) g.scrollIntoView({block:'start'}); });
+}
+(function(){
+  const g=document.getElementById('cards');
+  if(g){ g.addEventListener('click',e=>{ const c=e.target.closest('[data-cid]'); if(c) detail(c.dataset.cid); });
+    g.addEventListener('keydown',e=>{ if(e.key==='Enter'){ const c=e.target.closest('[data-cid]'); if(c) detail(c.dataset.cid); } }); }
+  document.getElementById('chips').addEventListener('click',e=>{ const b=e.target.closest('[data-wv]'); if(!b) return; WV=b.dataset.wv; try{ localStorage.setItem('wview',WV); }catch(x){} render(); });
+})();
 
 document.getElementById('todayTag').textContent=TD+' 현재';
 /* 탭 */
