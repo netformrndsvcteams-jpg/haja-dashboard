@@ -188,7 +188,8 @@ tr.new .idc{font-weight:700;color:var(--ink)}
 .tip{position:relative;display:inline-block;margin-left:6px}.tip>button{height:24px;padding:0 10px;border:1px solid var(--line2);border-radius:999px;background:#fff;font-size:12px;color:var(--tx2,#55657a);cursor:default}.tip .tipc{display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:5;white-space:nowrap;background:#1f2d3d;color:#fff;font-size:12.5px;padding:8px 12px;border-radius:10px;box-shadow:0 8px 20px rgba(15,40,70,.2)}.tip:hover .tipc,.tip:focus-within .tipc{display:block}
 .phq{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.phq span{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 10px;border:1px solid var(--line2);border-radius:999px;font-size:12.5px;background:#f6f9fc}.phq button{border:0;background:none;cursor:pointer;font-size:14px;color:#8a97a8}
 .inedit .ptg{margin:4px 0 8px}.inedit textarea{width:100%;min-height:80px}.edbar{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}.df .btn.btn-ghost{padding:0 10px}
-.chain{margin-top:14px;display:flex;flex-direction:column;gap:10px}.chs{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;font-size:13px}.chs em{font-style:normal;color:var(--ink3,#7c8ea3);margin-right:6px}.chs b{font-variant-numeric:tabular-nums}.cst{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px}.cst.go{background:#e3f1fc;color:#1f6fb8}.cst.obs{background:#fff2e2;color:#b45a0a}.cst.end{background:#e5f6ed;color:#1f7a4b}.cht{display:flex;gap:10px;align-items:center}.cht label{flex:none;font-size:12.5px;color:#b45a0a;font-weight:700}.cht .inp{flex:1;min-width:0;height:36px}.ctabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line,#dfe8f1);margin:0 -2px}.ctabs button{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:8px 14px 9px;border:0;border-bottom:3px solid transparent;background:none;cursor:pointer;color:#7c8ea3;font:inherit}.ctabs button small{font-size:11px}.ctabs button b{font-size:14px}.ctabs button i{font-style:normal;font-size:11.5px}.ctabs button.on{color:#1f8fe0;border-bottom-color:#1f8fe0}.ctabs button:focus-visible{outline:2px solid #1f8fe0;outline-offset:-2px}
+.chain{margin-top:14px;display:flex;flex-direction:column;gap:10px;background:#eef6fd;border:1.5px solid #bfdcf5;border-radius:16px;padding:12px 14px}.chs{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;font-size:13px}.chs em{font-style:normal;color:#5c7389;margin-right:6px}.chs b{font-variant-numeric:tabular-nums}.chs .cl{font-weight:800;color:#1f6fb8;font-size:13.5px}.cht{display:flex;gap:10px;align-items:center}.cht label{flex:none;font-size:12.5px;color:#b45a0a;font-weight:700}.cht .inp{flex:1;min-width:0;height:36px;background:#fff}.ctabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}.ctabs button{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:8px 16px;border:1.5px solid #bfdcf5;border-radius:12px;background:#fff;cursor:pointer;color:#3d5670;font:inherit;min-width:112px}.ctabs button small{font-size:11px;opacity:.8}.ctabs button b{font-size:15px}.ctabs button i{font-style:normal;font-size:11.5px;opacity:.85}.ctabs button:hover{border-color:#1f8fe0}.ctabs button.on{background:#1f8fe0;border-color:#1f8fe0;color:#fff;box-shadow:0 4px 12px rgba(31,143,224,.3)}.ctabs button:focus-visible{outline:2px solid #1f8fe0;outline-offset:2px}
+.hist{display:flex;flex-direction:column;gap:10px}.hopt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px;cursor:pointer}.hgrp{border:1.5px solid #dfe8f1;border-radius:14px;padding:10px 12px;background:#fafcfe}.hgrp:has(input:checked){border-color:#1f8fe0;background:#eef6fd}.hrows{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}.hrows li{display:flex;gap:10px;font-size:12.5px;line-height:1.5}.hrows .hn{flex:none;width:34px;font-weight:800;color:#1f6fb8}.hrows li>div{min-width:0}.hrows p{margin:2px 0 0;color:#55657a}.hrows p.hl{color:#7a5a2a}.hs{font-weight:700}
 @media (prefers-reduced-motion:reduce){.drawer,.scrim{transition:none}}
 .dh{padding:24px 28px 18px;border-bottom:1px solid var(--line);position:relative;background:linear-gradient(180deg,#f0f8ff,#fff)}
 .dh .x{position:absolute;top:16px;right:16px;width:38px;height:38px;font-size:20px;color:var(--ink2);border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(20,90,160,.1)}
@@ -2399,7 +2400,7 @@ async function submitIntake(){
   const rcvD=document.getElementById('iRcv')?.value||ymd(TODAY);
   if(rcvD>ymd(TODAY)){ toast('접수일은 오늘 이후로 정할 수 없습니다'); return; }
   const g_=k=>(document.getElementById(k)||{}).value?.trim()||'';
-  const psel=(document.querySelector('[name=iPrev]:checked')||{}).value ?? 'auto';
+  const psel=(document.querySelector('[name=iPrev]:checked')||{}).value || '';
   const caller={type:g_('iCt'), name:g_('iCn'), phone:g_('iCp'), office:g_('iCo')};
   const sb=document.getElementById('submit'); if(sb){ sb.disabled=true; sb.textContent='저장 중…'; }
   try{
@@ -2410,7 +2411,7 @@ async function submitIntake(){
       site=n; }
     const files=[...(intake.files||[])];
     const id = await nextId(), now=iso(), rcvAt = rcvD===ymd(TODAY)? now : new Date(rcvD+'T09:00:00').toISOString();
-    const prevId = psel==='auto' ? autoPrev(site,{parts,phs}) : (psel||null);
+    const prevId = psel||null;   // 접수자가 고른 이전 접수에만 연결 (자동 판정 없음)
     await DB.collection('cases').doc(id).set({site, rc:intake.rc, st:1, rcvAt, stAt:rcvAt, src:'PC', caller, notes:[], prevId:prevId||null,
       part:parts[0], parts, partNote:(parts.includes('기타')?(document.getElementById('iPartN')||{}).value||'':'').trim(), ph:phs[0], phs, txt:document.getElementById('iTxt').value.trim(),
       dmg:[], photos:[], unseen:false, createdAt:now, log:[{at:now, by:intake.rc, msg:'접수 등록 (PC)'+(rcvD!==ymd(TODAY)?` · 접수일 ${rcvD}`:'')}]});
@@ -3074,22 +3075,28 @@ function chainHtml(it){
   const ch=chainOf(it); if(ch.length<2) return '';
   const r=ch[0], tot=ch.reduce((a,i)=>a+caseCost(i),0);
   return `<div class="chain">
-    <div class="chs"><span><em>재발 묶음</em><b>${ch.length}회 접수</b></span><span><em>기간</em><b>${fmtD(r.rcvAt)} ~ ${fmtD(ch[ch.length-1].rcvAt)}</b></span><span><em>누적 비용</em><b>${won(tot)}원</b></span></div>
+    <div class="chs"><span class="cl">재발 묶음 · ${ch.length}회 접수</span><span><em>기간</em><b>${fmtD(r.rcvAt)} ~ ${fmtD(ch[ch.length-1].rcvAt)}</b></span><span><em>누적 비용</em><b>${won(tot)}원</b></span></div>
     <div class="cht"><label for="chTitle">이어지는 문제</label><input class="inp" id="chTitle" placeholder="예: 구조물 하단부 시트 끝단·이음부 마감 불량" value="${esc(r.issueTitle||'')}"></div>
-    <div class="ctabs" role="tablist">${ch.map((c,k)=>`<button type="button" role="tab" data-chain="${c.id}" aria-selected="${c.id===it.id}" class="${c.id===it.id?'on':''}"><small>${c.id}</small><b>${k+1}차 접수</b><i>${STAGES[c.st]}${caseCost(c)?` · ${won(caseCost(c))}원`:''}</i></button>`).join('')}</div>
+    <div class="ctabs" role="tablist" aria-label="회차 이동">${ch.map((c,k)=>`<button type="button" role="tab" data-chain="${c.id}" aria-selected="${c.id===it.id}" class="${c.id===it.id?'on':''}"><small>${c.id}</small><b>${k+1}차 접수</b><i>${STAGES[c.st]}${caseCost(c)?` · ${won(caseCost(c))}원`:''}</i></button>`).join('')}</div>
   </div>`;
 }
-function seqOf(it){ let n=1, cur=it, g=0; while(cur && cur.prevId && g++<20){ n++; cur=ITEMS.find(i=>i.id===cur.prevId); } return n; }
+function seqOf(it){ if(!it.prevId && !ITEMS.some(i=>i.prevId===it.id)) return 1; const ch=chainOf(it); return ch.findIndex(i=>i.id===it.id)+1; }   // 재발 묶음 안 접수일 순서 (회차 탭 번호와 같음)
+/* 이 현장 이전 접수 — 자동 판정 없이 접수자가 이전 내용을 보고 직접 고름. 기본값은 「새 하자」.
+   이전 접수는 재발 묶음 단위로 보여주고, 「이어서 접수」를 고르면 그 묶음의 마지막 회차에 연결(갈래 없이 한 줄로 이어짐) */
 function histBox(site){
   const L=priorCases(site); if(!L.length) return '';
-  return `<div class="dsec"><h4>이 현장 이전 접수 ${L.length}건 <span class="cap" style="font-weight:400">같은 부위·현상이면 재발로 연결됩니다</span></h4>
-    <div class="recl"><label><input type="radio" name="iPrev" value="auto" checked> 자동 판정 <span class="cap" id="iRecHint"></span></label>
-    <label><input type="radio" name="iPrev" value=""> 재발 아님 (새 하자)</label>
-    ${L.slice(0,12).map(i=>`<label><input type="radio" name="iPrev" value="${i.id}"> <b>${i.id}</b> · ${fmtD(i.rcvAt)} · ${esc(partTx(i))} · ${esc(phTx(i))} · ${STAGES[i.st]}${i.hd?` · ${esc(i.hd)}`:''}${seqOf(i)>1?` <span class="tg tg-swap">재발 ${seqOf(i)}차</span>`:''}</label>`).join('')}</div></div>`;
+  const G=[]; L.forEach(i=>{ const r=rootOf(i); if(!G.some(g=>g.root.id===r.id)) G.push({root:r, ch:chainOf(i)}); });
+  const row=(c,k,n)=>`<li><span class="hn">${n>1?`${k+1}차`:'접수'}</span><div><b>${c.id}</b> · ${fmtD(c.rcvAt)} · ${esc(partTx(c))} · ${esc(phTx(c))} · <span class="hs">${STAGES[c.st]}</span>${c.hd?` · ${esc(c.hd)}`:''}
+    ${c.txt?`<p>${esc(c.txt.length>90?c.txt.slice(0,90)+'…':c.txt)}</p>`:''}${(c.notes||[]).length?`<p class="hl">진행 · ${esc(c.notes[c.notes.length-1].txt)}</p>`:''}</div></li>`;
+  return `<div class="dsec"><h4>이 현장 이전 접수 ${L.length}건 <span class="cap" style="font-weight:400">같은 하자가 다시 생긴 것이면 「이어서 접수」를 고르세요</span></h4>
+    <div class="hist">
+    <label class="hopt"><input type="radio" name="iPrev" value="" checked> <b>새 하자로 접수</b> <span class="cap">이전 접수와 관계없는 하자</span></label>
+    ${G.slice(0,8).map(g=>{ const last=g.ch[g.ch.length-1], n=g.ch.length; return `<div class="hgrp">
+      <label class="hopt"><input type="radio" name="iPrev" value="${last.id}"> <b>이 하자에 이어서 접수</b> <span class="cap">→ ${n+1}차 접수로 연결${g.root.issueTitle?` · ${esc(g.root.issueTitle)}`:''}</span></label>
+      <ol class="hrows">${g.ch.map((c,k)=>row(c,k,n)).join('')}</ol></div>`; }).join('')}
+    </div></div>`;
 }
-function recHint(){ const el=document.getElementById('iRecHint'); if(!el||!intake.site) return;
-  const id=autoPrev(intake.site,{parts:intake.parts||[], phs:intake.phs||[]}), p=id&&ITEMS.find(i=>i.id===id);
-  el.textContent = !(intake.parts||[]).length||!(intake.phs||[]).length ? '— 부위·현상을 고르면 판정합니다' : p ? `— ${p.id}와 같은 내용 → 재발 ${seqOf(p)+1}차로 접수` : '— 같은 내용의 이전 건 없음 → 새 하자'; }
+function recHint(){}
 const PHS=['누수','물고임','들뜸','균열','박리','변색','오염'];
 function phsOf(it){ const a=(it&&it.phs&&it.phs.length? it.phs : [it&&it.ph]).filter(Boolean); return [...new Set(a)]; }
 const hasH=(r,h)=>phsOf(r).includes(h);
