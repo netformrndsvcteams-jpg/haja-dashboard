@@ -3887,9 +3887,11 @@ function p6Amt(it){ const sup=ourPay(it), vat=Math.round(sup*0.1); return {sup, 
 const p6w = n => won(n)+'원';
 const need = v => (v && String(v).trim()) ? String(v).trim() : '(확인 필요)';
 function p6Info(it){ const s=SITES[it.site]||{}, con=conOf(s.co)||{}, H=hdsOf(it), m=mgrOf(H[0])||{}; return {s, con, hd:H[0]||'', hdBiz:m.bizName||'', hdTel:m.phone||''}; }
-function p6Kakao(it){
+function p6Kakao(it, biz=true){
   const {con,hd}=p6Info(it), a=p6Amt(it);
-  return `${hd?hd+' ':''}소장님, ${it.site} 하자현장 노임 관련 계산서 발행 부탁드립니다.\n비고란에 아파트명 꼭 기재 부탁드려요.\n\n- 품목: 유지보수 수수료\n- 공급가액: ${won(a.sup)}\n- 세액: ${won(a.vat)}\n- 합계: ${won(a.tot)}\n- 비고: ${it.site}\n\n[사업자 정보 (세금계산서 발행용)]\n- 상호: ${need(con.name||con.bizName)}\n- 사업자등록번호: ${need(con.bizNo)}\n- 대표자명: ${need(con.ceoName)}\n- 업태: ${need(con.bizType)}\n- 종목: ${need(con.bizItem)}\n- 사업장 주소: ${need(con.bizAddress)}\n- 세금계산서 수신 이메일: ${need(con.bizEmail)}`;
+  const head = `${hd?hd+' ':''}소장님, ${it.site} 하자현장 노임 관련 계산서 발행 부탁드립니다.\n비고란에 아파트명 꼭 기재 부탁드려요.\n\n- 품목: 유지보수 수수료\n- 공급가액: ${won(a.sup)}\n- 세액: ${won(a.vat)}\n- 합계: ${won(a.tot)}\n- 비고: ${it.site}`;
+  if(!biz) return head + `\n\n※ 사업자 정보(세금계산서 발행용)는 이미지로 함께 보내드립니다.`;
+  return head + `\n\n[사업자 정보 (세금계산서 발행용)]\n- 상호: ${need(con.name||con.bizName)}\n- 사업자등록번호: ${need(con.bizNo)}\n- 대표자명: ${need(con.ceoName)}\n- 업태: ${need(con.bizType)}\n- 종목: ${need(con.bizItem)}\n- 사업장 주소: ${need(con.bizAddress)}\n- 세금계산서 수신 이메일: ${need(con.bizEmail)}`;
 }
 function p6MailSub(it){ return `유지보수현장 계산서 발행 요청_${it.site}`; }
 function p6MailBody(it){
@@ -3929,7 +3931,8 @@ function pay6Html(it, s){
   const mob = !!navigator.share && window.matchMedia('(pointer:coarse)').matches;
   return `<div class="p6amt"><span>공급가액 <b>${won(a.sup)}</b></span><span>세액 <b>${won(a.vat)}</b></span><span>합계 <b>${won(a.tot)}</b></span><span class="cap">지급액을 공급가액으로 · 세액 10%</span></div>
   <ol class="p6l">
-    ${row('kakao','①','소장님 안내 — 계산서 발행 요청 (카톡·문자)',`<div class="p6btn">${mob?'<button type="button" class="btn btn-pri sm" data-p6x="share">카톡으로 공유</button>':''}<button type="button" class="btn btn-line sm" data-p6x="kakao">문안 복사</button>${hdTel?`<a class="btn btn-line sm" href="sms:${esc(hdTel.replace(/[^0-9]/g,''))}?&body=${encodeURIComponent(p6Kakao(it))}">문자로 보내기</a>`:''}<button type="button" class="btn btn-ghost sm" data-p6v="kakao">문안 보기</button></div><pre class="p6pre" id="p6v_kakao" hidden>${esc(p6Kakao(it))}</pre>`)}
+    ${row('kakao','①','소장님 안내 — 계산서 발행 요청 (카톡·문자)',`${p6BizTable(it)}<div class="p6btn">${mob?'<button type="button" class="btn btn-pri sm" data-p6x="share">카톡으로 공유</button>':''}<button type="button" class="btn btn-pri sm" data-p6x="img">사업자 정보 이미지 복사</button><button type="button" class="btn btn-line sm" data-p6x="kakao">문안 복사</button><button type="button" class="btn btn-line sm" data-p6x="imgsave">이미지 저장</button>${hdTel?`<a class="btn btn-line sm" href="sms:${esc(hdTel.replace(/[^0-9]/g,''))}?&body=${encodeURIComponent(p6Kakao(it))}">문자로 보내기</a>`:''}<button type="button" class="btn btn-ghost sm" data-p6v="kakao">문안 보기</button></div>
+      <p class="cap">카톡: 「문안 복사」 붙여 넣기 → 「사업자 정보 이미지 복사」 붙여 넣기 · 문자는 사업자 정보까지 글로 들어감</p><pre class="p6pre" id="p6v_kakao" hidden>${esc(p6Kakao(it,false))}</pre>`)}
     ${row('mail','②','시공사 계산서 발행 요청 메일 (하이웍스)',`<div class="p6btn"><button type="button" class="btn btn-pri sm" data-p6x="mail">본문 복사 · 메일 쓰기</button><button type="button" class="btn btn-line sm" data-p6x="to">받는 사람 복사</button><button type="button" class="btn btn-line sm" data-p6x="sub">제목 복사</button><button type="button" class="btn btn-ghost sm" data-p6v="mail">문안 보기</button></div>
       <p class="cap">받는 사람 ${esc(need(con.bizEmail))} · 제목 ${esc(p6MailSub(it))}</p><pre class="p6pre" id="p6v_mail" hidden>${esc(p6MailBody(it))}</pre>`)}
     ${row('inv','③-1','시공사 세금계산서 수령 확인',`<p class="cap">합계 ${won(a.tot)}원 · 비고 「${esc(it.site)}」 기재 여부 확인 · 기안에 계산서와 통장사본 첨부</p>`)}
@@ -3947,8 +3950,10 @@ function bindPay6(it){
   drawer.querySelectorAll('[data-p6v]').forEach(b=>b.onclick=()=>{ const p=document.getElementById('p6v_'+b.dataset.p6v); if(p) p.hidden=!p.hidden; });
   drawer.querySelectorAll('[data-p6x]').forEach(b=>b.onclick=async()=>{
     const x=b.dataset.p6x, {con}=p6Info(it);
-    if(x==='share'){ try{ await navigator.share({text:p6Kakao(it)}); }catch(e){} return; }
-    if(x==='kakao') return p6Copy(p6Kakao(it), '소장님 안내 문안을 복사했습니다 — 카톡에 붙여 넣으세요');
+    if(x==='share'){ try{ const bl=await p6BizBlob(it); const f=new File([bl],`사업자정보_${it.site}.png`,{type:'image/png'}); if(navigator.canShare&&navigator.canShare({files:[f]})) await navigator.share({text:p6Kakao(it,false), files:[f]}); else await navigator.share({text:p6Kakao(it)}); }catch(e){} return; }
+    if(x==='kakao') return p6Copy(p6Kakao(it,false), '소장님 안내 문안을 복사했습니다 — 카톡에 붙여 넣은 뒤 사업자 정보 이미지도 붙여 넣으세요');
+    if(x==='img'){ try{ const bl=await p6BizBlob(it); await navigator.clipboard.write([new ClipboardItem({'image/png':bl})]); toast('사업자 정보 이미지를 복사했습니다 — 카톡 대화창에 붙여 넣으세요(Ctrl+V)'); }catch(e){ toast('이미지 복사가 안 되는 브라우저입니다 — 「이미지 저장」 후 첨부하세요'); } return; }
+    if(x==='imgsave'){ const bl=await p6BizBlob(it); const u=URL.createObjectURL(bl), a=document.createElement('a'); a.href=u; a.download=`사업자정보_${it.site}.png`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),2000); return; }
     if(x==='to') return p6Copy(con.bizEmail||'', con.bizEmail?'받는 사람을 복사했습니다':'시공사 이메일이 pour-pay에 없습니다');
     if(x==='sub') return p6Copy(p6MailSub(it), '제목을 복사했습니다');
     if(x==='mail'){ await p6Copy(p6MailBody(it), '본문을 복사했습니다 — 하이웍스 본문 칸에 붙여 넣으세요'); window.open(HW_MAIL,'_blank','noopener'); return; }
@@ -3970,6 +3975,47 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .p6btn{display:flex;flex-wrap:wrap;gap:6px}
 .p6pre{white-space:pre-wrap;font:12.5px/1.55 inherit;background:var(--bg2,#f6f8fb);border-radius:8px;padding:10px 12px;margin:0;max-height:260px;overflow:auto}
 .tg-p6{background:#fff1e6;color:#b85c00}
+</style>`);
+
+/* ── 사업자 정보(세금계산서 발행용) — 표 · 이미지 (2026-10-26) ── */
+function p6BizRows(it){ const {s,con}=p6Info(it); return [['상호',con.name||con.bizName||s.co],['사업자등록번호',con.bizNo],['대표자명',con.ceoName],['업태',con.bizType],['종목',con.bizItem],['사업장 주소',con.bizAddress],['세금계산서 수신 이메일',con.bizEmail]]; }
+function p6BizTable(it){ const a=p6Amt(it);
+  return `<div class="p6biz"><div class="p6bh">사업자 정보 <span>세금계산서 발행용</span></div><table>${p6BizRows(it).map(([k,v])=>`<tr><th>${k}</th><td>${v&&String(v).trim()?esc(v):'<b class="p6miss">확인 필요</b>'}</td></tr>`).join('')}</table>
+    <div class="p6ba"><span>품목 <b>유지보수 수수료</b></span><span>공급가액 <b>${won(a.sup)}</b></span><span>세액 <b>${won(a.vat)}</b></span><span>합계 <b>${won(a.tot)}</b></span><span>비고 <b>${esc(it.site)}</b></span></div></div>`; }
+function p6BizBlob(it){
+  const rows=p6BizRows(it), a=p6Amt(it), W=760, P=36, KW=210, F='"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",sans-serif';
+  const c=document.createElement('canvas'), x=c.getContext('2d');
+  const wrap=(t,w,font)=>{ x.font=font; const out=[]; let line=''; for(const ch of String(t)){ if(x.measureText(line+ch).width>w && line){ out.push(line); line=ch; } else line+=ch; } if(line) out.push(line); return out.length?out:['']; };
+  const vf=`500 22px ${F}`, kf=`600 19px ${F}`, vw=W-P*2-KW-12;
+  const lines=rows.map(([k,v])=>wrap(v&&String(v).trim()?v:'확인 필요', vw, vf));
+  const rowH=l=>Math.max(54, 22+l.length*32);
+  const amt=[['품목','유지보수 수수료'],['공급가액',won(a.sup)+'원'],['세액',won(a.vat)+'원'],['합계',won(a.tot)+'원'],['비고',it.site]];
+  const head=96, H=head+lines.reduce((t,l)=>t+rowH(l),0)+24+amt.length*42+20+P;
+  const r=2; c.width=W*r; c.height=H*r; x.scale(r,r);
+  x.fillStyle='#ffffff'; x.fillRect(0,0,W,H);
+  x.fillStyle='#fff8e1'; x.fillRect(0,0,W,head-14); x.fillStyle='#f5b400'; x.fillRect(0,0,8,head-14);
+  x.fillStyle='#1d2433'; x.font=`700 27px ${F}`; x.fillText('사업자 정보 (세금계산서 발행용)', P, 44);
+  x.fillStyle='#8a6d00'; x.font=`500 17px ${F}`; x.fillText('세금계산서는 아래 정보로 발행해 주세요', P, 70);
+  let y=head;
+  rows.forEach(([k,v],i)=>{ const l=lines[i], h=rowH(l);
+    x.fillStyle=i%2?'#ffffff':'#f6f8fb'; x.fillRect(P-14,y,W-(P-14)*2,h);
+    x.fillStyle='#5b6578'; x.font=kf; x.fillText(k, P, y+34);
+    const miss=!(v&&String(v).trim()); x.fillStyle=miss?'#c23b3b':'#111827'; x.font=vf;
+    l.forEach((t,j)=>x.fillText(t, P+KW, y+35+j*32)); y+=h; });
+  y+=20; x.strokeStyle='#f3d27a'; x.lineWidth=2; x.strokeRect(P-14,y,W-(P-14)*2,amt.length*42+14); y+=10;
+  amt.forEach(([k,v])=>{ x.fillStyle='#5b6578'; x.font=kf; x.fillText(k, P, y+28); x.fillStyle=k==='합계'?'#1270c4':'#111827'; const f=(k==='합계'?'700 ':'500 ')+`22px ${F}`; x.font=f; x.fillText(wrap(v, vw, f)[0], P+KW, y+28); y+=42; });
+  return new Promise(res=>c.toBlob(res,'image/png'));
+}
+document.head.insertAdjacentHTML('beforeend', `<style>
+.p6biz{border:1.5px solid #f3d27a;border-radius:10px;overflow:hidden;background:#fff}
+.p6bh{background:#fff8e1;padding:8px 12px;font-weight:700;font-size:13.5px;border-left:5px solid #f5b400}.p6bh span{font-weight:500;font-size:12px;color:#8a6d00;margin-left:6px}
+.p6biz table{width:100%;border-collapse:collapse;font-size:13px}
+.p6biz th{width:150px;text-align:left;font-weight:600;color:var(--ink2);padding:7px 12px;background:var(--bg2,#f6f8fb);vertical-align:top;white-space:nowrap}
+.p6biz td{padding:7px 12px;color:var(--ink);word-break:keep-all}
+.p6biz tr+tr th,.p6biz tr+tr td{border-top:1px solid #eef1f5}
+.p6biz th,.p6biz td{height:auto!important;line-height:1.45;vertical-align:top}
+.p6miss{color:#c23b3b}
+.p6ba{display:flex;flex-wrap:wrap;gap:4px 14px;padding:8px 12px;border-top:1.5px solid #f3d27a;font-size:12.5px;color:var(--ink2)}.p6ba b{color:var(--ink)}
 </style>`);
 
 document.getElementById('todayTag').textContent=TD+' 현재';
