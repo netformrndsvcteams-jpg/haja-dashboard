@@ -4073,16 +4073,15 @@ function doneView(it){
         ${pay?kv('지급', `<b>${won(pay)}원</b> <span class="cap">(부가세 별도)</span>${it.paidAt?` · 지급일 ${fmtD(it.paidAt)}`:''}${it.draftNo?` · 기안 ${esc(it.draftNo)}`:''}`):''}</dl>
       </div></div>
 
-      <div class="dsec"><h4>하자 내용</h4>
-        <p class="d7txt">${esc(it.txt||'—')}</p>
+      <div class="dsec"><h4>하자 내용 <span class="cap" style="font-weight:400">접수 내용과 진행 경과 · 날짜순</span></h4>
+        <ol class="d7tl"><li><span>${fmtD(it.rcvAt).slice(5)}</span><b>접수</b><p>${esc(it.txt||'—')}</p></li>${notes.filter(n=>n.txt&&!/^\[종결 해제/.test(n.txt)).map(n=>`<li><span>${(n.d||'').slice(5).replace('-','.')}</span><b>진행</b><p>${esc(n.txt)}</p><em>${esc(n.by||'')}</em></li>`).join('')}${doneD?`<li class="dn"><span>${fmtD(doneD).slice(5)}</span><b>보수 완료</b><p>${esc(hdTx(it)||'')}${hdTx(it)?' 소장님 처리':''}</p></li>`:''}</ol>
         ${(c.name||c.phone||c.office)?`<p class="cap" style="margin-top:6px">연락자 ${esc(c.type||'')} ${esc(c.name||'')} ${esc(c.phone||'')}${c.office?' · 관리사무소 '+esc(c.office):''}</p>`:''}
       </div>
 
       <div class="dsec"><details class="d7cost"${tot?'':' data-empty'}><summary>비용 <span class="cap" style="font-weight:400">${tot?`합계 ${won(tot)}원${pay!==tot?` · 당사 지급 ${won(pay)}원`:''}`:'비용 없음'}</span></summary>
         ${tot?`<ul class="d7cl">${costLines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}</details></div>
 
-      ${notes.length?`<div class="dsec"><details class="d7cost"><summary>진행 내용 <span class="cap" style="font-weight:400">${notes.length}건</span></summary>
-        <ul class="notes">${notes.map(n=>`<li><span>${(n.d||'').slice(5).replace('-','/')}</span><p>${esc(n.txt||'')}</p><em>${esc(n.by||'')}</em><em></em></li>`).join('')}</ul></details></div>`:''}
+
 
       ${photos.length?`<div class="dsec"><h4>사진 <span class="cap" style="font-weight:400">${photos.length}장</span></h4><div class="pgrid">${photos.map(p=>`<a href="https://drive.google.com/thumbnail?id=${p.id}&sz=w1600" target="_blank" rel="noopener" title="${esc(p.kind)} · ${esc(p.by||'')}"><img src="https://drive.google.com/thumbnail?id=${p.id}&sz=w320" alt="" loading="lazy"><em>${esc(p.kind)}</em></a>`).join('')}</div></div>`:''}
 
@@ -4090,8 +4089,7 @@ function doneView(it){
 
       <div class="dsec" id="reopenBox" hidden><h4>종결 해제 · 앞 단계로</h4>
         ${it.paid&&ME()!==CFG.payMgr?`<p class="cap" style="color:var(--warn-tx)">지급 완료된 건은 대금관리자${CFG.payMgr?`(${esc(CFG.payMgr)})`:''}로 선택된 경우에만 해제할 수 있습니다. 오른쪽 위 작성자를 대금관리자로 바꿔 주세요.</p>`
-        :`<div class="field"><label>해제 사유 <span class="cap">(필수)</span></label><input class="inp" id="roWhy" placeholder="예: 비용 금액 입력 오류 정정" style="min-width:0;width:100%"></div>
-        <p class="cap" style="margin:4px 0 8px">사유를 적고 <b>되돌릴 단계 아이콘</b>을 누르세요 — 그 단계 화면으로 돌아가 평소처럼 수정·진행합니다</p>
+        :`<p class="cap" style="margin:0 0 8px"><b>되돌릴 단계 아이콘</b>을 누르세요 — 그 단계 화면으로 돌아가 평소처럼 수정·진행합니다</p>
         ${progHtml(it).replace('prog locked','prog go ro7').replace(/title="종결된 건입니다[^"]*"/,'')}
         ${it.paid?`<p class="cap" style="margin-top:8px">지급일·기안번호·지급액은 지우지 않고 「이전 지급 기록」으로 남습니다.</p>`:''}
         <p class="cap">완료 뒤 같은 하자가 다시 생긴 경우에는 해제하지 말고 새로 접수해 재발로 연결합니다.</p>`}
@@ -4110,17 +4108,17 @@ function doneView(it){
   const $=q=>document.getElementById(q);
   drawer.querySelector('.x').onclick=closeDrawer; drawer.querySelector('.x2').onclick=closeDrawer;
   drawer.querySelectorAll('[data-chain]').forEach(b=>b.onclick=()=>{ if(b.dataset.chain!==id) detail(b.dataset.chain); });
-  $('reopenBtn').onclick=()=>{ const bx=$('reopenBox'); bx.hidden=!bx.hidden; if(!bx.hidden){ bx.scrollIntoView({block:'nearest'}); const w=$('roWhy'); w&&w.focus({preventScroll:true}); } };
+  $('reopenBtn').onclick=()=>{ const bx=$('reopenBox'); bx.hidden=!bx.hidden; if(!bx.hidden){ bx.scrollIntoView({block:'nearest'}); } };
   drawer.querySelectorAll('.ro7 [data-go]').forEach(el=>{ const n=+el.dataset.go; if(n===7){ el.style.opacity='.45'; el.style.cursor='default'; } else el.title=`${n}단계 ${STAGES[n]}(으)로 되돌리기`; });
-  drawer.querySelectorAll('.ro7 [data-go]').forEach(el=>el.onclick=()=>{ const to=+el.dataset.go; if(to===7) return; const why=$('roWhy').value.trim(); if(!why){ toast('해제 사유를 먼저 입력하세요'); $('roWhy').focus(); return; }
+  drawer.querySelectorAll('.ro7 [data-go]').forEach(el=>el.onclick=()=>{ const to=+el.dataset.go; if(to===7) return; const why='';
     if(!confirm(`${to}단계 ${STAGES[to]}(으)로 되돌릴까요?`)) return;
     if(it.paid&&ME()!==CFG.payMgr){ toast('지급 완료 건은 대금관리자만 해제할 수 있습니다'); return; }
     const by=ME()||'', at=iso();
     dbCase(id,{st:to, stAt:at, paid:false,
       ...(it.paid?{paidAt:null, prevPays:[...(it.prevPays||[]),{paidAt:it.paidAt?new Date(it.paidAt).toISOString():null, draftNo:it.draftNo||'', amt:ourPay(it), at, by, why}]}:{}),
-      reopens:[...(it.reopens||[]),{at, by, why, to}],
-      notes:[...(it.notes||[]),{d:ymd(TODAY), txt:`[종결 해제 → ${to}단계] ${why}`, by, at}]},
-      `종결 해제 → ${to}단계 ${STAGES[to]} · 사유: ${why}`); toast(`${id} 종결 해제 → ${to}단계`); });
+      reopens:[...(it.reopens||[]),{at, by, to}],
+      },
+      `종결 해제 → ${to}단계 ${STAGES[to]}`); toast(`${id} 종결 해제 → ${to}단계`); });
 }
 document.head.insertAdjacentHTML('beforeend', `<style>
 .tg-done7{background:#e6f6ec;color:#1d7a3e;vertical-align:4px}
@@ -4128,6 +4126,11 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .d7t{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;font-size:13px;color:var(--ink2);margin-bottom:8px}
 .d7t b{color:var(--ink);font-size:14px}.d7t i{font-style:normal;color:var(--ink3,#8a94a6)}.d7t em{font-style:normal;margin-left:auto;font-weight:700;color:#1d7a3e}
 .d7txt{margin:0;white-space:pre-wrap;font-size:13.5px;line-height:1.6}
+.d7tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.d7tl li{display:grid;grid-template-columns:48px 64px 1fr auto;gap:10px;align-items:baseline;font-size:13px;padding:9px 12px;background:var(--bg2,#f6f8fb);border-radius:8px}
+.d7tl li span{font-weight:700;color:var(--sky-d,#1270c4);font-variant-numeric:tabular-nums}.d7tl li b{font-size:12px;color:var(--ink2)}
+.d7tl li p{margin:0;white-space:pre-wrap;line-height:1.6}.d7tl li em{font-style:normal;font-size:12px;color:var(--ink3,#8a94a6)}
+.d7tl li.dn{background:#f3faf5}.d7tl li.dn span{color:#178a45}
 .d7cost summary{cursor:pointer;font-size:15px;font-weight:700;list-style-position:inside}
 .d7cost[data-empty] summary{cursor:default;list-style:none}.d7cost[data-empty] summary::-webkit-details-marker{display:none}
 .d7cost[open] summary{margin-bottom:10px}
