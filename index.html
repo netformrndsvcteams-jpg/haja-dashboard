@@ -4065,11 +4065,11 @@ function doneView(it){
 
       <div class="dsec" id="reopenBox" hidden><h4>종결 해제 · 앞 단계로</h4>
         ${it.paid&&ME()!==CFG.payMgr?`<p class="cap" style="color:var(--warn-tx)">지급 완료된 건은 대금관리자${CFG.payMgr?`(${esc(CFG.payMgr)})`:''}로 선택된 경우에만 해제할 수 있습니다. 오른쪽 위 작성자를 대금관리자로 바꿔 주세요.</p>`
-        :`<div class="g2"><div class="field"><label>되돌릴 단계</label><select class="sel" id="roTo" style="min-width:0;width:100%">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===(it.paid||payNeeded(it)?6:5)?'selected':''}>${n}단계 ${STAGES[n]}</option>`).join('')}</select></div>
-        <div class="field"><label>해제 사유 <span class="cap">(필수)</span></label><input class="inp" id="roWhy" placeholder="예: 비용 금액 입력 오류 정정" style="min-width:0;width:100%"></div></div>
-        ${it.paid?`<p class="cap">지급일·기안번호·지급액은 지우지 않고 「이전 지급 기록」으로 남습니다.</p>`:''}
-        <p class="cap">고칠 내용이 있을 때만 사용하세요. 해제하면 그 단계 화면에서 수정할 수 있습니다. 완료 뒤 같은 하자가 다시 생긴 경우에는 새로 접수하고 재발로 연결합니다.</p>
-        <div style="text-align:right;margin-top:8px"><button class="btn btn-line sm" id="roGo">종결 해제</button></div>`}
+        :`<div class="field"><label>해제 사유 <span class="cap">(필수)</span></label><input class="inp" id="roWhy" placeholder="예: 비용 금액 입력 오류 정정" style="min-width:0;width:100%"></div>
+        <p class="cap" style="margin:4px 0 8px">사유를 적고 <b>되돌릴 단계 아이콘</b>을 누르세요 — 그 단계 화면으로 돌아가 평소처럼 수정·진행합니다</p>
+        ${progHtml(it).replace('prog locked','prog go ro7').replace(/title="종결된 건입니다[^"]*"/,'')}
+        ${it.paid?`<p class="cap" style="margin-top:8px">지급일·기안번호·지급액은 지우지 않고 「이전 지급 기록」으로 남습니다.</p>`:''}
+        <p class="cap">완료 뒤 같은 하자가 다시 생긴 경우에는 해제하지 말고 새로 접수해 재발로 연결합니다.</p>`}
       </div>
 
       <div class="dsec"><details class="logd"><summary>처리 이력 <span class="cap" style="font-weight:400">${(it.log||[]).length}건</span></summary>
@@ -4086,14 +4086,16 @@ function doneView(it){
   drawer.querySelector('.x').onclick=closeDrawer; drawer.querySelector('.x2').onclick=closeDrawer;
   drawer.querySelectorAll('[data-chain]').forEach(b=>b.onclick=()=>{ if(b.dataset.chain!==id) detail(b.dataset.chain); });
   $('reopenBtn').onclick=()=>{ const bx=$('reopenBox'); bx.hidden=!bx.hidden; if(!bx.hidden){ bx.scrollIntoView({block:'nearest'}); const w=$('roWhy'); w&&w.focus({preventScroll:true}); } };
-  const rg=$('roGo'); if(rg) rg.onclick=()=>{ const why=$('roWhy').value.trim(), to=+$('roTo').value; if(!why){ toast('해제 사유를 입력하세요'); $('roWhy').focus(); return; }
+  drawer.querySelectorAll('.ro7 [data-go]').forEach(el=>{ const n=+el.dataset.go; if(n===7){ el.style.opacity='.45'; el.style.cursor='default'; } else el.title=`${n}단계 ${STAGES[n]}(으)로 되돌리기`; });
+  drawer.querySelectorAll('.ro7 [data-go]').forEach(el=>el.onclick=()=>{ const to=+el.dataset.go; if(to===7) return; const why=$('roWhy').value.trim(); if(!why){ toast('해제 사유를 먼저 입력하세요'); $('roWhy').focus(); return; }
+    if(!confirm(`${to}단계 ${STAGES[to]}(으)로 되돌릴까요?`)) return;
     if(it.paid&&ME()!==CFG.payMgr){ toast('지급 완료 건은 대금관리자만 해제할 수 있습니다'); return; }
     const by=ME()||'', at=iso();
     dbCase(id,{st:to, stAt:at, paid:false,
       ...(it.paid?{paidAt:null, prevPays:[...(it.prevPays||[]),{paidAt:it.paidAt?new Date(it.paidAt).toISOString():null, draftNo:it.draftNo||'', amt:ourPay(it), at, by, why}]}:{}),
       reopens:[...(it.reopens||[]),{at, by, why, to}],
       notes:[...(it.notes||[]),{d:ymd(TODAY), txt:`[종결 해제 → ${to}단계] ${why}`, by, at}]},
-      `종결 해제 → ${to}단계 ${STAGES[to]} · 사유: ${why}`); toast(`${id} 종결 해제 → ${to}단계`); };
+      `종결 해제 → ${to}단계 ${STAGES[to]} · 사유: ${why}`); toast(`${id} 종결 해제 → ${to}단계`); });
 }
 document.head.insertAdjacentHTML('beforeend', `<style>
 .tg-done7{background:#e6f6ec;color:#1d7a3e;vertical-align:4px}
