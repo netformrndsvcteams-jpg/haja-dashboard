@@ -729,7 +729,9 @@ const WORKERS = [];
 
 /* 현장 마스터 (예시) — rev: 확정매출액, spent: 보증기간 누적 집행 */
 const SITES = {};
-const rate = ct => ct==='기술자문(직영)'?0.015:(ct==='컨설팅'||ct==='기술자문컨설팅')?0.03:null;
+/* 계약유형 「기술자문(직영)」은 2026-10-26부터 「기술자문」 — 예전 이름이 들어와도 같은 유형으로 읽음 */
+const ctNorm = ct => ct==='기술자문(직영)'? '기술자문' : ct;
+const rate = ct => { ct=ctNorm(ct); return ct==='기술자문'?0.015:(ct==='컨설팅'||ct==='기술자문컨설팅')?0.03:null; };
 Object.values(SITES).forEach(s=>{ if(!s.wait){ s.budget=Math.round(s.rev*rate(s.ct)); }});
 
 /* 접수 건 — b: [부담종류, 근거('보증'|'조정'), 조정사유], lab 노임, rst 복구비, mat 자재비, sh 시공사 몫 */
@@ -740,7 +742,7 @@ const won = n => (n||0).toLocaleString('ko-KR');
 const dAgo = n => { const d=new Date(TODAY); d.setDate(d.getDate()-n); return d; };
 const fmtD = d => `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
 function gYear(site, at){ if(!SITES[site]||!SITES[site].comp) return null; const c=new Date(SITES[site].comp); return Math.floor((at-c)/(365.25*864e5))+1; }
-function zone(site, yr){ const s=SITES[site]; if(!s.ct) return null; if(s.ct==='기술자문(직영)') return '시공소장'; return yr<=3?'시공소장':'당사'; }
+function zone(site, yr){ const s=SITES[site]; if(!s.ct) return null; if(s.ct==='기술자문') return '시공소장'; return yr<=3?'시공소장':'당사'; }
 function ourPay(it){ if(!it.b) return 0; const t=it.b[0]; const tot=(it.lab||0)+(it.rst||0);
   if(t==='당사 부담'||t==='당사 대납') return tot; if(t==='공동 부담') return tot-(it.sh||0); return 0; }
 function payNeeded(it){ return ourPay(it)>0; }
@@ -1032,7 +1034,7 @@ Object.entries(SITES).forEach(([nm,s])=>{
   s.wy = s.wy||WY;
   if(!s.wait && !s.code){ s.code = String(_code).padStart(5,'0'); _code += 137; }
   if(s.wait && !s.reg) s.reg = nm.startsWith('청주')?'2026-09-24':'2026-09-30';
-  s.gong = s.gong || (s.ct==='기술자문(직영)'?'슬라브(PVC)':'슬라브(듀얼)');
+  s.gong = s.gong || (s.ct==='기술자문'?'슬라브(PVC)':'슬라브(듀얼)');
   s.area = s.area || (s.rev? Math.round(s.rev/52000/10)*10 : null);
 });
 
@@ -1163,7 +1165,7 @@ function vOverview(){
   const watch = over.concat(risk).sort((a,b)=>b.pace-a.pace);
   return head('개요',TD+' 현재','준공연도 기준 · 그해 준공한 현장의 하자예산을 합쳐 연도별 예산으로 봅니다. 기간 선택과 무관한 보증기간 누적 값입니다.')
   + `<div class="kpis">
-      ${kpi('c_budget','하자예산 합계',won(B)+'원',`정식 등록 ${reg.length}곳 · 컨설팅 3% / 기술자문(직영) 1.5%`)}
+      ${kpi('c_budget','하자예산 합계',won(B)+'원',`정식 등록 ${reg.length}곳 · 컨설팅 3% / 기술자문 1.5%`)}
       ${kpi('c_spent','집행 누적',won(S)+'원',`소진율 ${pct(S,B)} · 잔여 ${won(B-S)}원`)}
       ${kpi('c_alert','주의 현장',`${over.length+risk.length}곳`,`예산 초과 ${over.length} · 초과 예상 ${risk.length}`,'warn')}
       ${kpi('c_wait','확인 대기 현장',`${wait.length}곳`,`간이 등록 · 하자예산 미편성`,'yel')}
@@ -1218,7 +1220,7 @@ function vSites(){
   + (wait.length?`<div class="banner"><img class="bi2" src="${ICON.wait}" alt=""><div><b>확인 대기 현장 ${wait.length}곳 — 정식 등록이 필요합니다</b><span>${wait.map(x=>`${x.nm} (간이 등록 ${x.s.reg.slice(5).replace('-','.')} · 진행 중 접수 ${blocked(x.nm)}건)`).join(' · ')}. 정식 등록 전에는 하자예산이 편성되지 않고, 걸린 접수는 5단계 비용 확인으로 넘어갈 수 없습니다.</span></div><button class="btn btn-yel" onclick="CF.cst='wait';renderCost()">대기 현장만 보기</button></div>`:'')
   + `<div class="tools">
       <select class="sel" onchange="CF.cy=this.value;renderCost()"><option value="">준공연도 전체</option>${years.map(y=>`<option ${CF.cy==y?'selected':''} value="${y}">${yLab(y,' 준공')}</option>`).join('')}</select>
-      <select class="sel" onchange="CF.cct=this.value;renderCost()"><option value="">계약유형 전체</option>${['컨설팅','기술자문컨설팅','기술자문(직영)'].map(c=>`<option ${CF.cct===c?'selected':''}>${c}</option>`).join('')}</select>
+      <select class="sel" onchange="CF.cct=this.value;renderCost()"><option value="">계약유형 전체</option>${['컨설팅','기술자문컨설팅','기술자문'].map(c=>`<option ${CF.cct===c?'selected':''}>${c}</option>`).join('')}</select>
       <input class="inp" id="sQ" placeholder="현장명·업체명 검색" value="${CF.q}" oninput="CF.q=this.value;softCost()">
       <div class="seg">${[['','전체',sts.length],['over','예산 초과',cnt('over')],['risk','초과 예상',cnt('risk')],['ok','예산 내',cnt('ok')],['end','보증 종료',cnt('end')],['wait','확인 대기',cnt('wait')]].map(([k,l,n])=>`<button class="${CF.cst===k?'on':''} ${k}" onclick="CF.cst='${k}';renderCost()">${l} <b>${n}</b></button>`).join('')}</div>
       <label class="tgl"><input type="checkbox" ${D?'checked':''} onchange="CF.detail=this.checked;renderCost()"> 집행 내역 펼치기</label>
@@ -1244,7 +1246,7 @@ function vSites(){
     </tbody>${reg.length?`<tfoot><tr><td>정식 등록 ${reg.length}곳 합계</td><td></td><td></td><td class="amt">${won(reg.reduce((a,x)=>a+x.s.rev,0))}</td><td class="amt">${won(reg.reduce((a,x)=>a+x.s.budget,0))}</td>
       ${D?`<td class="amt">${won(reg.reduce((a,x)=>a+x.mat,0))}</td><td class="amt">${won(reg.reduce((a,x)=>a+x.lab-x.sh,0))}</td><td class="amt">${won(reg.reduce((a,x)=>a+x.rst,0))}</td>`:''}
       <td class="amt">${won(reg.reduce((a,x)=>a+x.spent,0))}</td><td>${pct(reg.reduce((a,x)=>a+x.spent,0),reg.reduce((a,x)=>a+x.s.budget,0))}</td><td class="amt">${won(reg.reduce((a,x)=>a+x.s.budget-x.spent,0))}</td><td></td><td></td></tr></tfoot>`:''}</table></div>
-    <p class="cap note">하자예산 = 확정매출액 × 적용률 (컨설팅·기술자문컨설팅 3% · 기술자문(직영) 1.5%) · 특허료 현장은 편성 대상이 아닙니다 · 상태 판정: 집행이 예산을 넘으면 「예산 초과」, 지금 속도로 보증 종료 시 100%를 넘으면 「초과 예상」</p>`;
+    <p class="cap note">하자예산 = 확정매출액 × 적용률 (컨설팅·기술자문컨설팅 3% · 기술자문 1.5%) · 특허료 현장은 편성 대상이 아닙니다 · 상태 판정: 집행이 예산을 넘으면 「예산 초과」, 지금 속도로 보증 종료 시 100%를 넘으면 「초과 예상」</p>`;
 }
 
 /* 현장 등록 · 수정 · 정식 등록 */
@@ -1261,7 +1263,7 @@ function openSiteForm(nm, formal){
       <div class="field"><label>현장명 *</label><input class="inp" id="fNm" value="${nm||''}" ${nm?'readonly':''} oninput="dupCheck()"><div id="dup"></div></div>
       <div class="g2"><div class="field"><label>업체명 (시공사) *</label><input class="inp" id="fCo" value="${v('co')}"></div>
       <div class="field"><label>ERP 프로젝트코드</label><input class="inp" id="fCode" value="${v('code')}" placeholder="예: 01026"></div></div>
-      <div class="field"><label>계약유형 *</label><div class="ctp" id="fCt">${['컨설팅','기술자문컨설팅','기술자문(직영)'].map(c=>`<button type="button" class="${s.ct===c?'on':''}" onclick="pickCt(this)" data-v="${c}">${c}<small>${c==='기술자문(직영)'?'1.5%':'3%'}</small></button>`).join('')}</div><p class="cap" style="margin-top:6px">특허료 현장은 하자예산 편성 대상이 아니므로 등록하지 않습니다</p></div>
+      <div class="field"><label>계약유형 *</label><div class="ctp" id="fCt">${['컨설팅','기술자문컨설팅','기술자문'].map(c=>`<button type="button" class="${s.ct===c?'on':''}" onclick="pickCt(this)" data-v="${c}">${c}<small>${c==='기술자문'?'1.5%':'3%'}</small></button>`).join('')}</div><p class="cap" style="margin-top:6px">특허료 현장은 하자예산 편성 대상이 아니므로 등록하지 않습니다</p></div>
       <div class="g2"><div class="field"><label>준공일 *</label><input class="inp" type="date" id="fComp" value="${v('comp')}" oninput="calcBudget()"></div>
       <div class="field"><label>보증기간 (년)</label><select class="sel" id="fWy" oninput="calcBudget()">${[1,2,3,5].map(y=>`<option ${v('wy',5)==y?'selected':''}>${y}</option>`).join('')}</select></div></div>
       <div class="field"><label>확정매출액 (원) *</label><input class="inp amt-in" id="fRev" inputmode="numeric" value="${s.rev?won(s.rev):''}" oninput="this.value=this.value.replace(/[^0-9]/g,'')?Number(this.value.replace(/[^0-9]/g,'')).toLocaleString('ko-KR'):'';calcBudget()"></div>
@@ -1310,7 +1312,7 @@ function openUpload(){
   openDrawer(`<div class="dh"><div class="k">현장 마스터 · 일괄 등록</div><h3>엑셀로 여러 현장 등록</h3><div class="m">과거 준공 현장을 한 번에 올릴 때 사용합니다 · 한 줄 = 현장 하나</div><button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
     <div class="db"><div class="dsec">
       <ol class="steps"><li><b>양식 받기</b><span>열 순서: ${XCOLS2.join(' · ')} · 보증 기산기준부터는 선택 · 예산연도는 준공일을 모를 때만 (준공일이 있으면 준공 연도로 귀속)</span><button class="btn btn-line sm" onclick="dlTemplate()">양식 받기</button></li>
-      <li><b>작성 후 파일 선택</b><span>계약유형은 컨설팅 / 기술자문컨설팅 / 기술자문(직영) 중 하나 · 특허료 현장 제외</span>
+      <li><b>작성 후 파일 선택</b><span>계약유형은 컨설팅 / 기술자문컨설팅 / 기술자문 중 하나 · 특허료 현장 제외</span>
         <label class="drop"><input type="file" accept=".xlsx,.xls,.csv" onchange="readUpload(this.files[0])"><img class="bi2" src="${ICON.c_up}" alt=""><span>파일을 끌어다 놓거나 눌러서 선택</span></label></li>
       <li><b>미리보기 확인 후 등록</b><span>이미 있는 현장명은 건너뜁니다 · 오류가 있는 줄은 등록되지 않습니다</span></li></ol>
       <div id="upPrev"></div></div></div>
@@ -2030,7 +2032,7 @@ function _rebuild(){
   /* 현장 */
   Object.keys(SITES).forEach(k=>delete SITES[k]);
   Object.values(RAW.sites).forEach(s=>{ if(!s.name) return;
-    const o = {...s}; o.wy = Number(o.wy)||null; o.comp = o.comp||null; o.gongs = gongsOf(s); o.gong = o.gongs.join('·'); o.blds = bldsOf(o); o.bld = o.blds.join(', ');
+    const o = {...s}; o.ct = ctNorm(o.ct); o.wy = Number(o.wy)||null; o.comp = o.comp||null; o.gongs = gongsOf(s); o.gong = o.gongs.join('·'); o.blds = bldsOf(o); o.bld = o.blds.join(', ');
     o.budget = (!o.wait && rate(o.ct)) ? budgetOf(o.rev, o.ct) : 0;
     SITES[o.name] = o; });
   /* 접수 건 */
@@ -2574,7 +2576,7 @@ function wCalcEnd(start, wy){ if(!start||!wy) return null; const r=addYears(new 
 function wEndOf(s){ if(!s) return null; if(s.wEndManual && s.wEnd) return new Date(s.wEnd); return wCalcEnd(wStartOf(s), s.wy); }
 function wExpired(site, at){ const e=wEndOf(SITES[site]); return !!(e && day0(at) > day0(e)); }
 /* 부담 구간 — 시공소장 구간은 준공일 기준 연차 · 보증 3년 이하는 만료일까지 전 기간 시공소장 */
-function zone(site, yr){ const s=SITES[site]; if(!s||!s.ct||!s.comp||!s.wy) return null; if(s.ct==='기술자문(직영)') return '시공소장'; if(s.wy<=3) return '시공소장'; return yr<=3?'시공소장':'당사'; }
+function zone(site, yr){ const s=SITES[site]; if(!s||!s.ct||!s.comp||!s.wy) return null; if(s.ct==='기술자문') return '시공소장'; if(s.wy<=3) return '시공소장'; return yr<=3?'시공소장':'당사'; }
 /* 준공일·보증기간 미입력 허용 — 하자 처리 중 확인되면 현장 수정에서 채움. 미입력이면 연차·책임 구간·부담은 자동 판정하지 않음 */
 /* 보증기간 선택지 — 1~6년 + 저장된 값이 그 밖이면 함께 표시(저장 시 값이 사라지지 않도록) */
 function wyList(cur){ const L=[1,2,3,4,5,6], n=Number(cur); if(n>0 && !L.includes(n)) L.push(n); return L.sort((a,b)=>a-b); }
@@ -2857,7 +2859,7 @@ function openSiteForm(nm, formal){
       <div class="field"><label>현장명 *</label><input class="inp" id="fNm" value="${esc(nm||'')}" ${nm?'readonly':''} oninput="dupCheck()"><div id="dup"></div></div>
       <div class="g2"><div class="field"><label>업체명 (시공사) *</label><input class="inp" id="fCo" list="dlCo" value="${esc(v('co'))}"><datalist id="dlCo">${allCons().map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist></div>
       <div class="field"><label>ERP 프로젝트코드</label><input class="inp" id="fCode" value="${esc(v('code'))}" placeholder="비워 두면 자재 출고 업로드 때 채움"></div></div>
-      <div class="field"><label>계약유형 *</label><div class="ctp" id="fCt">${['컨설팅','기술자문컨설팅','기술자문(직영)'].map(c=>`<button type="button" class="${s.ct===c?'on':''}" onclick="pickCt(this)" data-v="${c}">${c}<small>${c==='기술자문(직영)'?'1.5%':'3%'}</small></button>`).join('')}</div><p class="cap" style="margin-top:6px">특허료 현장은 하자예산 편성 대상이 아니므로 등록하지 않습니다</p></div>
+      <div class="field"><label>계약유형 *</label><div class="ctp" id="fCt">${['컨설팅','기술자문컨설팅','기술자문'].map(c=>`<button type="button" class="${s.ct===c?'on':''}" onclick="pickCt(this)" data-v="${c}">${c}<small>${c==='기술자문'?'1.5%':'3%'}</small></button>`).join('')}</div><p class="cap" style="margin-top:6px">특허료 현장은 하자예산 편성 대상이 아니므로 등록하지 않습니다</p></div>
       <div class="field"><label>확정매출액 (원) *</label><input class="inp amt-in" id="fRev" inputmode="numeric" value="${s.rev!=null&&s.rev!==''?won(s.rev):''}" oninput="const v=this.value.replace(/[^0-9-]/g,'').replace(/(?!^)-/g,'');this.value=v&&v!=='-'?Number(v).toLocaleString('ko-KR'):v;calcBudget()"><p class="cap" style="margin-top:6px">마이너스 현장은 앞에 - 를 붙여 입력 · 하자예산은 0원으로 편성됩니다</p></div>
       <div class="g2"><div class="field"><label>공종 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="fGongs">${GONG_LIST.map(g=>`<button type="button" data-g="${g}" class="${FG.includes(g)?'on':''}" onclick="const k=FG.indexOf(this.dataset.g);if(k<0)FG.push(this.dataset.g);else FG.splice(k,1);this.classList.toggle('on',k<0)">${g}</button>`).join('')}</div></div>
       <div class="field"><label>면적 (㎡)</label><input class="inp" id="fArea" inputmode="numeric" value="${v('area')}"></div></div>
@@ -2895,7 +2897,7 @@ function calcBudget(){
   const w=formW(), r=rate(ct), b= r&&document.getElementById('fRev').value.trim()? budgetOf(rev,ct):null;
   let zoneTx = w.wNone? '하자보증 없음 — 부담은 접수 건마다 직접 판정' : !w.comp? '준공일 입력 후 계산' : !w.end? '보증기간 입력 후 계산' : '—';
   if(w.comp && w.end){
-    if(ct==='기술자문(직영)' || w.wy<=3) zoneTx = `전 기간 시공소장 (~${fmtD(w.end)})`;
+    if(ct==='기술자문' || w.wy<=3) zoneTx = `전 기간 시공소장 (~${fmtD(w.end)})`;
     else { const z3=addYears(new Date(w.comp),3).d; z3.setDate(z3.getDate()-1); zoneTx = `시공소장 ~${fmtD(z3)} (준공 후 3년) · 당사 ~${fmtD(w.end)}`; }
   }
   document.getElementById('bud').innerHTML = `<h5>하자예산 · 보증 미리보기</h5><dl class="kv"><dt>적용률</dt><dd>${r?(r*100).toFixed(1)+'%':'계약유형 선택'}</dd><dt>하자예산</dt><dd><b class="num big">${b!==null?won(b)+'원':'—'}</b></dd>
@@ -2944,7 +2946,7 @@ function readUpload(file){
     const GONLY = rows.length && !rows.some(r=>String(r['업체명']??'').trim()) && rows.some(r=>String(r['공종']??'').trim());
     UP = rows.filter(r=>String(r['현장명']).trim() && !String(r['현장명']).startsWith('예시)')).map(r=>{ XCOLS2.forEach(k=>{ if(r[k]===undefined) r[k]=''; });
       const blds=String(r['시공소장']).split(/\s*,\s*/).filter(Boolean), basis=String(r['보증 기산기준']||'').trim()||'준공일';
-      const o = {nm:String(r['현장명']).trim(), co:String(r['업체명']).trim(), code:String(r['ERP 프로젝트코드']).trim(), ct:String(r['계약유형']).trim(), comp:dt(r['준공일'])||null, wy:Number(r['보증기간(년)'])||null,
+      const o = {nm:String(r['현장명']).trim(), co:String(r['업체명']).trim(), code:String(r['ERP 프로젝트코드']).trim(), ct:ctNorm(String(r['계약유형']).trim()), comp:dt(r['준공일'])||null, wy:Number(r['보증기간(년)'])||null,
         rev:num(r['확정매출액']), gong:String(r['공종']??'').trim(), gongs:gtoks(r['공종']??''), area:Number(r['면적(㎡)'])||null, blds, bld:blds.join(', '), addr:String(r['현장 주소']||'').trim(),
         wStartBasis:W_BASIS.includes(basis)?basis:'기타', wStart:dt(r['보증 기산일'])||null, wEnd:dt(r['보증 만료일'])||null, wNote:W_BASIS.includes(basis)?'':basis, byr:byrOf(r['예산연도'])};
       o.wEndManual=!!o.wEnd; if(o.wStartBasis==='준공일') o.wStart=null;
