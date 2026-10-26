@@ -3543,8 +3543,13 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .dly summary{cursor:pointer;font-size:12.5px;color:var(--ink2);display:flex;gap:8px;align-items:baseline;min-width:0}
 .dly summary .dlys{color:var(--ink);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .dly summary .dlyadd{color:var(--sky-d,#1270c4);font-weight:600}.dly.need summary .dlyadd{color:#c23b3b}
-.dly:not([open]){padding:8px 12px}.dly[open] summary{margin-bottom:4px}
-.dly textarea{min-height:52px;resize:vertical;font-size:13px}
+.dly:not([open]){padding:8px 12px}.dly[open] summary{margin-bottom:8px}
+details.dly{display:block}
+.dly summary{list-style:none}.dly summary::-webkit-details-marker{display:none}
+.dly summary::before{content:"▸";color:var(--ink3,#8a94a6);flex:0 0 auto}.dly[open] summary::before{content:"▾"}
+.dly summary b{white-space:nowrap;flex:0 0 auto}.dly[open] summary .dlys{display:none}
+.dly textarea{display:block;width:100%;box-sizing:border-box;min-height:88px;resize:vertical;font-size:13px;line-height:1.55}
+details.dly em{display:block;margin-top:6px;text-align:right}
 .dly em,.dlyh em{font-style:normal;font-size:12px;color:var(--ink3,#8a94a6)}
 .dlyh{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .dlyh li{display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:baseline;font-size:13px;padding:8px 10px;background:var(--bg2,#f6f8fb);border-radius:8px}
