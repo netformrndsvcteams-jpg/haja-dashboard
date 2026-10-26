@@ -2138,6 +2138,7 @@ function detail(id){
   const keepScroll = openId===id && drawer.classList.contains('on');   // 같은 접수 건을 다시 그릴 때는 보던 위치 유지
   openId=id;
   if(it.unseen) dbCase(id,{unseen:false});
+  if(it.st===7){ doneView(it); return; }   /* 처리 완료 — 읽기 전용 요약 */
   const s=SITES[it.site]||{}, yr=s.comp?gYear(it.site,it.rcvAt):null, z=s.comp?zone(it.site,yr):null, bs=burdenSentence(it);
   const st=it.st, auto=autoBurden(it), wE=s.comp?wEndOf(s):null, wX=s.comp?wExpired(it.site,it.rcvAt):false, con=conOf(s.co);
   const wOpts = sel => [...new Set([...bldsOf(s), ...WORKERS, sel].filter(Boolean))].map(w=>`<option value="${esc(w)}" ${sel===w?'selected':''}>${esc(w)}${isBld(it.site,w)?' (시공소장)':''}</option>`).join('');
@@ -2169,7 +2170,7 @@ function detail(id){
           <div class="edbar"><button class="btn btn-line sm" id="edCancel">취소</button><button class="btn btn-yel sm" id="edSave">저장</button></div></div>`:''}
         <dl class="kv"><dt>접수일</dt><dd><input type="date" class="inp" id="rcvD" value="${ymd(it.rcvAt)}" max="${ymd(TODAY)}" style="min-width:0;width:180px"></dd>
         ${DV.ed?'':`<dt>부위 · 현상</dt><dd>${esc(partTx(it))} · ${esc(phTx(it))}</dd>`}
-        <dt>재발 연결</dt><dd><select class="sel" id="prevSel" style="min-width:0;width:100%"><option value="">없음 (새 하자)</option>${priorCases(it.site,it).map(i=>`<option value="${i.id}" ${it.prevId===i.id?'selected':''}>${i.id} · ${fmtD(i.rcvAt)} · ${esc(partTx(i))} · ${esc(phTx(i))}${sameContent(i,it)?' (같은 내용)':''}</option>`).join('')}</select>${it.prevId?`<button class="lkb" id="prevOpen" style="margin-top:6px">이전 건 ${it.prevId} 열기</button>`:''}</dd>
+        ${(priorCases(it.site,it).length||it.prevId)?`<dt>재발 연결</dt><dd><select class="sel" id="prevSel" style="min-width:0;width:100%"><option value="">없음 (새 하자)</option>${priorCases(it.site,it).map(i=>`<option value="${i.id}" ${it.prevId===i.id?'selected':''}>${i.id} · ${fmtD(i.rcvAt)} · ${esc(partTx(i))} · ${esc(phTx(i))}${sameContent(i,it)?' (같은 내용)':''}</option>`).join('')}</select>${it.prevId?`<button class="lkb" id="prevOpen" style="margin-top:6px">이전 건 ${it.prevId} 열기</button>`:''}</dd>`:''}
         <dt>하자 연락자</dt><dd><div class="g2"><select class="sel" data-cl="type">${[...new Set([...CALLER_T,(it.caller||{}).type].filter(Boolean))].map(t=>`<option ${(it.caller||{}).type===t?'selected':''}>${esc(t)}</option>`).join('')}</select><input class="inp" data-cl="name" placeholder="성함" value="${esc((it.caller||{}).name||'')}"></div>
           <div class="g2" style="margin-top:6px"><input class="inp" data-cl="phone" inputmode="tel" placeholder="연락처" value="${esc((it.caller||{}).phone||'')}"><input class="inp" data-cl="office" inputmode="tel" placeholder="관리사무소 연락처" value="${esc((it.caller||{}).office||'')}"></div></dd>
         ${it.txt&&!DV.ed?`<dt>상세</dt><dd style="white-space:pre-wrap">${esc(it.txt)}</dd>`:''}
@@ -4016,6 +4017,94 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .p6biz th,.p6biz td{height:auto!important;line-height:1.45;vertical-align:top}
 .p6miss{color:#c23b3b}
 .p6ba{display:flex;flex-wrap:wrap;gap:4px 14px;padding:8px 12px;border-top:1.5px solid #f3d27a;font-size:12.5px;color:var(--ink2)}.p6ba b{color:var(--ink)}
+</style>`);
+
+/* ════════════════════════════════════════════
+   처리 완료(7단계) 상세 — 읽기 전용 요약 (2026-10-26)
+   - 입력칸·추가·삭제·접수 수정·접수 삭제 없음, 진행 메모 추가도 없음
+   - 고칠 때는 「종결 해제 · 앞 단계로」(사유 필수, 지급 건은 대금관리자만) → 그 단계 화면에서 수정
+   - 비용 없으면 「비용 없음」 한 줄, 있으면 합계만 보이고 펼쳐서 내역 확인
+   ════════════════════════════════════════════ */
+function doneView(it){
+  const id=it.id, s=SITES[it.site]||{}, photos=it.photos||[], c=it.caller||{};
+  const p=costParts(it), tot=p.lab+p.rst+p.etc, pay=ourPay(it), ex=extrasOf(it);
+  const doneD = it.doneAt ? new Date(it.doneAt+'T00:00:00') : it.stAt;
+  const span = doneD ? bizDays(it.rcvAt, doneD) : null;
+  const b = it.b ? it.b[0]+(it.b[1]==='조정'&&it.b[2]?` (조정 · ${it.b[2]})`:'') : '판정 없음';
+  const notes=(it.notes||[]).slice().sort((a,b)=>(a.d||'').localeCompare(b.d||''));
+  const kv=(k,v)=>`<dt>${k}</dt><dd>${v}</dd>`;
+  const costLines=[ it.lab?`노임 ${it.labCnt&&it.labRate?`${it.labCnt}품 × ${won(it.labRate)}원 = `:''}${won(it.lab)}원`:'', ...ex.filter(e=>(+e.amt||0)>0).map(e=>`${e.t==='기타'?(e.name||'기타'):e.t} ${won(+e.amt||0)}원${e.our?' (당사 지급)':''}`), (!ex.length&&it.rst)?`2차 피해 복구비 ${won(it.rst)}원`:'' ].filter(Boolean);
+  openDrawer(`
+    <div class="dh"><button class="x" aria-label="닫기">×</button>
+      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc||'')}${it.src?` · ${esc(it.src)}`:''}${seqOf(it)>1?` · <b style="color:var(--red)">재발 ${seqOf(it)}차</b>`:''}</div>
+      <h3>${esc(it.site)} <span class="tg tg-done7">처리 완료</span></h3>
+      <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'미입력'}</div>
+      ${chainHtml(it)}
+    </div>
+    <div class="db">
+      <div class="dsec"><div class="d7sum">
+        <div class="d7t"><span>접수 <b>${fmtD(it.rcvAt)}</b></span><i>→</i><span>처리 완료 <b>${doneD?fmtD(doneD):'—'}</b></span>${span!=null?`<em>영업일 ${span}일</em>`:''}</div>
+        <dl class="kv">${kv('부위·현상', `${esc(partTx(it))} · ${esc(phTx(it))}`)}${kv('처리소장', esc(hdTx(it)||'—')+(swapped(it)?' <span class="tg tg-swap">교체</span>':''))}${kv('부담', esc(b))}
+        ${pay?kv('지급', `<b>${won(pay)}원</b> <span class="cap">(부가세 별도)</span>${it.paidAt?` · 지급일 ${fmtD(it.paidAt)}`:''}${it.draftNo?` · 기안 ${esc(it.draftNo)}`:''}`):''}</dl>
+      </div></div>
+
+      <div class="dsec"><h4>하자 내용</h4>
+        <p class="d7txt">${esc(it.txt||'—')}</p>
+        ${(c.name||c.phone||c.office)?`<p class="cap" style="margin-top:6px">연락자 ${esc(c.type||'')} ${esc(c.name||'')} ${esc(c.phone||'')}${c.office?' · 관리사무소 '+esc(c.office):''}</p>`:''}
+      </div>
+
+      <div class="dsec"><details class="d7cost"${tot?'':' data-empty'}><summary>비용 <span class="cap" style="font-weight:400">${tot?`합계 ${won(tot)}원${pay!==tot?` · 당사 지급 ${won(pay)}원`:''}`:'비용 없음'}</span></summary>
+        ${tot?`<ul class="d7cl">${costLines.map(l=>`<li>${esc(l)}</li>`).join('')}</ul>`:''}</details></div>
+
+      ${notes.length?`<div class="dsec"><details class="d7cost"><summary>진행 내용 <span class="cap" style="font-weight:400">${notes.length}건</span></summary>
+        <ul class="notes">${notes.map(n=>`<li><span>${(n.d||'').slice(5).replace('-','/')}</span><p>${esc(n.txt||'')}</p><em>${esc(n.by||'')}</em><em></em></li>`).join('')}</ul></details></div>`:''}
+
+      ${photos.length?`<div class="dsec"><h4>사진 <span class="cap" style="font-weight:400">${photos.length}장</span></h4><div class="pgrid">${photos.map(p=>`<a href="https://drive.google.com/thumbnail?id=${p.id}&sz=w1600" target="_blank" rel="noopener" title="${esc(p.kind)} · ${esc(p.by||'')}"><img src="https://drive.google.com/thumbnail?id=${p.id}&sz=w320" alt="" loading="lazy"><em>${esc(p.kind)}</em></a>`).join('')}</div></div>`:''}
+
+      ${(it.prevPays||[]).length?`<div class="dsec"><h4>이전 지급 기록</h4><ul class="notes">${it.prevPays.map(q=>`<li><span>${q.paidAt?fmtD(new Date(q.paidAt)):'—'}</span><p>${won(q.amt||0)}원 · 기안 ${esc(q.draftNo||'—')}</p><em>${esc(q.by||'')} 해제 · ${esc(q.why||'')}</em><em></em></li>`).join('')}</ul></div>`:''}
+
+      <div class="dsec" id="reopenBox" hidden><h4>종결 해제 · 앞 단계로</h4>
+        ${it.paid&&ME()!==CFG.payMgr?`<p class="cap" style="color:var(--warn-tx)">지급 완료된 건은 대금관리자${CFG.payMgr?`(${esc(CFG.payMgr)})`:''}로 선택된 경우에만 해제할 수 있습니다. 오른쪽 위 작성자를 대금관리자로 바꿔 주세요.</p>`
+        :`<div class="g2"><div class="field"><label>되돌릴 단계</label><select class="sel" id="roTo" style="min-width:0;width:100%">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===(it.paid||payNeeded(it)?6:5)?'selected':''}>${n}단계 ${STAGES[n]}</option>`).join('')}</select></div>
+        <div class="field"><label>해제 사유 <span class="cap">(필수)</span></label><input class="inp" id="roWhy" placeholder="예: 비용 금액 입력 오류 정정" style="min-width:0;width:100%"></div></div>
+        ${it.paid?`<p class="cap">지급일·기안번호·지급액은 지우지 않고 「이전 지급 기록」으로 남습니다.</p>`:''}
+        <p class="cap">고칠 내용이 있을 때만 사용하세요. 해제하면 그 단계 화면에서 수정할 수 있습니다. 완료 뒤 같은 하자가 다시 생긴 경우에는 새로 접수하고 재발로 연결합니다.</p>
+        <div style="text-align:right;margin-top:8px"><button class="btn btn-line sm" id="roGo">종결 해제</button></div>`}
+      </div>
+
+      <div class="dsec"><details class="logd"><summary>처리 이력 <span class="cap" style="font-weight:400">${(it.log||[]).length}건</span></summary>
+        <ul class="logl">${(it.log||[]).slice().reverse().map(l=>`<li><span>${l.at?fmtD(new Date(l.at))+' '+hhmm(new Date(l.at)):''}</span><b>${esc(l.by||'')}</b>${esc(l.msg)}</li>`).join('')||'<li class="cap">기록 없음</li>'}</ul></details>
+      </div>
+    </div>
+    <div class="df">
+      <button class="btn btn-ghost" id="reopenBtn">종결 해제 · 앞 단계로</button>
+      <span style="flex:1"></span>
+      <button class="btn btn-pri x2">닫기</button>
+    </div>`, openId===id && drawer.classList.contains('on'));
+  drawer.classList.add('center');
+  const $=q=>document.getElementById(q);
+  drawer.querySelector('.x').onclick=closeDrawer; drawer.querySelector('.x2').onclick=closeDrawer;
+  drawer.querySelectorAll('[data-chain]').forEach(b=>b.onclick=()=>{ if(b.dataset.chain!==id) detail(b.dataset.chain); });
+  $('reopenBtn').onclick=()=>{ const bx=$('reopenBox'); bx.hidden=!bx.hidden; if(!bx.hidden){ bx.scrollIntoView({block:'nearest'}); const w=$('roWhy'); w&&w.focus({preventScroll:true}); } };
+  const rg=$('roGo'); if(rg) rg.onclick=()=>{ const why=$('roWhy').value.trim(), to=+$('roTo').value; if(!why){ toast('해제 사유를 입력하세요'); $('roWhy').focus(); return; }
+    if(it.paid&&ME()!==CFG.payMgr){ toast('지급 완료 건은 대금관리자만 해제할 수 있습니다'); return; }
+    const by=ME()||'', at=iso();
+    dbCase(id,{st:to, stAt:at, paid:false,
+      ...(it.paid?{paidAt:null, prevPays:[...(it.prevPays||[]),{paidAt:it.paidAt?new Date(it.paidAt).toISOString():null, draftNo:it.draftNo||'', amt:ourPay(it), at, by, why}]}:{}),
+      reopens:[...(it.reopens||[]),{at, by, why, to}],
+      notes:[...(it.notes||[]),{d:ymd(TODAY), txt:`[종결 해제 → ${to}단계] ${why}`, by, at}]},
+      `종결 해제 → ${to}단계 ${STAGES[to]} · 사유: ${why}`); toast(`${id} 종결 해제 → ${to}단계`); };
+}
+document.head.insertAdjacentHTML('beforeend', `<style>
+.tg-done7{background:#e6f6ec;color:#1d7a3e;vertical-align:4px}
+.d7sum{border:1.5px solid #cfe9d7;background:#f6fcf8;border-radius:10px;padding:12px 14px}
+.d7t{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 10px;font-size:13px;color:var(--ink2);margin-bottom:8px}
+.d7t b{color:var(--ink);font-size:14px}.d7t i{font-style:normal;color:var(--ink3,#8a94a6)}.d7t em{font-style:normal;margin-left:auto;font-weight:700;color:#1d7a3e}
+.d7txt{margin:0;white-space:pre-wrap;font-size:13.5px;line-height:1.6}
+.d7cost summary{cursor:pointer;font-size:15px;font-weight:700;list-style-position:inside}
+.d7cost[data-empty] summary{cursor:default;list-style:none}.d7cost[data-empty] summary::-webkit-details-marker{display:none}
+.d7cost[open] summary{margin-bottom:10px}
+.d7cl{margin:0;padding-left:18px;font-size:13px;line-height:1.8}
 </style>`);
 
 document.getElementById('todayTag').textContent=TD+' 현재';
