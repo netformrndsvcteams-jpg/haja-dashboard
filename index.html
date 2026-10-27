@@ -371,7 +371,7 @@ small.w{display:block;font-size:11px;color:#b88a00;font-weight:600}
 .st-tbl td{height:60px}
 tr.wait-row td{background:#fffcef}
 tr.wait-row:hover td{background:#fff8dc!important}
-.wait-msg{color:#8a6100;font-size:12.5px;white-space:normal!important}
+.wait-msg{color:#8a6100;font-size:12.5px;white-space:normal!important}.wait-msg>span{cursor:help;font-weight:600}.wait-msg .wblk{margin-left:8px;font-size:12px;color:#b45309}.seg button.wait:not(.on){background:#fff3c4;color:#8a6100;box-shadow:inset 0 0 0 1.5px #f2c94c}.seg button.wait:not(.on) b{color:#8a6100}
 .banner{display:flex;gap:14px;align-items:center;padding:16px 20px;border-radius:var(--r-l);background:#fff8db;border:1px solid #f9e3a0;margin-bottom:14px}
 .banner b{display:block;font-size:14.5px;margin-bottom:2px}
 .banner span{font-size:12.5px;color:#6b5200;line-height:1.55}
@@ -1218,7 +1218,7 @@ function vSites(){
       <button class="btn btn-line" onclick="openSiteForm()">＋ 현장 등록</button>
       <button class="btn btn-pri" onclick="openPPImport()"><img class="bi" src="${ICON.c_link}" alt="">pour-pay 완료 현장 가져오기</button>`)
   + ppBanner()
-  + (wait.length?`<div class="banner"><img class="bi2" src="${ICON.wait}" alt=""><div><b>확인 대기 현장 ${wait.length}곳 — 정식 등록이 필요합니다</b><span>${wait.map(x=>`${x.nm} (간이 등록 ${x.s.reg.slice(5).replace('-','.')} · 진행 중 접수 ${blocked(x.nm)}건)`).join(' · ')}. 정식 등록 전에는 하자예산이 편성되지 않고, 걸린 접수는 5단계 비용 확인으로 넘어갈 수 없습니다.</span></div><button class="btn btn-yel" onclick="CF.cst='wait';renderCost()">대기 현장만 보기</button></div>`:'')
+  + ''
   + `<div class="tools">
       <select class="sel" onchange="CF.cy=this.value;renderCost()"><option value="">준공연도 전체</option>${years.map(y=>`<option ${CF.cy==y?'selected':''} value="${y}">${yLab(y,' 준공')}</option>`).join('')}</select>
       <select class="sel" onchange="CF.cct=this.value;renderCost()"><option value="">계약유형 전체</option>${['컨설팅','기술자문컨설팅','기술자문'].map(c=>`<option ${CF.cct===c?'selected':''}>${c}</option>`).join('')}</select>
@@ -1234,7 +1234,7 @@ function vSites(){
     ${list.map(x=>{ const s=x.s;
       if(s.wait) return `<tr class="wait-row"><td><span class="site">${x.nm}<small>${s.co} · 시공소장 ${s.bld||'—'}</small></span></td><td>${s.ct?`${s.ct}<small class="d2">적용률 ${(rate(s.ct)*100).toFixed(1)}%</small>`:'<span class="cap">미등록</span>'}</td>
         <td>${compCell(x)}</td>
-        <td colspan="${D?7:4}" class="wait-msg">정식 등록 후 산정 — ${[(s.rev==null||s.rev==='')&&'확정매출액', !s.ct&&'계약유형'].filter(Boolean).join('·')||'확정매출액'}이 없어 하자예산을 편성할 수 없습니다${s.siteNote?' · '+esc(s.siteNote):''} · 진행 중 접수 ${blocked(x.nm)}건</td>
+        <td colspan="${D?7:4}" class="wait-msg"><span title="${esc(`정식 등록 후 산정 — ${[(s.rev==null||s.rev==='')&&'확정매출액', !s.ct&&'계약유형'].filter(Boolean).join('·')||'확정매출액'}이 없어 하자예산을 편성할 수 없습니다${s.siteNote?' · '+s.siteNote:''} · 진행 중 접수 ${blocked(x.nm)}건`)}">확정매출 산정대기</span>${blocked(x.nm)?` <b class="wblk">진행 중 접수 ${blocked(x.nm)}건</b>`:''}</td>
         <td></td><td>${stTag(x)}</td><td><button class="btn btn-yel sm" onclick="openSiteForm('${x.nm}',true)">정식 등록</button></td></tr>`;
       return `<tr><td><span class="site">${x.nm}<small>${s.co}${s.code?' · ERP '+s.code:''} · 시공소장 ${s.bld||'—'}${s.pp?' · <b style="color:var(--sky)">pour-pay</b>':''}</small>${grpLine(x.nm)}</span></td>
         <td>${s.ct}<small class="d2">적용률 ${(rate(s.ct)*100).toFixed(1)}%</small></td>
