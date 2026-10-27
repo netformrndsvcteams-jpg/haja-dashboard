@@ -2344,9 +2344,10 @@ function detail(id){
   /* 단계 이동 */
   const nx=$('nextSt'); if(nx) nx.onclick=()=>{
     const to = (st===5&&!payNeeded(it))?7:st+1;
-    dbCase(id,{st:to, stAt:iso(), ...(to===7?{paid:false}:{}), ...(to>=4&&!it.doneAt?{doneAt:ymd(TODAY)}:{})},`${st}→${to}단계 ${STAGES[to]}`); toast(`${id} → ${to}단계 ${STAGES[to]}`); };
+    const hf=holdFix(it,to);
+    dbCase(id,{st:to, stAt:iso(), ...(to===7?{paid:false}:{}), ...(to>=4&&!it.doneAt?{doneAt:ymd(TODAY)}:{}), ...hf.p},`${st}→${to}단계 ${STAGES[to]}${hf.m}`); toast(`${id} → ${to}단계 ${STAGES[to]}`); };
   const pb=$('paidBtn'); if(pb) pb.onclick=()=>{ const d=$('pDt').value; if(!d){ toast('지급일을 입력하세요'); return; }
-    dbCase(id,{st:7, stAt:iso(), ...(!it.doneAt?{doneAt:ymd(TODAY)}:{}), paid:true, paidAt:new Date(d).toISOString(), draftNo:$('dNo').value.trim()},`지급 완료 ${d} · ${won(ourPay(it))}원`); toast('지급 완료 · 처리 완료로 종결했습니다'); };
+    dbCase(id,{st:7, stAt:iso(), ...(!it.doneAt?{doneAt:ymd(TODAY)}:{}), paid:true, paidAt:new Date(d).toISOString(), draftNo:$('dNo').value.trim(), ...holdFix(it,7,true).p},`지급 완료 ${d} · ${won(ourPay(it))}원${holdFix(it,7,true).m}`); toast('지급 완료 · 처리 완료로 종결했습니다'); };
   const pv=$('prevSt'); if(pv) pv.onclick=()=>{ const to=(st===7&&!it.paid&&!payNeeded(it))?5:st-1; if(!confirm(`${STAGES[to]} 단계로 되돌릴까요?`)) return;
     dbCase(id,{st:to, stAt:iso(), ...(st===7?{paid:false,paidAt:null}:{})},`${st}→${to}단계로 되돌림`); };
   const rb=$('reopenBtn'); if(rb) rb.onclick=()=>{ const bx=$('reopenBox'); bx.hidden=!bx.hidden; if(!bx.hidden){ bx.scrollIntoView({block:'nearest'}); const w=$('roWhy'); w&&w.focus({preventScroll:true}); } };
@@ -3229,7 +3230,8 @@ function bindProg(it){
   drawer.querySelectorAll('.prog.locked [data-go]').forEach(el=>el.onclick=()=>toast('종결된 건입니다 · 수정하려면 아래 「종결 해제」를 누르세요'));
   drawer.querySelectorAll('.prog.go [data-go]').forEach(el=>el.onclick=()=>{ const to=+el.dataset.go; if(to===it.st) return;
     const extra = to<7 ? {paid:false, ...(it.st===7?{paidAt:null}:{})} : {};
-    dbCase(it.id,{st:to, stAt:iso(), ...extra, ...(to>=4&&!it.doneAt?{doneAt:ymd(TODAY)}:{})},`${it.st}→${to}단계 ${STAGES[to]} (직접 이동)`); toast(`${it.id} → ${to}단계 ${STAGES[to]}`); });
+    const hf=holdFix(it,to);
+    dbCase(it.id,{st:to, stAt:iso(), ...extra, ...(to>=4&&!it.doneAt?{doneAt:ymd(TODAY)}:{}), ...hf.p},`${it.st}→${to}단계 ${STAGES[to]} (직접 이동)${hf.m}`); toast(`${it.id} → ${to}단계 ${STAGES[to]}${hf.p.paid?' · 지급 완료 복원':''}`); });
 }
 function missNote(it){ const m=[]; if(it.st>=3&&!it.hd) m.push('처리소장'); if(it.st>=4&&!it.cz) m.push('하자 원인'); if(it.st>=5&&(!it.b||it.b[0]==='부담 미정')) m.push('부담 판정'); if(it.st>=6&&!it.costAt) m.push('비용');
   return m.length?`<p class="cap" style="margin-top:6px;color:var(--warn-tx)">아직 비어 있는 값: ${m.join(' · ')} — 판정·비용이 없으면 예산·지급 집계에서 빠집니다</p>`:''; }
@@ -4091,7 +4093,7 @@ function doneView(it){
         ${it.paid&&ME()!==CFG.payMgr?`<p class="cap" style="color:var(--warn-tx)">지급 완료된 건은 대금관리자${CFG.payMgr?`(${esc(CFG.payMgr)})`:''}로 선택된 경우에만 해제할 수 있습니다. 오른쪽 위 작성자를 대금관리자로 바꿔 주세요.</p>`
         :`<p class="cap" style="margin:0 0 8px"><b>되돌릴 단계 아이콘</b>을 누르세요 — 그 단계 화면으로 돌아가 평소처럼 수정·진행합니다</p>
         ${progHtml(it).replace('prog locked','prog go ro7').replace(/title="종결된 건입니다[^"]*"/,'')}
-        ${it.paid?`<p class="cap" style="margin-top:8px">지급일·기안번호·지급액은 지우지 않고 「이전 지급 기록」으로 남습니다.</p>`:''}
+        ${it.paid?`<p class="cap" style="margin-top:8px">비용을 고치지 않고 다시 처리 완료로 돌아오면 지급 완료 상태가 그대로 복원됩니다. 비용을 고친 경우에만 기존 지급분이 「이전 지급 기록」으로 남습니다.</p>`:''}
         <p class="cap">완료 뒤 같은 하자가 다시 생긴 경우에는 해제하지 말고 새로 접수해 재발로 연결합니다.</p>`}
       </div>
 
@@ -4115,7 +4117,7 @@ function doneView(it){
     if(it.paid&&ME()!==CFG.payMgr){ toast('지급 완료 건은 대금관리자만 해제할 수 있습니다'); return; }
     const by=ME()||'', at=iso();
     dbCase(id,{st:to, stAt:at, paid:false,
-      ...(it.paid?{paidAt:null, prevPays:[...(it.prevPays||[]),{paidAt:it.paidAt?new Date(it.paidAt).toISOString():null, draftNo:it.draftNo||'', amt:ourPay(it), at, by, why}]}:{}),
+      ...(it.paid?{paidAt:null, payHold:{paidAt:it.paidAt?new Date(it.paidAt).toISOString():null, draftNo:it.draftNo||'', amt:ourPay(it), at, by}}:{}),
       reopens:[...(it.reopens||[]),{at, by, to}],
       },
       `종결 해제 → ${to}단계 ${STAGES[to]}`); toast(`${id} 종결 해제 → ${to}단계`); });
@@ -4136,6 +4138,18 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .d7cost[open] summary{margin-bottom:10px}
 .d7cl{margin:0;padding-left:18px;font-size:13px;line-height:1.8}
 </style>`);
+
+/* 종결 해제된 지급 건 — 7단계 복귀·재지급 시 처리 (2026-10-27)
+   - 지급액(ourPay)이 해제 당시와 같으면 지급 완료 상태 복원, 이전 지급 기록 남기지 않음
+   - 달라졌으면 해제 당시 지급분을 prevPays로 보관 */
+function holdFix(it,to,repay){
+  const h=it.payHold; if(!h) return {p:{},m:''};
+  if(!repay && to!==7) return {p:{},m:''};
+  const same = ourPay(it)===(+h.amt||0);
+  if(repay) return {p: same?{payHold:null}:{payHold:null, prevPays:[...(it.prevPays||[]),h]}, m: same?'':` · 해제 전 지급분 ${won(h.amt||0)}원은 이전 지급 기록으로 보관`};
+  if(same) return {p:{paid:true, paidAt:h.paidAt||null, draftNo:h.draftNo||'', payHold:null}, m:` · 비용 변경 없음 → 지급 완료 상태 복원`};
+  return {p:{payHold:null, prevPays:[...(it.prevPays||[]),h]}, m:` · 지급액 변경(${won(h.amt||0)}→${won(ourPay(it))}원) → 해제 전 지급분은 이전 지급 기록으로 보관, 재지급 필요`};
+}
 
 document.getElementById('todayTag').textContent=TD+' 현재';
 /* 탭 */
