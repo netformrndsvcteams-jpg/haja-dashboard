@@ -190,7 +190,7 @@ tr.new .idc{font-weight:700;color:var(--ink)}
 .phq{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.phq span{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 6px 0 10px;border:1px solid var(--line2);border-radius:999px;font-size:12.5px;background:#f6f9fc}.phq button{border:0;background:none;cursor:pointer;font-size:14px;color:#8a97a8}
 .inedit .ptg{margin:4px 0 8px}.inedit textarea{width:100%;min-height:80px}.edbar{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}.df .btn.btn-ghost{padding:0 10px}
 .chain{margin-top:14px;display:flex;flex-direction:column;gap:10px;background:#eef6fd;border:1.5px solid #bfdcf5;border-radius:16px;padding:12px 14px}.chs{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;font-size:13px}.chs em{font-style:normal;color:#5c7389;margin-right:6px}.chs b{font-variant-numeric:tabular-nums}.chs .cl{font-weight:800;color:#1f6fb8;font-size:13.5px}.cht{display:flex;gap:10px;align-items:center}.cht label{flex:none;font-size:12.5px;color:#b45a0a;font-weight:700}.cht .inp{flex:1;min-width:0;height:36px;background:#fff}.ctabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}.ctabs button{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:0;padding:8px 16px;border:1.5px solid #bfdcf5;border-radius:12px;background:#fff;cursor:pointer;color:#3d5670;font:inherit;min-width:112px}.ctabs button small{font-size:11px;opacity:.8}.ctabs button b{font-size:15px}.ctabs button i{font-style:normal;font-size:11.5px;opacity:.85}.ctabs button:hover{border-color:#1f8fe0}.ctabs button.on{background:#1f8fe0;border-color:#1f8fe0;color:#fff;box-shadow:0 4px 12px rgba(31,143,224,.3)}.ctabs button:focus-visible{outline:2px solid #1f8fe0;outline-offset:2px}
-.hist{display:flex;flex-direction:column;gap:10px}.hopt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px;cursor:pointer}.hgrp{border:1.5px solid #dfe8f1;border-radius:14px;padding:10px 12px;background:#fafcfe}.hgrp:has(input:checked){border-color:#1f8fe0;background:#eef6fd}.hrows{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}.hrows li{display:flex;gap:10px;font-size:12.5px;line-height:1.5}.hrows .hn{flex:none;width:34px;font-weight:800;color:#1f6fb8}.hrows li>div{min-width:0}.hrows p{margin:2px 0 0;color:#55657a}.hrows p.hl{color:#7a5a2a}.hs{font-weight:700}
+.hist{display:flex;flex-direction:column;gap:10px}.hopt{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13.5px;cursor:pointer}.hgrp{border:1.5px solid #dfe8f1;border-radius:14px;padding:10px 12px;background:#fafcfe}.hgrp:has(input:checked){border-color:#1f8fe0;background:#eef6fd}.hrows{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}.hrows li{display:flex;gap:10px;font-size:12.5px;line-height:1.5}.hrows .hn{flex:none;width:46px;font-weight:800;color:#1f6fb8}.hrows li>div{min-width:0}.hrows p{margin:2px 0 0;color:#55657a}.hrows p.hl{color:#7a5a2a}.hs{font-weight:700}.hrows li.same{background:#fff4e0;border-radius:8px;padding:4px 6px;margin:0 -6px}.rhint{margin-top:8px;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.55}.rhint.rec{background:#fff4e0;color:#7a4a00;border:1.5px solid #f5c98a}.rhint.new{background:#eef6fd;color:#1f4f7a;border:1.5px solid #bfdcf5}.rhint .cap{color:inherit;opacity:.8}
 @media (prefers-reduced-motion:reduce){.drawer,.scrim{transition:none}}
 .dh{padding:24px 28px 18px;border-bottom:1px solid var(--line);position:relative;background:linear-gradient(180deg,#f0f8ff,#fff)}
 .dh .x{position:absolute;top:16px;right:16px;width:38px;height:38px;font-size:20px;color:var(--ink2);border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(20,90,160,.1)}
@@ -831,7 +831,10 @@ function burdenChip(it, short=true){
   else if(t==='공동 부담'){ const tot=(it.lab||0)+(it.rst||0), our=tot-(it.sh||0); const p=Math.round(our/tot*100);
     chip=`<span class="bd bd-joint" title="당사 ${won(our)}원 / 시공사 ${won(it.sh)}원"><span>당사 ${p}%</span><span>시공사 ${100-p}%</span></span>`; }
   const sub = basis==='조정' ? `<span class="bsub adj">조정 · ${why}</span>` : `<span class="bsub">보증 ${SITES[it.site].ct?yr+'년차':''}</span>`;
-  return chip+sub;
+  /* 보증 기준인데 따로 적은 사유(예: 이관 건의 「기존 대시보드 회사 노임 지급」)는 부담 표시에 마우스를 올리면 보임 */
+  if(basis!=='조정' && why) chip = chip.replace('<span class="bd ', `<span title="${esc(why)}" style="cursor:help" class="bd `);
+  const none = it.st===7 && /^(당사|공동)/.test(t) && ourPay(it)===0 ? `<span class="bsub">· 비용 없음</span>` : '';   /* 회사 책임 구간이지만 지급 0원 */
+  return chip+sub+none;
 }
 function burdenSentence(it){
   if(it.st<4) return {s:'판정 전 — 보수 완료 단계에서 판정합니다',w:''};
@@ -1356,12 +1359,13 @@ function vBurden(){
   const matN = rs.filter(r=>r.mat>0).length, matA = sum(rs,r=>(r.mat||0)-(r.ret||0));
   const row = (t,label,sub)=>{ const a=by(t); const lab=sum(a,r=>r.lab||0), rst=sum(a,r=>r.rst||0), our=sum(a,ourOf);
     const bz=sum(a.filter(r=>r.b[1]==='보증'),ourOf), aj=sum(a.filter(r=>r.b[1]==='조정'),ourOf);
-    return {t,label,sub,n:a.length,lab,rst,our,bz,aj,adjN:a.filter(r=>r.b[1]==='조정').length}; };
+    const nPaid=a.filter(r=>ourOf(r)>0).length;   /* 비용 있음 = 당사가 실제로 노임·복구비를 지급한 건 · 비용 없음 = 회사 책임 구간이지만 지급 0원 */
+    return {t,label,sub,n:a.length,nPaid,n0:a.length-nPaid,lab,rst,our,bz,aj,adjN:a.filter(r=>r.b[1]==='조정').length}; };
   const R = [row('당사 부담','당사 부담',''), row('당사 대납','당사 대납','회수 없음'), row('공동 부담','공동 부담','당사 몫')];
   const shA = sum(by('공동 부담'),r=>r.sh||0);
   const bld = by('시공소장 부담'), tbd = ITEMS.filter(i=>i.st>=4&&i.st<7&&i.b&&i.b[0]==='부담 미정');
   const pastL = by('과거 이력').reduce((a,r)=>a+(r.lab||0),0), payA = R.reduce((a,r)=>a+r.our,0)+pastL, matUA = matU(m=>inP(m.date)), total = matA+matUA+payA;
-  const judged = rs.length, paidN = R.reduce((a,r)=>a+r.n,0);
+  const judged = rs.length, paidN = R.reduce((a,r)=>a+r.nPaid,0), zeroN = R.reduce((a,r)=>a+r.n0,0);
   const segs = [['mat',matA],['matu',matUA],['our',R[0].our],['sub',R[1].our],['joint',R[2].our],['past',pastL]].filter(x=>x[0]!=='past'||x[1]>0);
   const adj = rs.filter(r=>r.b[1]==='조정');
   const RS=[['자재 결함','당사 부담','품질 신호'],['시공소장 부재','당사 대납',''],['시공사와 협의','공동 부담',''],['기타','직접 선택','']];
@@ -1371,7 +1375,7 @@ function vBurden(){
   const qMax = Math.max(1,...qs.map(k=>q[k]||0));
   return head('부담 판정','',`${pLabel()} · 비용 확인을 마친 건 기준 (부담 미정만 ${TD} 현재)`, periodSel())
   + `<div class="card">
-      <div class="ch"><h3>당사 지출 <b class="num">${won(total)}</b>원</h3><span class="cap">= 자재비 ${won(matA+matUA)}원${matUA?`(현장 미연결 ${won(matUA)}원 포함)`:''} + 노임·복구비 ${won(payA)}원 · 판정 ${judged}건 중 당사가 노임·복구비를 지급한 건 ${paidN}건 (${pct(paidN,judged)}) · 시공소장 부담 ${bld.length}건</span></div>
+      <div class="ch"><h3>당사 지출 <b class="num">${won(total)}</b>원</h3><span class="cap">= 자재비 ${won(matA+matUA)}원${matUA?`(현장 미연결 ${won(matUA)}원 포함)`:''} + 노임·복구비 ${won(payA)}원 · 판정 ${judged}건 중 당사가 노임·복구비를 지급한 건 ${paidN}건 (${pct(paidN,judged)})${zeroN?` · 당사 책임이지만 비용 없음 ${zeroN}건`:''} · 시공소장 부담 ${bld.length}건</span></div>
       <div class="stack" role="img" aria-label="당사 지출 구성">${segs.filter(s=>s[1]>0).map(([k,a])=>{ const sg=SEG.find(x=>x[0]===k); return `<i style="width:${a/total*100}%;background:${sg[2]}" title="${sg[1]} ${won(a)}원 (${pct(a,total)})"></i>`; }).join('')}</div>
       <div class="lgd">${segs.map(([k,a])=>{ const sg=SEG.find(x=>x[0]===k); return `<span><i style="background:${sg[2]}"></i>${sg[1]} <b class="num">${won(a)}원</b> <em>${pct(a,total)}</em></span>`; }).join('')}</div>
     </div>
@@ -1380,7 +1384,7 @@ function vBurden(){
       <tr><td><span class="sw" style="background:#1a8cf0"></span>자재비 <small class="d2i">모든 판정 공통</small></td><td class="amt">${matN}</td><td class="amt mut">—</td><td class="amt mut">—</td><td class="amt"><b>${won(matA)}</b></td><td colspan="2" class="mut c">판정 대상 아님</td></tr>
       ${matUA?`<tr><td><span class="sw" style="background:#8fc7f7"></span>자재비 (현장 미연결) <small class="d2i">등록 현장에 연결 안 된 출고</small></td><td class="amt">${MATU.filter(m=>inP(m.date)&&m.qty>0).length}</td><td class="amt mut">—</td><td class="amt mut">—</td><td class="amt"><b>${won(matUA)}</b></td><td colspan="2" class="mut c">현장 집행액 제외</td></tr>`:''}
       <tr class="grp"><td colspan="7">노임·복구비 — 부담 판정에 따라 지급 여부가 갈림</td></tr>
-      ${R.map((r,i)=>`<tr><td><span class="sw" style="background:${SEG[i+1][2]}"></span>${r.label} ${r.sub?`<small class="d2i">${r.sub}</small>`:''}${r.adjN?`<span class="tg tg-adj">조정 ${r.adjN}건</span>`:''}</td><td class="amt">${r.n}</td><td class="amt">${won(r.lab)}</td><td class="amt">${won(r.rst)}</td><td class="amt"><b>${won(r.our)}</b></td><td class="amt">${won(r.bz)}</td><td class="amt">${won(r.aj)}</td></tr>`).join('')}
+      ${R.map((r,i)=>`<tr><td><span class="sw" style="background:${SEG[i+1][2]}"></span>${r.label} ${r.sub?`<small class="d2i">${r.sub}</small>`:''}${r.n0?' <small class="d2i">비용 있음</small>':''}${r.adjN?`<span class="tg tg-adj">조정 ${r.adjN}건</span>`:''}</td><td class="amt">${r.nPaid}</td><td class="amt">${won(r.lab)}</td><td class="amt">${won(r.rst)}</td><td class="amt"><b>${won(r.our)}</b></td><td class="amt">${won(r.bz)}</td><td class="amt">${won(r.aj)}</td></tr>${r.n0?`<tr class="sub"><td>↳ ${r.label} <small class="d2i">비용 없음</small></td><td class="amt">${r.n0}</td><td colspan="5" class="mut">회사 책임 구간이지만 지급 없이 처리 · 0원</td></tr>`:''}`).join('')}
       ${shA?`<tr class="sub"><td colspan="7">↳ 공동 부담 노임·복구비 중 <b>시공사 몫 ${won(shA)}원</b>은 시공사가 부담 — 당사 지급·합계에서 제외</td></tr>`:''}
       ${pastL?`<tr><td><span class="sw" style="background:#9aa6b4"></span>과거 노임 <small class="d2i">운영 시작 전 지급 · 판정 정보 없음</small></td><td class="amt">${by('과거 이력').filter(r=>r.lab).length}</td><td class="amt">${won(pastL)}</td><td class="amt mut">—</td><td class="amt"><b>${won(pastL)}</b></td><td colspan="2" class="mut c">구분 불가</td></tr>`:''}<tr><td><span class="sw" style="background:#c6d0dc"></span>시공소장 부담</td><td class="amt">${bld.length}</td><td colspan="5" class="mut">당사 지급 없음 · 시공소장이 노임 처리 (자재비는 위 자재비에 포함)</td></tr>
       <tr><td><span class="sw dash"></span>부담 미정 <small class="d2i">${TD} 현재 판정 전</small></td><td class="amt">${tbd.length}</td><td colspan="5" class="mut">판정 후 확정 · 합계 제외</td></tr>
@@ -2173,7 +2177,7 @@ function detail(id){
           <div class="edbar"><button class="btn btn-line sm" id="edCancel">취소</button><button class="btn btn-yel sm" id="edSave">저장</button></div></div>`:''}
         <dl class="kv"><dt>접수일</dt><dd><input type="date" class="inp" id="rcvD" value="${ymd(it.rcvAt)}" max="${ymd(TODAY)}" style="min-width:0;width:180px"></dd>
         ${DV.ed?'':`<dt>부위 · 현상</dt><dd>${esc(partTx(it))} · ${esc(phTx(it))}</dd>`}
-        ${(priorCases(it.site,it).length||it.prevId)?`<dt>재발 연결</dt><dd><select class="sel" id="prevSel" style="min-width:0;width:100%"><option value="">없음 (새 하자)</option>${priorCases(it.site,it).map(i=>`<option value="${i.id}" ${it.prevId===i.id?'selected':''}>${i.id} · ${fmtD(i.rcvAt)} · ${esc(partTx(i))} · ${esc(phTx(i))}${sameContent(i,it)?' (같은 내용)':''}</option>`).join('')}</select>${it.prevId?`<button class="lkb" id="prevOpen" style="margin-top:6px">이전 건 ${it.prevId} 열기</button>`:''}</dd>`:''}
+        ${priorCases(it.site,it).length?(()=>{ const rp=recurPrev(it); return `<dt>재발 판정</dt><dd>${rp?`<b style="color:var(--red)">재발 ${seqOf(it)}차</b> · ${rp.id} (${fmtD(rp.rcvAt)} · ${esc(partTx(rp))} · ${esc(phTx(rp))})와 부위·현상이 겹침 <button class="lkb" id="prevOpen" data-pid="${rp.id}">열기</button>`:`새 하자 · 이 현장 앞 접수 ${priorCases(it.site,it).length}건과 부위·현상이 겹치지 않음`}<p class="cap" style="margin:4px 0 0">자동 판정 · 부위·현상을 고치면 다시 판정됩니다</p></dd>`; })():''}
         <dt>하자 연락자</dt><dd><div class="g2"><select class="sel" data-cl="type">${[...new Set([...CALLER_T,(it.caller||{}).type].filter(Boolean))].map(t=>`<option ${(it.caller||{}).type===t?'selected':''}>${esc(t)}</option>`).join('')}</select><input class="inp" data-cl="name" placeholder="성함" value="${esc((it.caller||{}).name||'')}"></div>
           <div class="g2" style="margin-top:6px"><input class="inp" data-cl="phone" inputmode="tel" placeholder="연락처" value="${esc((it.caller||{}).phone||'')}"><input class="inp" data-cl="office" inputmode="tel" placeholder="관리사무소 연락처" value="${esc((it.caller||{}).office||'')}"></div></dd>
         ${it.txt&&!DV.ed?`<dt>상세</dt><dd style="white-space:pre-wrap">${esc(it.txt)}</dd>`:''}
@@ -2266,8 +2270,7 @@ function detail(id){
   const va=$('visitAt'); if(va) va.onchange=()=>dbCase(id,{visitAt:va.value},`방문 예정일 ${va.value}`);
 
   const vA=$('viewAll'); if(vA) vA.onclick=()=>{ DV.all=!DV.all; detail(id); };
-  const ps=$('prevSel'); if(ps) ps.onchange=()=>dbCase(id,{prevId:ps.value||null},ps.value?`재발 연결 · ${ps.value}`:'재발 연결 해제');
-  const po=$('prevOpen'); if(po) po.onclick=()=>{ if(ITEMS.find(i=>i.id===it.prevId)) detail(it.prevId); else toast('이전 건을 찾을 수 없습니다 (삭제됨)'); };
+  const po=$('prevOpen'); if(po) po.onclick=()=>detail(po.dataset.pid);
   /* 접수일 · 연락자 · 처리완료일 · 진행 내용 */
   const rd=$('rcvD'); if(rd) rd.onchange=()=>{ if(!rd.value||rd.value>ymd(TODAY)){ toast('접수일을 확인하세요'); rd.value=ymd(it.rcvAt); return; } dbCase(id,{rcvAt:new Date(rd.value+'T09:00:00').toISOString()},`접수일 ${rd.value}`); };
   drawer.querySelectorAll('[data-cl]').forEach(el=>el.onchange=()=>{ const c={...(it.caller||{})}; c[el.dataset.cl]=el.value.trim(); it.caller=c; dbCase(id,{caller:c},`하자 연락자 수정`); });
@@ -2407,7 +2410,6 @@ async function submitIntake(){
   const rcvD=document.getElementById('iRcv')?.value||ymd(TODAY);
   if(rcvD>ymd(TODAY)){ toast('접수일은 오늘 이후로 정할 수 없습니다'); return; }
   const g_=k=>(document.getElementById(k)||{}).value?.trim()||'';
-  const psel=(document.querySelector('[name=iPrev]:checked')||{}).value || '';
   const caller={type:g_('iCt'), name:g_('iCn'), phone:g_('iCp'), office:g_('iCo')};
   const sb=document.getElementById('submit'); if(sb){ sb.disabled=true; sb.textContent='저장 중…'; }
   try{
@@ -2418,11 +2420,11 @@ async function submitIntake(){
       site=n; }
     const files=[...(intake.files||[])];
     const id = await nextId(), now=iso(), rcvAt = rcvD===ymd(TODAY)? now : new Date(rcvD+'T09:00:00').toISOString();
-    const prevId = psel||null;   // 접수자가 고른 이전 접수에만 연결 (자동 판정 없음)
-    await DB.collection('cases').doc(id).set({site, rc:intake.rc, st:1, rcvAt, stAt:rcvAt, src:'PC', caller, notes:[], prevId:prevId||null,
+    const rp = autoPrev(site, {parts, phs});   // 재발은 부위·현상으로 자동 판정 (안내만 · 저장하지 않음)
+    await DB.collection('cases').doc(id).set({site, rc:intake.rc, st:1, rcvAt, stAt:rcvAt, src:'PC', caller, notes:[],
       part:parts[0], parts, partNote:(parts.includes('기타')?(document.getElementById('iPartN')||{}).value||'':'').trim(), ph:phs[0], phs, txt:document.getElementById('iTxt').value.trim(),
       dmg:[], photos:[], unseen:false, createdAt:now, log:[{at:now, by:intake.rc, msg:'접수 등록 (PC)'+(rcvD!==ymd(TODAY)?` · 접수일 ${rcvD}`:'')}]});
-    closeDrawer(); F.stage=1; F.chip=null; toast(`${id} 접수 등록 · ${site}${prevId?` · 재발(${prevId} 연결)`:''}`);
+    closeDrawer(); F.stage=1; F.chip=null; toast(`${id} 접수 등록 · ${site}${rp?` · 재발(${rp}와 같은 내용)`:''}`);
     if(files.length) uploadPhotos(id, site, files, '처리 전');
   }catch(e){ toast('접수 저장 실패 · '+(e.code||e.message)); if(sb){ sb.disabled=false; sb.textContent='접수 등록'; } }
 }
@@ -2533,18 +2535,19 @@ function exportAll(){
 document.getElementById('me').onchange=e=>setMe(e.target.value);
 fbInit(); fetchStorage();
 
-/* 재발 집계 (하자 분석) — 접수 때 연결한 재발(prevId) 기준. 같은 현장에서 같은 내용이 2회 이상이면 재발이며 기간 제한 없음.
+/* 재발 집계 (하자 분석) — 부위·현상 자동 판정(recurPrev) 기준. 같은 현장에서 같은 내용이 2회 이상이면 재발이며 기간 제한 없음.
    rs = 집계 대상(필터 적용) · 재발 건수 = rs 중 이전 건과 연결된 건 · 준공일 없는 현장도 포함(anaRecs(1)) */
 function recurGroups(rs){
   const byId=new Map(ITEMS.map(i=>[i.id,i])), all=new Map(anaRecs(1).map(r=>[r.id,r]));
-  const linked=r=>{ const it=byId.get(r.id); return it&&it.prevId&&byId.has(it.prevId); };
-  const root=it=>{ let c=it,g=0; while(c.prevId&&byId.has(c.prevId)&&g++<50) c=byId.get(c.prevId); return c; };
+  const PV=new Map(ITEMS.map(i=>[i.id,recurPrev(i)]));   // 같은 내용인 앞 접수
+  const linked=r=>!!PV.get(r.id);
+  const root=it=>{ let c=it,g=0; while(PV.get(c.id)&&g++<50) c=PV.get(c.id); return c; };
   const G={}; rs.filter(linked).forEach(r=>{ const rt=root(byId.get(r.id)); (G[rt.id]=G[rt.id]||{rt,recs:[]}).recs.push(r); });
   return Object.values(G).map(({rt,recs})=>{
     const chain=ITEMS.filter(i=>root(i).id===rt.id).map(i=>all.get(i.id)).filter(Boolean).sort((x,y)=>x.date-y.date);
-    const gaps=recs.map(r=>{ const p=byId.get(byId.get(r.id).prevId); return Math.max(0,Math.round((r.date-p.rcvAt)/864e5)); });
+    const gaps=recs.map(r=>{ const p=PV.get(r.id); return Math.max(0,Math.round((r.date-p.rcvAt)/864e5)); });
     const P=new Set(), H=new Set();
-    recs.forEach(r=>{ const it=byId.get(r.id), p=byId.get(it.prevId); partsOf(it).filter(x=>partsOf(p).includes(x)).forEach(x=>P.add(x)); phsOf(it).filter(x=>phsOf(p).includes(x)).forEach(x=>H.add(x)); });
+    recs.forEach(r=>{ const it=byId.get(r.id), p=PV.get(r.id); partsOf(it).filter(x=>partsOf(p).includes(x)).forEach(x=>P.add(x)); phsOf(it).filter(x=>phsOf(p).includes(x)).forEach(x=>H.add(x)); });
     return {site:rt.site, part:[...P].join('·')||partsOf(rt)[0], ph:[...H].join('·')||phsOf(rt)[0], a:chain, rec:recs.length, gaps,
       cost:chain.reduce((x,r)=>x+(r.cost||0),0), last:chain.length?chain[chain.length-1].date:rt.rcvAt};
   }).sort((x,y)=>y.rec-x.rec||y.cost-x.cost);
@@ -3084,40 +3087,43 @@ function gtoks(t){ t=String(t||''); const o=[];
   return GONG_LIST.filter(g=>o.includes(g)); }
 function gongsOf(s){ if(!s) return ['기타']; const a = Array.isArray(s.gongs)&&s.gongs.length ? s.gongs.filter(g=>GONG_LIST.includes(g)) : gtoks(s.gong); return a.length? a : ['기타']; }
 const hasG=(x,g)=>(Array.isArray(x&&x.gongs)&&x.gongs.length? x.gongs : gongsOf(x)).includes(g);
-/* 재발 — 같은 현장에서 같은 내용(부위·현상이 겹침)으로 2회 이상 발생하면 재발. 새 접수로 받고 이전 건(prevId)과 연결, 차수는 연결을 따라 계산 */
+/* 재발 — 같은 현장에서 앞 접수와 부위·현상이 둘 다 겹치면 자동으로 재발 (기간 제한 없음 · 사람이 고르지 않음).
+   기준은 접수·상세의 부위·현상 칩 — 칩을 고치면 재발 표시도 따라 바뀜. 차수는 같은 내용인 앞 접수를 따라 계산 */
 const sameContent=(a,b)=>partsOf(a).some(p=>partsOf(b).includes(p)) && phsOf(a).some(h=>phsOf(b).includes(h));
-function priorCases(site, it){ return ITEMS.filter(i=>i.site===site && (!it || (i.id!==it.id && i.rcvAt<=it.rcvAt))).sort((a,b)=>b.rcvAt-a.rcvAt); }
+const before=(a,b)=>a.rcvAt<b.rcvAt || (+a.rcvAt===+b.rcvAt && a.id<b.id);   // 접수일이 같으면 접수번호 순
+function priorCases(site, it){ return ITEMS.filter(i=>i.site===site && (!it || (i.id!==it.id && before(i,it)))).sort((a,b)=>before(a,b)?1:-1); }   // 최근 접수부터
+function recurPrev(it){ return priorCases(it.site,it).find(i=>sameContent(i,it)) || null; }   // 같은 내용인 가장 최근 앞 접수
 function autoPrev(site, x){ const m=priorCases(site).find(i=>sameContent(i,x)); return m?m.id:null; }
-/* 재발 묶음 — 재발 연결(prevId)을 따라 첫 접수를 찾고, 같은 첫 접수를 가진 접수를 회차 순으로 묶어 상세 화면에 탭으로 표시.
+function seqOf(it){ let n=1, c=it, g=0; while((c=recurPrev(c)) && g++<30) n++; return n; }   // 재발 차수 (1 = 새 하자)
+/* 현장 묶음 — 같은 현장 접수는 원인과 관계없이 한 묶음으로 상세 화면에 회차 탭 표시.
    회차마다 비용·부담 판정·기안은 각 접수 건 그대로, 묶음은 보여주기·누적 합계만 */
-function rootOf(it){ let cur=it, g=0; while(cur && cur.prevId && g++<30){ const p=ITEMS.find(i=>i.id===cur.prevId); if(!p) break; cur=p; } return cur; }
-function chainOf(it){ const r=rootOf(it); return ITEMS.filter(i=>rootOf(i).id===r.id).sort((a,b)=>a.rcvAt-b.rcvAt); }
+function chainOf(it){ return ITEMS.filter(i=>i.site===it.site).sort((a,b)=>before(a,b)?-1:1); }
+function rootOf(it){ return chainOf(it)[0]||it; }
 function caseCost(i){ const p=costParts(i); return p.lab+p.rst+p.etc; }
 function chainHtml(it){
   const ch=chainOf(it); if(ch.length<2) return '';
-  const r=ch[0], tot=ch.reduce((a,i)=>a+caseCost(i),0);
+  const r=ch[0], tot=ch.reduce((a,i)=>a+caseCost(i),0), recN=ch.filter(c=>seqOf(c)>1).length;
   return `<div class="chain">
-    <div class="chs"><span class="cl">재발 묶음 · ${ch.length}회 접수</span><span><em>기간</em><b>${fmtD(r.rcvAt)} ~ ${fmtD(ch[ch.length-1].rcvAt)}</b></span><span><em>누적 비용</em><b>${won(tot)}원</b></span></div>
-    <div class="ctabs" role="tablist" aria-label="회차 이동">${ch.map((c,k)=>`<button type="button" role="tab" data-chain="${c.id}" aria-selected="${c.id===it.id}" class="${c.id===it.id?'on':''}"><small>${c.id}</small><b>${k+1}차 접수</b><i>${STAGES[c.st]}${caseCost(c)?` · ${won(caseCost(c))}원`:''}</i></button>`).join('')}</div>
+    <div class="chs"><span class="cl">이 현장 접수 · ${ch.length}건${recN?` (재발 ${recN}건)`:''}</span><span><em>기간</em><b>${fmtD(r.rcvAt)} ~ ${fmtD(ch[ch.length-1].rcvAt)}</b></span><span><em>누적 비용</em><b>${won(tot)}원</b></span></div>
+    <div class="ctabs" role="tablist" aria-label="회차 이동">${ch.map((c,k)=>`<button type="button" role="tab" data-chain="${c.id}" aria-selected="${c.id===it.id}" class="${c.id===it.id?'on':''}"><small>${c.id}</small><b>${k+1}차 접수</b><i>${seqOf(c)>1?`재발 ${seqOf(c)}차 · `:''}${STAGES[c.st]}${caseCost(c)?` · ${won(caseCost(c))}원`:''}</i></button>`).join('')}</div>
   </div>`;
 }
-function seqOf(it){ if(!it.prevId && !ITEMS.some(i=>i.prevId===it.id)) return 1; const ch=chainOf(it); return ch.findIndex(i=>i.id===it.id)+1; }   // 재발 묶음 안 접수일 순서 (회차 탭 번호와 같음)
-/* 이 현장 이전 접수 — 자동 판정 없이 접수자가 이전 내용을 보고 직접 고름. 기본값은 「새 하자」.
-   이전 접수는 재발 묶음 단위로 보여주고, 「이어서 접수」를 고르면 그 묶음의 마지막 회차에 연결(갈래 없이 한 줄로 이어짐) */
+/* 이 현장 이전 접수 — 고르지 않고 보여주기만. 지금 고른 부위·현상과 겹치는 접수는 강조하고, 현상 칩 아래(recHint)에 재발 여부를 미리 보여줌 */
 function histBox(site){
   const L=priorCases(site); if(!L.length) return '';
-  const G=[]; L.forEach(i=>{ const r=rootOf(i); if(!G.some(g=>g.root.id===r.id)) G.push({root:r, ch:chainOf(i)}); });
-  const row=(c,k,n)=>`<li><span class="hn">${n>1?`${k+1}차`:'접수'}</span><div><b>${c.id}</b> · ${fmtD(c.rcvAt)} · ${esc(partTx(c))} · ${esc(phTx(c))} · <span class="hs">${STAGES[c.st]}</span>${c.hd?` · ${esc(c.hd)}`:''}
-    ${c.txt?`<p>${esc(c.txt.length>90?c.txt.slice(0,90)+'…':c.txt)}</p>`:''}${(c.notes||[]).length?`<p class="hl">진행 · ${esc(c.notes[c.notes.length-1].txt)}</p>`:''}</div></li>`;
-  return `<div class="dsec"><h4>이 현장 이전 접수 ${L.length}건 <span class="cap" style="font-weight:400">같은 하자가 다시 생긴 것이면 「이어서 접수」를 고르세요</span></h4>
-    <div class="hist">
-    <label class="hopt"><input type="radio" name="iPrev" value="" checked> <b>새 하자로 접수</b> <span class="cap">이전 접수와 관계없는 하자</span></label>
-    ${G.slice(0,8).map(g=>{ const last=g.ch[g.ch.length-1], n=g.ch.length; return `<div class="hgrp">
-      <label class="hopt"><input type="radio" name="iPrev" value="${last.id}"> <b>이 하자에 이어서 접수</b> <span class="cap">→ ${n+1}차 접수로 연결${g.root.issueTitle?` · ${esc(g.root.issueTitle)}`:''}</span></label>
-      <ol class="hrows">${g.ch.map((c,k)=>row(c,k,n)).join('')}</ol></div>`; }).join('')}
-    </div></div>`;
+  return `<div class="dsec"><h4>이 현장 이전 접수 ${L.length}건 <span class="cap" style="font-weight:400">부위·현상이 겹치는 접수가 있으면 자동으로 재발로 표시됩니다</span></h4>
+    <ol class="hrows" id="hRows">${L.slice(0,12).map(c=>`<li data-hid="${c.id}"><span class="hn">${seqOf(c)>1?`재발 ${seqOf(c)}차`:'접수'}</span><div><b>${c.id}</b> · ${fmtD(c.rcvAt)} · ${esc(partTx(c))} · ${esc(phTx(c))} · <span class="hs">${STAGES[c.st]}</span>${c.hd?` · ${esc(c.hd)}`:''}
+      ${c.txt?`<p>${esc(c.txt.length>90?c.txt.slice(0,90)+'…':c.txt)}</p>`:''}${(c.notes||[]).length?`<p class="hl">진행 · ${esc(c.notes[c.notes.length-1].txt)}</p>`:''}</div></li>`).join('')}</ol>${L.length>12?`<p class="cap">최근 12건만 표시</p>`:''}</div>`;
 }
-function recHint(){}
+function recHint(){
+  const box=document.getElementById('recHint'); if(!box) return;
+  const L=intake.site?priorCases(intake.site):[], x={parts:intake.parts||[], phs:intake.phs||[]};
+  document.querySelectorAll('#hRows [data-hid]').forEach(li=>{ const c=L.find(i=>i.id===li.dataset.hid); li.classList.toggle('same', !!c && sameContent(c,x)); });
+  if(!L.length || !x.parts.length || !x.phs.length){ box.innerHTML=''; return; }
+  const p=L.find(i=>sameContent(i,x));
+  box.innerHTML = p ? `<div class="rhint rec"><b>재발 ${seqOf(p)+1}차로 표시됩니다</b> — ${p.id} (${fmtD(p.rcvAt)} · ${esc(partTx(p))} · ${esc(phTx(p))})와 부위·현상이 겹침<br><span class="cap">다른 하자라면 부위·현상을 실제 내용에 맞게 고르세요</span></div>`
+    : `<div class="rhint new"><b>새 하자로 표시됩니다</b> — 이 현장 이전 접수 ${L.length}건과 부위·현상이 겹치지 않음<br><span class="cap">같은 하자가 다시 생긴 것이면 이전 접수와 같은 부위·현상을 고르세요</span></div>`;
+}
 const PHS=['누수','물고임','들뜸','균열','박리','훼손','변색','오염','보강'];
 function phsOf(it){ const a=(it&&it.phs&&it.phs.length? it.phs : [it&&it.ph]).filter(Boolean); return [...new Set(a)]; }
 const hasH=(r,h)=>phsOf(r).includes(h);
@@ -3158,7 +3164,7 @@ function intakeForm(){
   <div class="field"><label>발생 부위 <span class="cap">(여러 개 선택 가능 · 공종은 현장 정보에서 자동 적용)</span></label><div class="ptg" id="iParts">${PARTS.map(p=>`<button type="button" data-p="${p}" class="${P.includes(p)?'on':''}"${p==='일반면'?` title="${esc(gongsOf(SITES[intake.site]).join('·'))} 바닥·지붕면 자체"`:''}>${p}</button>`).join('')}</div>
     <p class="cap" style="margin:6px 0 0">「일반면」 = 이 현장 공종(${esc(gongsOf(SITES[intake.site]).join('·'))})의 바닥·지붕면 자체 · 그 밖의 위치는 세부 부위를 고르세요</p>
     <input class="inp" id="iPartN" placeholder="기타 부위를 입력하세요 (예: 계단실 지붕)" style="margin-top:8px;display:${P.includes('기타')?'':'none'}"></div>
-  <div class="field"><label>하자 현상 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="iPhs">${PHS.map(h=>`<button type="button" data-h="${h}" class="${(intake.phs||[]).includes(h)?'on':''}">${h}</button>`).join('')}</div></div>
+  <div class="field"><label>하자 현상 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="iPhs">${PHS.map(h=>`<button type="button" data-h="${h}" class="${(intake.phs||[]).includes(h)?'on':''}">${h}</button>`).join('')}</div><div id="recHint"></div></div>
   <div class="field"><label>현장 사진 (처리 전 · 여러 장 가능 · 자동 압축)</label><input type="file" id="iPhoto" accept="image/*" multiple class="inp" style="padding:8px"><div class="phq" id="iPhq">${phqHtml()}</div><p class="cap" style="margin-top:6px">여러 장을 한 번에 고르거나, 여러 번 나눠 추가할 수 있습니다</p></div></div>`;
 }
 /* 접수 사진 대기열 — 파일 선택을 여러 번 해도 앞서 고른 사진이 유지되도록 모아 둠 */
@@ -4071,7 +4077,7 @@ function doneView(it){
     <div class="db">
       <div class="dsec"><div class="d7sum">
         <div class="d7t"><span>접수 <b>${fmtD(it.rcvAt)}</b></span><i>→</i><span>처리 완료 <b>${doneD?fmtD(doneD):'—'}</b></span>${span!=null?`<em>영업일 ${span}일</em>`:''}</div>
-        <dl class="kv">${kv('부위·현상', `${esc(partTx(it))} · ${esc(phTx(it))}`)}${kv('처리소장', esc(hdTx(it)||'—')+(swapped(it)?' <span class="tg tg-swap">교체</span>':''))}${kv('부담', esc(b))}
+        <dl class="kv">${kv('부위·현상', `${esc(partTx(it))} · ${esc(phTx(it))}`)}${kv('처리소장', esc(hdTx(it)||'—')+(swapped(it)?' <span class="tg tg-swap">교체</span>':''))}${kv('부담', esc(b)+(!pay && it.b && /^(당사|공동)/.test(it.b[0])?' <span class="cap">· 비용 없음 (지급 0원)</span>':''))}
         ${pay?kv('지급', `<b>${won(pay)}원</b> <span class="cap">(부가세 별도)</span>${it.paidAt?` · 지급일 ${fmtD(it.paidAt)}`:''}${it.draftNo?` · 기안 ${esc(it.draftNo)}`:''}`):''}</dl>
       </div></div>
 
