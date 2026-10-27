@@ -2152,6 +2152,7 @@ function detail(id){
   const photos = it.photos||[];
   const kinds = ['처리 전','처리 후','2차 피해','기타'];
     const isAdj = it.b && it.b[1]==='조정';
+  const bOff = !isAdj && it.b && it.b[0]!=='부담 미정' && auto && it.b[0]!==auto[0];   // 저장된 부담이 지금 보증 기준 계산과 다름 — 어느 쪽도 체크하지 않음
   if(DV.id!==id){ DV.id=id; DV.all=false; DV.k=null; DV.ed=null; }
   if(DV.k!==id+'|'+st){ DV.k=id+'|'+st; PH_KIND = st===1?'처리 전':'처리 후'; }
   const ALL = DV.all, show = a => ALL || st===7 || a.includes(st);
@@ -2207,13 +2208,14 @@ function detail(id){
 
       ${show([4])?`<div class="dsec"><h4>비용부담</h4>
         ${st<7?`<div class="bopt">
-          <label class="radio"><input type="radio" name="bmode" value="auto" ${!isAdj?'checked':''}> 보증 기준 그대로 — <b>${auto?auto[0]:wX?`계산 불가 (보증기간 경과 · ${fmtD(wE)} 만료)`:'계산 불가 (계약유형·준공일 미등록)'}</b>${auto?` <span class="cap">보증 ${yr}년차 · ${z} 책임 구간${auto[0]==='당사 대납'?` · 처리소장 ${esc(it.hd)} ≠ 시공소장 ${esc(s.bld)}`:''}</span>`:''}</label>
+          <label class="radio"><input type="radio" name="bmode" value="auto" ${!isAdj&&!bOff?'checked':''}> 보증 기준 그대로 — <b>${auto?auto[0]:wX?`계산 불가 (보증기간 경과 · ${fmtD(wE)} 만료)`:'계산 불가 (계약유형·준공일 미등록)'}</b>${auto?` <span class="cap">보증 ${yr}년차 · ${z} 책임 구간${auto[0]==='당사 대납'?` · 처리소장 ${esc(it.hd)} ≠ 시공소장 ${esc(s.bld)}`:''}</span>`:''}</label>
           <label class="radio"><input type="radio" name="bmode" value="adj" ${isAdj?'checked':''}> 원인 조정 (예외)</label>
           <div id="adjBox" class="adjbox" ${isAdj?'':'hidden'}>
-            <div class="g2"><div class="field"><label>조정 사유</label><select class="sel" id="adjR">${Object.keys(ADJ).map(r=>`<option ${isAdj&&it.b[2]===r?'selected':''}>${r}</option>`).join('')}</select></div>
+            <div class="g2"><div class="field"><label>조정 사유</label><select class="sel" id="adjR">${[...Object.keys(ADJ), ...(isAdj&&it.b[2]&&!(it.b[2] in ADJ)?[it.b[2]]:[])].map(r=>`<option ${isAdj&&it.b[2]===r?'selected':''}>${r}</option>`).join('')}</select></div>
             <div class="field" id="adjTW"><label>부담 (기타일 때)</label><select class="sel" id="adjT">${['당사 부담','당사 대납','시공소장 부담','공동 부담'].map(t=>`<option ${isAdj&&it.b[0]===t?'selected':''}>${t}</option>`).join('')}</select></div></div>
             <div class="field" id="shW"><label>시공사 몫 (원) — 공동 부담일 때 노임·복구비 중 시공사가 내는 금액</label><input class="inp amt-in" id="shV" inputmode="numeric" value="${it.sh?won(it.sh):''}"></div>
           </div>
+          ${bOff?`<div class="alert warn" style="margin-top:12px">저장된 부담 <b>${esc(it.b[0])}</b>이 지금 보증 기준 계산(<b>${esc(auto[0])}</b>)과 다릅니다. 맞는 쪽을 골라 주세요.</div>`:''}
           <p class="burden-line" style="margin-top:12px">현재: ${bs.s}<span class="why">${bs.w}</span></p><p class="cap" id="bStat">선택·입력하면 자동 저장됩니다</p></div>`
         :`<p class="burden-line">${bs.s}<span class="why">${bs.w}</span></p>`}
       </div>`:''}
@@ -2323,14 +2325,14 @@ function detail(id){
 
   /* 부담 판정 */
   const radios=drawer.querySelectorAll('[name=bmode]'), ab=$('adjBox');
-  const adjUi=()=>{ if(!$('adjR')) return; const r=$('adjR').value, t=ADJ[r]===null?$('adjT').value:ADJ[r]; $('adjTW').style.display=ADJ[r]===null?'':'none'; $('shW').style.display=t==='공동 부담'?'':'none'; };
+  const adjUi=()=>{ if(!$('adjR')) return; const r=$('adjR').value, t=ADJ[r]==null?$('adjT').value:ADJ[r]; $('adjTW').style.display=ADJ[r]==null?'':'none'; $('shW').style.display=t==='공동 부담'?'':'none'; };
   const bStat = t => { const e=$('bStat'); if(e) e.textContent=t; };
   const saveB = () => {
     const mode=[...radios].find(r=>r.checked)?.value; if(!mode) return;
     if(mode==='auto'){ if(!auto){ bStat(wX?'보증기간이 지난 접수입니다 — 원인 조정에서 부담을 직접 고르세요':(SITES[it.site]&&SITES[it.site].wNone?'하자보증 없는 현장입니다 — 원인 조정에서 부담을 직접 고르세요':'보증 기준을 계산할 수 없습니다(계약유형·준공일·보증기간 미입력) — 원인 조정으로 입력하세요')); return; }
       if(it.b && it.b[0]===auto[0] && it.b[1]==='보증') return;
       dbCase(id,{b:auto, sh:0},`부담 판정 · ${auto[0]} (보증 기준)`).then(()=>bStat('자동 저장됨 · '+hhmm(new Date()))).catch(()=>{}); }
-    else { const r=$('adjR').value, t=ADJ[r]===null?$('adjT').value:ADJ[r], sh=t==='공동 부담'?num($('shV').value):0;
+    else { const r=$('adjR').value, t=ADJ[r]==null?$('adjT').value:ADJ[r], sh=t==='공동 부담'?num($('shV').value):0;
       if(t==='공동 부담' && !sh){ bStat('공동 부담은 시공사 몫 금액을 입력하면 저장됩니다'); return; }
       dbCase(id,{b:[t,'조정',r], sh},`부담 판정 · ${t} (조정 · ${r})`).then(()=>bStat('자동 저장됨 · '+hhmm(new Date()))).catch(()=>{}); }
     bStat('저장 중…'); };
@@ -3648,7 +3650,11 @@ function hdPicker(it, wOpts){
   </div>${ex.length?'<p class="cap" style="margin-top:6px">첫 번째가 대표 처리소장 · 중간 교체·공동 처리 시 함께 기록</p>':''}`;
 }
 function bindHdPicker(it){
-  const save = (L, msg) => { L=[...new Set(L.filter(Boolean))]; dbCase(it.id, {hd:L[0]||null, hds:L.length>1?L:null}, msg); };
+  const save = (L, msg) => { L=[...new Set(L.filter(Boolean))]; const p={hd:L[0]||null, hds:L.length>1?L:null};
+    /* 보증 기준으로 판정된 건은 처리소장이 바뀌면 부담을 다시 계산 (원인 조정으로 직접 정한 건은 그대로) */
+    if(it.st>=4 && it.st<7 && it.b && it.b[0]!=='부담 미정' && it.b[1]!=='조정'){ const a=autoBurden({...it, ...p});
+      if(a && a[0]!==it.b[0]){ p.b=a; p.sh=0; msg+=` · 부담 ${it.b[0]} → ${a[0]} (보증 기준 다시 계산)`; } }
+    dbCase(it.id, p, msg); };
   const sel = document.getElementById('selHd'), add = document.getElementById('addHd');
   if(sel) sel.onchange = ()=>{ const v=sel.value, L=hdsOf(it).slice();
     if(!v){ save(L.slice(1), L.length>1?`대표 처리소장 해제 · ${L[1]} 대표로`:'처리소장 해제'); return; }
