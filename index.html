@@ -3924,16 +3924,36 @@ function p6Amt(it){ const sup=ourPay(it), vat=Math.round(sup*0.1); return {sup, 
 const p6w = n => won(n)+'원';
 const need = v => (v && String(v).trim()) ? String(v).trim() : '(확인 필요)';
 function p6Info(it){ const s=SITES[it.site]||{}, con=conOf(s.co)||{}, H=hdsOf(it), m=mgrOf(H[0])||{}; return {s, con, hd:H[0]||'', hdBiz:m.bizName||'', hdTel:m.phone||''}; }
+/* 소장님 문자 금액 — 비용 입력은 전체 그대로, 문자에 넣을 항목만 고름 (2026-10-27)
+   it.p6sel = 고른 항목 키 목록 (없으면 전체) · 공동 부담은 시공사 몫을 뺌 */
+function p6Items(it){
+  const t=it.b?it.b[0]:'', ex=extrasOf(it), L=[];
+  if(t==='시공소장 부담'){ ex.forEach((e,i)=>{ if(e.our&&(+e.amt||0)>0) L.push({k:'x'+i, nm:e.t==='기타'?(e.name||'기타'):e.t, amt:+e.amt}); }); return L; }
+  if(it.lab) L.push({k:'lab', nm:'노임', amt:+it.lab, sub:it.labCnt&&it.labRate?`${it.labCnt}품 × ${won(it.labRate)}`:''});
+  ex.forEach((e,i)=>{ if((+e.amt||0)>0) L.push({k:'x'+i, nm:e.t==='기타'?(e.name||'기타'):e.t==='2차 피해 복구비'?'세대 복구비':e.t, amt:+e.amt}); });
+  if(!ex.length && it.rst) L.push({k:'rst', nm:'세대 복구비', amt:+it.rst});
+  return L;
+}
+function p6None(it){ return Array.isArray(it.p6sel) && it.p6sel.length===0; }   // 소장님 지급 없음 — 비용 전액 업체 지급
+function p6SelKeys(it){ const L=p6Items(it); return Array.isArray(it.p6sel) ? L.filter(x=>it.p6sel.includes(x.k)).map(x=>x.k) : L.map(x=>x.k); }
+function p6KAmt(it){
+  const L=p6Items(it), K=p6SelKeys(it), S=L.filter(x=>K.includes(x.k));
+  let sup=S.reduce((a,x)=>a+x.amt,0); if(it.b&&it.b[0]==='공동 부담') sup=Math.max(0, sup-(it.sh||0));
+  if(K.length===L.length) sup=ourPay(it);
+  const vat=Math.round(sup*0.1);
+  return {sup, vat, tot:sup+vat, S, all:K.length===L.length, L};
+}
 function p6Kakao(it, biz=true){
-  const {con,hd}=p6Info(it), a=p6Amt(it);
-  const head = `안녕하세요! 소장님, ${it.site} 하자현장 노임 관련 계산서 발행 부탁드립니다.\n비고란에 아파트명 꼭 기재 부탁드려요.\n\n- 품목: 유지보수 수수료\n- 공급가액: ${won(a.sup)}\n- 세액: ${won(a.vat)}\n- 합계: ${won(a.tot)}\n- 비고: ${it.site}`;
+  const {con,hd}=p6Info(it), a=p6KAmt(it);
+  const brk = a.S.length ? a.S.map(x=>`${x.nm} ${won(x.amt)}${x.sub?`(${x.sub})`:''}`).join(' + ') + (it.b&&it.b[0]==='공동 부담'&&it.sh?` − 시공사 부담 ${won(it.sh)}`:'') : '';
+  const head = `안녕하세요! 소장님, ${it.site} 하자현장 노임 관련 계산서 발행 부탁드립니다.\n비고란에 아파트명 꼭 기재 부탁드려요.\n\n- 품목: 유지보수 수수료${a.L.length>1||it.labCnt?`\n- 내역: ${brk}`:''}\n- 공급가액: ${won(a.sup)}\n- 세액: ${won(a.vat)}\n- 합계: ${won(a.tot)}\n- 비고: ${it.site}`;
   if(!biz) return head + `\n\n※ 사업자 정보(세금계산서 발행용)는 이미지로 함께 보내드립니다.`;
   return head + `\n\n[사업자 정보 (세금계산서 발행용)]\n- 상호: ${need(con.name||con.bizName)}\n- 사업자등록번호: ${need(con.bizNo)}\n- 대표자명: ${need(con.ceoName)}\n- 업태: ${need(con.bizType)}\n- 종목: ${need(con.bizItem)}\n- 사업장 주소: ${need(con.bizAddress)}\n- 세금계산서 수신 이메일: ${need(con.bizEmail)}`;
 }
 function p6MailSub(it){ return `유지보수현장 계산서 발행 요청_${it.site}`; }
 function p6MailBody(it){
   const {hd,hdBiz}=p6Info(it), a=p6Amt(it);
-  return `안녕하세요. NETFORM R&D입니다.\n\n${it.site}의 유지보수수수료 계산서 발급 요청드립니다.\n\n1. 하기의 내용 참고하시어 계산서 발행 부탁드립니다.\n\n- 품목: 유지보수수수료\n- 공급가액: ${p6w(a.sup)}\n- 세액: ${p6w(a.vat)}\n- 합계: ${p6w(a.tot)}\n- 비고: ${it.site}\n\n2. 입금받으실 법인계좌 통장사본 송부 부탁드리며, 유지보수수수료 지급은 아래의 사업자로 지급 부탁드립니다.\n- 지급처 : ${hd?hd+'소장님':'(확인 필요)'}${hdBiz?`(${hdBiz})`:''}\n\n문의사항이 있으시다면 메일 회신 혹은 전화(${need(P6CFG.tel)}) 부탁드리겠습니다.\n\n감사합니다.`;
+  return `안녕하세요. NETFORM R&D입니다.\n\n${it.site}의 유지보수수수료 계산서 발급 요청드립니다.\n\n1. 하기의 내용 참고하시어 계산서 발행 부탁드립니다.\n\n- 품목: 유지보수수수료\n- 공급가액: ${p6w(a.sup)}\n- 세액: ${p6w(a.vat)}\n- 합계: ${p6w(a.tot)}\n- 비고: ${it.site}\n\n${p6None(it)?`2. 입금받으실 법인계좌 통장사본 송부 부탁드립니다.`:`2. 입금받으실 법인계좌 통장사본 송부 부탁드리며, 유지보수수수료 지급은 아래의 사업자로 지급 부탁드립니다.\n- 지급처 : ${hd?hd+'소장님':'(확인 필요)'}${hdBiz?`(${hdBiz})`:''}`}\n\n문의사항이 있으시다면 메일 회신 혹은 전화(${need(P6CFG.tel)}) 부탁드리겠습니다.\n\n감사합니다.`;
 }
 function p6Draft(it){
   const {s,con,hd}=p6Info(it), a=p6Amt(it), wE=s.comp?wEndOf(s):null, ex=extrasOf(it);
@@ -3958,7 +3978,7 @@ function p6Draft(it){
   L.push('','# 첨부 파일',` - 세금계산서(유지보수수수료)_${it.site}`,` - ${need(con.name||s.co)}_통장사본`);
   return L.join('\n');
 }
-function p6Cur(it){ const d=it.p6||{}; const k=P6.findIndex(([key])=>!d[key]); return k<0?4:k; }   // 0~3 진행 중 절차 · 4 = 기안까지 끝, 지급 대기
+function p6Cur(it){ const d=it.p6||{}; const k=P6.findIndex(([key])=>!d[key] && !(key==='kakao'&&p6None(it))); return k<0?4:k; }   // 0~3 진행 중 절차 · 4 = 기안까지 끝, 지급 대기
 function p6Tag(it){ if(it.st!==6) return ''; const k=p6Cur(it); const t=k<4?`6-${'①②③③'[k]} ${P6[k][1]} 대기`:'6-④ 지급 대기'; return `<span class="tg tg-p6" title="기안 진행 세부 절차">${t}</span>`; }
 async function p6Copy(text, msg){
   try{ await navigator.clipboard.writeText(text); toast(msg||'복사했습니다'); return true; }
@@ -3971,7 +3991,7 @@ function pay6Html(it, s){
   const mob = !!navigator.share && window.matchMedia('(pointer:coarse)').matches;
   return `<div class="p6amt"><span>공급가액 <b>${won(a.sup)}</b></span><span>세액 <b>${won(a.vat)}</b></span><span>합계 <b>${won(a.tot)}</b></span><span class="cap">지급액을 공급가액으로 · 세액 10%</span></div>
   <ol class="p6l">
-    ${row('kakao','①','소장님 안내 — 계산서 발행 요청 (카톡·문자)',`${p6BizTable(it)}<div class="p6btn">${mob?'<button type="button" class="btn btn-pri sm" data-p6x="share">카톡으로 공유</button>':''}<button type="button" class="btn btn-pri sm" data-p6x="img">사업자 정보 이미지 복사</button><button type="button" class="btn btn-line sm" data-p6x="kakao">문안 복사</button><button type="button" class="btn btn-line sm" data-p6x="imgsave">이미지 저장</button>${hdTel?`<a class="btn btn-line sm" href="sms:${esc(hdTel.replace(/[^0-9]/g,''))}?&body=${encodeURIComponent(p6Kakao(it))}">문자로 보내기</a>`:''}<button type="button" class="btn btn-ghost sm" data-p6v="kakao">문안 보기</button></div>
+    ${p6None(it)?`<li class="p6 na"><div class="p6h"><b>①</b><span>소장님 안내 — <em>해당 없음</em> · 비용 전액 업체 지급</span><span class="p6r"><button type="button" class="btn btn-ghost sm" data-p6none="0">되돌리기</button></span></div></li>`:row('kakao','①','소장님 안내 — 계산서 발행 요청 (카톡·문자)',`${p6SelHtml(it)}${p6BizTable(it)}<div class="p6btn">${mob?'<button type="button" class="btn btn-pri sm" data-p6x="share">카톡으로 공유</button>':''}<button type="button" class="btn btn-pri sm" data-p6x="img">사업자 정보 이미지 복사</button><button type="button" class="btn btn-line sm" data-p6x="kakao">문안 복사</button><button type="button" class="btn btn-line sm" data-p6x="imgsave">이미지 저장</button>${hdTel?`<a class="btn btn-line sm" href="sms:${esc(hdTel.replace(/[^0-9]/g,''))}?&body=${encodeURIComponent(p6Kakao(it))}">문자로 보내기</a>`:''}<button type="button" class="btn btn-ghost sm" data-p6v="kakao">문안 보기</button></div>
       <p class="cap">카톡: 「문안 복사」 붙여 넣기 → 「사업자 정보 이미지 복사」 붙여 넣기 · 문자는 사업자 정보까지 글로 들어감</p><pre class="p6pre" id="p6v_kakao" hidden>${esc(p6Kakao(it,false))}</pre>`)}
     ${row('mail','②','시공사 계산서 발행 요청 메일 (하이웍스)',`<div class="p6btn"><button type="button" class="btn btn-pri sm" data-p6x="mail">본문 복사 · 메일 쓰기</button><button type="button" class="btn btn-line sm" data-p6x="to">받는 사람 복사</button><button type="button" class="btn btn-line sm" data-p6x="sub">제목 복사</button><button type="button" class="btn btn-ghost sm" data-p6v="mail">문안 보기</button></div>
       <p class="cap">받는 사람 ${esc(need(con.bizEmail))} · 제목 ${esc(p6MailSub(it))}</p><pre class="p6pre" id="p6v_mail" hidden>${esc(p6MailBody(it))}</pre>`)}
@@ -3981,9 +4001,23 @@ function pay6Html(it, s){
   </ol>
   <div class="g2"><div class="field"><label>기안 번호</label><input class="inp" id="dNo" value="${esc(it.draftNo||'')}" placeholder="하이웍스 기안 문서번호"></div>
   <div class="field"><label>④ 시공사 지급일</label><input class="inp" type="date" id="pDt" value="${ymd(TODAY)}"></div></div>
-  <p class="cap">지급 대상 ${won(a.tot)}원(부가세 포함) · 지급처 ${esc(s.co||'')} (시공사 → 처리소장) · 지급일을 넣고 아래 「지급 완료」를 누르면 처리 완료로 종결</p>`;
+  <p class="cap">지급 대상 ${won(a.tot)}원(부가세 포함) · 지급처 ${esc(s.co||'')} ${p6None(it)?'(업체 지급 · 소장님 지급 없음)':'(시공사 → 처리소장)'} · 지급일을 넣고 아래 「지급 완료」를 누르면 처리 완료로 종결</p>`;
+}
+function p6SelHtml(it){
+  const L=p6Items(it), noneBtn=`<button type="button" class="btn btn-ghost sm p6nb" data-p6none="1">소장님 지급 없음</button>`;
+  if(L.length<2) return `<div class="p6sel one">${noneBtn}</div>`;
+  const K=p6SelKeys(it), k=p6KAmt(it);
+  return `<div class="p6sel"><span class="p6sl">문자 금액에 넣을 항목 ${noneBtn}</span>${L.map(x=>`<label><input type="checkbox" data-p6s="${x.k}" ${K.includes(x.k)?'checked':''}> ${esc(x.nm)}${x.sub?` <small>${esc(x.sub)}</small>`:''} <b>${won(x.amt)}</b></label>`).join('')}
+    <span class="p6st">공급가액 <b>${won(k.sup)}</b> · 합계 ${won(k.tot)}${k.all?'':` <em>(전체 ${won(ourPay(it))} 중)</em>`}</span></div>`;
 }
 function bindPay6(it){
+  drawer.querySelectorAll('[data-p6none]').forEach(b=>b.onclick=()=>{ const on=b.dataset.p6none==='1';
+    if(on && !confirm('소장님께 지급하는 비용이 없나요?\n① 소장님 안내를 건너뛰고, 시공사 메일에서 소장님 지급처 안내를 뺍니다.')) return;
+    it.p6sel = on?[]:null; dbCase(it.id,{p6sel:on?[]:null}, on?'기안 진행 · 소장님 지급 없음 (비용 전액 업체 지급)':'기안 진행 · 소장님 지급 없음 해제'); detail(it.id); });
+  drawer.querySelectorAll('[data-p6s]').forEach(c=>c.onchange=()=>{ const K=[...drawer.querySelectorAll('[data-p6s]:checked')].map(x=>x.dataset.p6s);
+    if(!K.length){ c.checked=true; toast('한 가지 이상 골라 주세요'); return; }
+    const all=K.length===p6Items(it).length; it.p6sel = all?null:K;
+    dbCase(it.id, {p6sel: all?null:K}, ''); detail(it.id); });
   const set = (k, v, msg) => { const cur=(ITEMS.find(i=>i.id===it.id)||it).p6||{}; return dbCase(it.id, {p6:{...cur, [k]:v}}, msg); };   // 항목 전체를 다시 써서 다른 절차 기록이 지워지지 않게
   drawer.querySelectorAll('[data-p6]').forEach(b=>b.onclick=()=>{ const k=b.dataset.p6; set(k, {at:iso(), by:ME()||''}, `기안 진행 · ${P6.find(x=>x[0]===k)[1]} 완료`); });
   drawer.querySelectorAll('[data-p6u]').forEach(b=>b.onclick=()=>{ const k=b.dataset.p6u; if(!confirm(`「${P6.find(x=>x[0]===k)[1]}」 완료 표시를 취소할까요?`)) return; set(k, null, `기안 진행 · ${P6.find(x=>x[0]===k)[1]} 완료 취소`); });
@@ -4015,15 +4049,21 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .p6btn{display:flex;flex-wrap:wrap;gap:6px}
 .p6pre{white-space:pre-wrap;font:12.5px/1.55 inherit;background:var(--bg2,#f6f8fb);border-radius:8px;padding:10px 12px;margin:0;max-height:260px;overflow:auto}
 .tg-p6{background:#fff1e6;color:#b85c00}
+.p6sel{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;padding:9px 12px;border:1.5px dashed #bfdcf5;border-radius:8px;background:#f5faff;font-size:13px}
+.p6sel .p6sl{font-weight:700;color:var(--sky-d,#1270c4);width:100%;display:flex;align-items:center;gap:8px}.p6sel .p6nb{margin-left:auto;font-weight:600}.p6sel.one{padding:4px 8px;justify-content:flex-end}
+.p6.na{background:#f6f8fb;border-style:dashed}.p6.na em{font-style:normal;font-weight:700;color:var(--ink2)}
+.p6sel label{display:inline-flex;align-items:center;gap:5px;cursor:pointer}.p6sel input{width:16px;height:16px;accent-color:var(--sky)}
+.p6sel small{color:var(--ink3,#8a94a6)}.p6sel b{font-variant-numeric:tabular-nums}
+.p6sel .p6st{margin-left:auto;font-size:13px}.p6sel .p6st em{font-style:normal;color:var(--ink3,#8a94a6)}
 </style>`);
 
 /* ── 사업자 정보(세금계산서 발행용) — 표 · 이미지 (2026-10-26) ── */
 function p6BizRows(it){ const {s,con}=p6Info(it); return [['상호',con.name||con.bizName||s.co],['사업자등록번호',con.bizNo],['대표자명',con.ceoName],['업태',con.bizType],['종목',con.bizItem],['사업장 주소',con.bizAddress],['세금계산서 수신 이메일',con.bizEmail]]; }
-function p6BizTable(it){ const a=p6Amt(it);
+function p6BizTable(it){ const a=p6KAmt(it);
   return `<div class="p6biz"><div class="p6bh">사업자 정보 <span>세금계산서 발행용</span></div><table>${p6BizRows(it).map(([k,v])=>`<tr><th>${k}</th><td>${v&&String(v).trim()?esc(v):'<b class="p6miss">확인 필요</b>'}</td></tr>`).join('')}</table>
     <div class="p6ba"><span>품목 <b>유지보수 수수료</b></span><span>공급가액 <b>${won(a.sup)}</b></span><span>세액 <b>${won(a.vat)}</b></span><span>합계 <b>${won(a.tot)}</b></span><span>비고 <b>${esc(it.site)}</b></span></div></div>`; }
 function p6BizBlob(it){
-  const rows=p6BizRows(it), a=p6Amt(it), W=760, P=36, KW=210, F='"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",sans-serif';
+  const rows=p6BizRows(it), a=p6KAmt(it), W=760, P=36, KW=210, F='"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",sans-serif';
   const c=document.createElement('canvas'), x=c.getContext('2d');
   const wrap=(t,w,font)=>{ x.font=font; const out=[]; let line=''; for(const ch of String(t)){ if(x.measureText(line+ch).width>w && line){ out.push(line); line=ch; } else line+=ch; } if(line) out.push(line); return out.length?out:['']; };
   const vf=`500 22px ${F}`, kf=`600 19px ${F}`, vw=W-P*2-KW-12;
