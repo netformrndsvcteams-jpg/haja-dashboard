@@ -377,6 +377,15 @@ tr.wait-row:hover td{background:#fff8dc!important}
 .banner span{font-size:12.5px;color:#6b5200;line-height:1.55}
 .banner .btn{margin-left:auto;flex:none}
 .banner.soft{background:#fff;border-color:transparent;box-shadow:var(--sh)}
+.admenu{position:relative;display:inline-block}.admenu>summary{list-style:none;cursor:pointer}.admenu>summary::-webkit-details-marker{display:none}
+.admenu .cv{font-size:11px;margin-left:2px;color:var(--ink3,#8a94a6)}
+.admenu .adm{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:220px;background:#fff;border:1px solid var(--line2);border-radius:12px;box-shadow:0 10px 30px rgba(15,42,74,.14);padding:8px}
+.admenu .adm p{margin:6px 8px 4px;font-size:11.5px;font-weight:700;color:var(--ink3,#8a94a6)}
+.admenu .adm button{display:flex;align-items:center;gap:8px;width:100%;padding:9px 10px;border:0;background:none;border-radius:8px;font-size:13.5px;color:var(--ink);cursor:pointer;text-align:left}
+.admenu .adm button:hover{background:var(--s1,#f1f5f9)}.admenu .adm .bi{width:18px;height:18px;display:inline-block}
+.ppn{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:9px;background:#fff;color:var(--sky);font-size:12px;font-weight:800;line-height:18px}
+.seg button.miss:not(.on){color:#8a6100}
+.qkl{margin:0 0 10px;font-size:13px;color:var(--ink2)}.qkl .lkb{font-weight:700}
 .banner.soft span{color:var(--ink2)}
 /* 지출 구성 */
 .stack{display:flex;gap:2px;height:22px;border-radius:999px;overflow:hidden;margin:6px 0 12px}
@@ -1205,7 +1214,7 @@ function vSites(){
   const years=[...new Set(sts.map(x=>cYear(x.s)))].sort();
   const cnt = k => sts.filter(x=>x.state===k).length;
   const base = sts.filter(x=>(!CF.cy||String(cYear(x.s))===CF.cy)&&(!CF.cct||x.s.ct===CF.cct)&&(!CF.q||x.nm.includes(CF.q.trim())||(x.s.co||'').includes(CF.q.trim())));
-  const list = base.filter(x=>!CF.cst||x.state===CF.cst);
+  const list = base.filter(x=>!CF.cst||(CF.cst==='miss'?wMiss(x.s).length>0:x.state===CF.cst));
   const ord={wait:0,over:1,risk:2,ok:3,end:4};
   list.sort((a,b)=>ord[a.state]-ord[b.state] || (b.pace||0)-(a.pace||0));
   const wait = sts.filter(x=>x.s.wait);
@@ -1213,20 +1222,23 @@ function vSites(){
   const D = CF.detail;
   const reg = list.filter(x=>!x.s.wait);
   return head('현장·예산','등록 '+Object.values(SITES).filter(s=>!s.wait).length+'곳','준공 시점에 현장을 등록하면 하자예산이 자동 편성됩니다 · 과거 준공 현장도 같은 방식으로 등록해 연도별 예산을 맞춥니다'+matUNote(),
-     `<button class="btn btn-line" onclick="openMatUpload()"><img class="bi" src="${ICON.c_out}" alt="">자재 출고 올리기</button>
-      <button class="btn btn-line" onclick="openMatCfg()">현장 연결 · 단가표</button>
-      <button class="btn btn-line" onclick="openLaborUpload()"><img class="bi" src="${ICON.c_subpay}" alt="">과거 노임 불러오기</button>
-      <button class="btn btn-line" onclick="dlTemplate()"><img class="bi" src="${ICON.c_xls}" alt="">양식 받기</button>
-      <button class="btn btn-line" onclick="openUpload()"><img class="bi" src="${ICON.c_up}" alt="">엑셀 일괄 등록</button>
+     `<details class="admenu"><summary class="btn btn-line">자료 관리 <span class="cv">▾</span></summary><div class="adm">
+        <p>현장 자료</p>
+        <button type="button" onclick="this.closest('details').open=false;openUpload()"><img class="bi" src="${ICON.c_up}" alt="">엑셀 일괄 등록</button>
+        <button type="button" onclick="this.closest('details').open=false;dlTemplate()"><img class="bi" src="${ICON.c_xls}" alt="">양식 받기</button>
+        <p>비용 자료</p>
+        <button type="button" onclick="this.closest('details').open=false;openMatUpload()"><img class="bi" src="${ICON.c_out}" alt="">자재 출고 올리기</button>
+        <button type="button" onclick="this.closest('details').open=false;openMatCfg()"><span class="bi"></span>현장 연결 · 단가표</button>
+        <button type="button" onclick="this.closest('details').open=false;openLaborUpload()"><img class="bi" src="${ICON.c_subpay}" alt="">과거 노임 불러오기</button></div></details>
       <button class="btn btn-line" onclick="openSiteForm()">＋ 현장 등록</button>
-      <button class="btn btn-pri" onclick="openPPImport()"><img class="bi" src="${ICON.c_link}" alt="">pour-pay 완료 현장 가져오기</button>`)
+      <button class="btn btn-pri" onclick="openPPImport()"><img class="bi" src="${ICON.c_link}" alt="">pour-pay 완료 현장 가져오기${(()=>{ try{ const n=PP.st==='ok'?ppScan().pend.length:0; return n?` <span class="ppn">${n}</span>`:''; }catch(e){ return ''; } })()}</button>`)
   + ppBanner()
   + ''
   + `<div class="tools">
       <select class="sel" onchange="CF.cy=this.value;renderCost()"><option value="">준공연도 전체</option>${years.map(y=>`<option ${CF.cy==y?'selected':''} value="${y}">${yLab(y,' 준공')}</option>`).join('')}</select>
       <select class="sel" onchange="CF.cct=this.value;renderCost()"><option value="">계약유형 전체</option>${['컨설팅','기술자문컨설팅','기술자문'].map(c=>`<option ${CF.cct===c?'selected':''}>${c}</option>`).join('')}</select>
       <input class="inp" id="sQ" placeholder="현장명·업체명 검색" value="${CF.q}" oninput="CF.q=this.value;softCost()">
-      <div class="seg">${[['','전체',sts.length],['over','예산 초과',cnt('over')],['risk','초과 예상',cnt('risk')],['ok','예산 내',cnt('ok')],['end','보증 종료',cnt('end')],['wait','확인 대기',cnt('wait')]].map(([k,l,n])=>`<button class="${CF.cst===k?'on':''} ${k}" onclick="CF.cst='${k}';renderCost()">${l} <b>${n}</b></button>`).join('')}</div>
+      <div class="seg">${[['','전체',sts.length],['over','예산 초과',cnt('over')],['risk','초과 예상',cnt('risk')],['ok','예산 내',cnt('ok')],['end','보증 종료',cnt('end')],['wait','확인 대기',cnt('wait')],['miss','준공일 미입력',sts.filter(x=>wMiss(x.s).length).length]].map(([k,l,n])=>`<button class="${CF.cst===k?'on':''} ${k}" onclick="CF.cst='${k}';renderCost()">${l} <b>${n}</b></button>`).join('')}</div>
       <label class="tgl"><input type="checkbox" ${D?'checked':''} onchange="CF.detail=this.checked;renderCost()"> 집행 내역 펼치기</label>
     </div>
     <div class="tcard ${D?'scroll':''}"><table class="ct st-tbl"><thead><tr>
@@ -2191,7 +2203,7 @@ function detail(id){
         </dl><div id="swapMsg"></div>
       </div>`:''}
 
-      ${show([2,3])?`<div class="dsec"><h4>진행 내용 <span class="cap" style="font-weight:400">조율·진행 경과를 날짜순으로 기록</span></h4>
+      ${show([2,3,4])?`<div class="dsec"><h4>진행 내용 <span class="cap" style="font-weight:400">조율·진행 경과를 날짜순으로 기록</span></h4>
         <ol class="notes" id="nList">${notesLi(it.notes)}</ol>
         <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><input class="inp" id="nT" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"><button class="btn btn-line sm" id="nAdd">추가</button></div><p class="cap" id="nStat" style="margin-top:6px">입력하면 자동 저장됩니다 · 「추가」나 Enter를 누르면 다음 줄을 새로 씁니다</p>
       </div>`:''}
@@ -3048,7 +3060,7 @@ function siteBox(name){
 }
 
 /* ── 현장·예산 화면 알림 ── */
-function ppBanner(){ return missBanner()+ppBanner0(); }
+function ppBanner(){ return ppBanner0(); }   /* 준공일·보증기간 미입력 안내 박스는 필터 칩 「준공일 미입력」으로 대체 (2026-10-28) */
 function ppBanner0(){
   if(PP.st!=='ok') return PP.st==='err'?`<div class="banner soft"><img class="bi2" src="${ICON.c_link}" alt=""><div><b>pour-pay에 연결하지 못했습니다</b><span>${esc(PP.err)} · 완료 현장 가져오기를 쓰려면 pour-pay 연결이 필요합니다. 기존 등록 현장과 접수는 그대로 쓸 수 있습니다.</span></div><button class="btn btn-line" onclick="ppLoad(true)">다시 읽기</button></div>`:'';
   const sc=ppScan(), n=sc.pend.length, c=sc.chg.length; if(!n&&!c) return '';
@@ -3071,6 +3083,7 @@ function intakeRes(){
   } else if(q && hits.length) h += `<div class="res">${hits.map(n=>{const s=SITES[n];return `<button data-site="${esc(n)}" class="${intake.site===n?'on':''}"><b>${esc(n)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}${wExpired(n,TODAY)?'<span class="tg tg-swap">보증 경과</span>':''}<small>${esc(s.co)} · ${s.comp?`준공 ${s.comp.slice(0,7).replace('-','.')} · 보증 ${gYear(n,TODAY)}년차`:'준공일 미입력'}${s.comp&&!s.wy&&!s.wNone?' · 보증기간 미입력':''}${s.wNone?' · 보증 없음':''}</small></button>`;}).join('')}</div>`;
   if(q && !hits.length) h += `<div class="noresult"><b>「${esc(q)}」</b> 현장이 마스터에 없습니다.<br>아는 정보 4가지만 넣어 간이 등록하면 접수를 바로 이어갈 수 있습니다. 나머지는 대금관리자가 채워 정식 등록합니다.<br><button class="btn btn-ter" style="margin-top:12px" id="goQuick">간이 등록으로 계속</button></div>`;
   if(!q) h += `<p class="cap">현장명 일부를 입력하세요. 비슷한 이름이 많으니 결과의 업체·준공 연월을 함께 확인하세요.</p>`;
+  if(q && hits.length && !intake.site) h = `<p class="qkl">검색 ${hits.length}곳 · 찾는 현장이 없나요? <button type="button" class="lkb" id="goQuick">간이 등록</button> <span class="cap">현장명·시공사·준공일·시공소장 4가지만 넣고 접수를 이어갑니다</span></p>` + h;
   if(intake.site) h += siteBox(intake.site) + intakeForm() + histBox(intake.site);
   return h;
 }
@@ -3555,6 +3568,8 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .dly summary .dlys{color:var(--ink);font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .dly summary .dlyadd{color:var(--sky-d,#1270c4);font-weight:600}.dly.need summary .dlyadd{color:#c23b3b}
 .dly:not([open]){padding:8px 12px}.dly[open] summary{margin-bottom:8px}
+.dly:not([open]) summary .dlys{white-space:pre-wrap;overflow:visible;line-height:1.55}.dly[open] summary .dlys,.dly[open] summary .dlye{display:none}
+.dly summary .dlye{margin-left:auto;flex:none;color:var(--sky-d,#1270c4);font-weight:600}
 details.dly{display:block}
 .dly summary{list-style:none}.dly summary::-webkit-details-marker{display:none}
 .dly summary::before{content:"▸";color:var(--ink3,#8a94a6);flex:0 0 auto}.dly[open] summary::before{content:"▾"}
@@ -3579,7 +3594,7 @@ function delayHtml(it){
   const ov = st<7 ? over(it) : null;
   const k = it.id+'|'+st, open = DLYOPEN.has(k);
   const box = (st>1&&st<7) ? `<details class="dly ${ov>0&&!cur.txt?'need':''}" id="dlyBox" data-k="${k}"${open?' open':''}>
-      <summary><b>${st}단계 지연 사유</b>${cur.txt?` <span class="dlys">${esc(cur.txt)}</span>`:` <span class="dlyadd">${ov>0?`기한 ${ov}일 초과 · 사유 미기재 — 눌러서 작성`:'작성하기'}</span>`}</summary>
+      <summary><b>${st}단계 지연 사유</b>${cur.txt?` <span class="dlys">${esc(cur.txt)}</span><span class="dlye">수정</span>`:` <span class="dlyadd">${ov>0?`기한 ${ov}일 초과 · 사유 미기재 — 눌러서 작성`:'작성하기'}</span>`}</summary>
       <textarea class="inp" id="dlyT" placeholder="기한을 넘겼거나 넘길 것 같으면 사유를 적어 두세요 (입주민 일정, 우천, 자재 대기, 소장 일정 등) · 입력 후 다른 곳을 누르면 저장">${esc(cur.txt||'')}</textarea>
       ${cur.txt&&cur.at?`<em>${esc(cur.by||'작성자 미선택')} · ${String(cur.at).slice(0,10).replace(/-/g,'.')} 기록</em>`:''}
     </details>` : '';
@@ -3589,8 +3604,11 @@ function delayHtml(it){
 function bindDelay(it){
   const bx = document.getElementById('dlyBox'); if(bx) bx.ontoggle=()=>{ if(bx.open){ DLYOPEN.add(bx.dataset.k); const t=document.getElementById('dlyT'); t&&t.focus({preventScroll:true}); } else DLYOPEN.delete(bx.dataset.k); };
   const t = document.getElementById('dlyT'); if(!t) return;
-  t.onchange = ()=>{ const v=t.value.trim(), st=it.st; if(v===((it.delay||{})[st]||{}).txt) return;
-    dbCase(it.id, {delay:{[st]:{txt:v, by:ME()||'', at:iso()}}}, v?`${st}단계 지연 사유 · ${v.slice(0,40)}`:`${st}단계 지연 사유 삭제`); };
+  /* 입력 후 다른 곳을 누르면 저장하고 접힘 — 접힌 제목 줄에 저장된 사유가 보임, 다시 누르면 수정 (2026-10-28) */
+  t.onchange = ()=>{ const v=t.value.trim(), st=it.st; if(bx){ DLYOPEN.delete(bx.dataset.k); }
+    if(v===((it.delay||{})[st]||{}).txt){ if(bx) bx.open=false; return; }
+    it.delay={...(it.delay||{}), [st]:{txt:v, by:ME()||'', at:iso()}};
+    dbCase(it.id, {delay:{[st]:{txt:v, by:ME()||'', at:iso()}}}, v?`${st}단계 지연 사유 · ${v.slice(0,40)}`:`${st}단계 지연 사유 삭제`); detail(it.id); };
 }
 function dlyTag(it){
   if(it.st===7||it.st===1) return '';
@@ -3908,6 +3926,9 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .ptg button.auto{position:relative;border-style:dashed}
 .ptg button.auto::after{content:"자동";margin-left:6px;font-size:10.5px;font-weight:700;color:var(--sky-d,#1270c4);background:#fff;border-radius:999px;padding:1px 6px}
 </style>`);
+
+/* 자료 관리 메뉴 — 바깥을 누르면 닫힘 (2026-10-28) */
+document.addEventListener('click', e=>{ document.querySelectorAll('details.admenu[open]').forEach(d=>{ if(!d.contains(e.target)) d.open=false; }); });
 
 /* ════════════════════════════════════════════
    6단계 기안 진행 — 계산서 발행 요청 · 기안 · 지급 (2026-10-26)
