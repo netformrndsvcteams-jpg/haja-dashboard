@@ -833,9 +833,11 @@ function burdenChip(it, short=true){
   else if(t==='시공소장 부담') chip=`<span class="bd bd-bld">시공소장 부담</span>`;
   else if(t==='공동 부담'){ const tot=(it.lab||0)+(it.rst||0), our=tot-(it.sh||0); const p=Math.round(our/tot*100);
     chip=`<span class="bd bd-joint" title="당사 ${won(our)}원 / 시공사 ${won(it.sh)}원"><span>당사 ${p}%</span><span>시공사 ${100-p}%</span></span>`; }
-  const sub = basis==='조정' ? `<span class="bsub adj">조정 · ${why}</span>` : `<span class="bsub">보증 ${SITES[it.site].ct?yr+'년차':''}</span>`;
-  /* 보증 기준인데 따로 적은 사유(예: 이관 건의 「기존 대시보드 회사 노임 지급」)는 부담 표시에 마우스를 올리면 보임 */
-  if(basis!=='조정' && why) chip = chip.replace('<span class="bd ', `<span title="${esc(why)}" style="cursor:help" class="bd `);
+  /* 조정 사유는 목록에 늘 띄우지 않고 부담 표시에 마우스를 올리면 보임 (2026-10-30) · 기타는 메모(adjNote)까지 */
+  const sub = basis==='조정' ? '' : `<span class="bsub">보증 ${SITES[it.site].ct?yr+'년차':''}</span>`;
+  const tip = basis==='조정' ? `조정 · ${why||''}${why==='기타'&&it.adjNote?' — '+it.adjNote:''}` : why;
+  if(tip) chip = chip.includes(' title="') ? chip.replace(' title="', ` style="cursor:help" title="${esc(tip)} · `)   /* 공동 부담은 비율 안내 앞에 붙임 */
+    : chip.replace('<span class="bd ', `<span title="${esc(tip)}" style="cursor:help" class="bd `);
   const none = it.st===7 && /^(당사|공동)/.test(t) && ourPay(it)===0 ? `<span class="bsub">· 비용 없음</span>` : '';   /* 회사 책임 구간이지만 지급 0원 */
   return chip+sub+none;
 }
@@ -2217,7 +2219,7 @@ function detail(id){
           <label class="radio"><input type="radio" name="bmode" value="auto" ${!isAdj&&!bOff?'checked':''}> 보증 기준 그대로 — <b>${auto?auto[0]:wX?`계산 불가 (보증기간 경과 · ${fmtD(wE)} 만료)`:'계산 불가 (계약유형·준공일 미등록)'}</b>${auto?` <span class="cap">보증 ${yr}년차 · ${z} 책임 구간${auto[0]==='당사 대납'?` · 처리소장 ${esc(it.hd)} ≠ 시공소장 ${esc(s.bld)}`:''}</span>`:''}</label>
           <label class="radio"><input type="radio" name="bmode" value="adj" ${isAdj?'checked':''}> 원인 조정 (예외)</label>
           <div id="adjBox" class="adjbox" ${isAdj?'':'hidden'}>
-            <div class="g2"><div class="field"><label>조정 사유</label><select class="sel" id="adjR">${[...Object.keys(ADJ), ...(isAdj&&it.b[2]&&!(it.b[2] in ADJ)?[it.b[2]]:[])].map(r=>`<option ${isAdj&&it.b[2]===r?'selected':''}>${r}</option>`).join('')}</select></div>
+            <div class="g2"><div class="field"><label>조정 사유${isAdj&&it.b[2]==='기타'&&it.adjNote?` <span class="cap">${esc(it.adjNote)}</span>`:''}</label><select class="sel" id="adjR">${[...Object.keys(ADJ), ...(isAdj&&it.b[2]&&!(it.b[2] in ADJ)?[it.b[2]]:[])].map(r=>`<option ${isAdj&&it.b[2]===r?'selected':''}>${r}</option>`).join('')}</select></div>
             <div class="field" id="adjTW"><label>부담 (기타일 때)</label><select class="sel" id="adjT">${['당사 부담','당사 대납','시공소장 부담','공동 부담'].map(t=>`<option ${isAdj&&it.b[0]===t?'selected':''}>${t}</option>`).join('')}</select></div></div>
             <div class="field" id="shW"><label>시공사 몫 (원) — 공동 부담일 때 노임·복구비 중 시공사가 내는 금액</label><input class="inp amt-in" id="shV" inputmode="numeric" value="${it.sh?won(it.sh):''}"></div>
           </div>
@@ -3150,7 +3152,7 @@ function costCheck(it, s){
   return `<div class="dsec"><h4>비용 확인 <span class="cap" style="font-weight:400">영업이 입력한 내용 · 확인 후 6단계 기안으로 넘깁니다</span></h4>
     <dl class="kv"><dt>처리완료일</dt><dd>${it.doneAt?it.doneAt.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}</dd>
     <dt>처리소장</dt><dd>${esc(hdTx(it)||'미배정')}</dd><dt>하자 원인</dt><dd>${esc(it.cz||'미입력')}</dd>
-    <dt>부담 판정</dt><dd>${it.b&&it.b[0]!=='부담 미정'?esc(it.b[0])+(it.b[1]==='조정'?` <span class="cap">(조정 · ${esc(it.b[2]||'')})</span>`:''):'<b style="color:var(--warn-tx)">미판정</b>'}</dd>
+    <dt>부담 판정</dt><dd>${it.b&&it.b[0]!=='부담 미정'?esc(it.b[0])+(it.b[1]==='조정'?` <span class="cap">(조정 · ${esc(it.b[2]||'')}${it.b[2]==='기타'&&it.adjNote?' — '+esc(it.adjNote):''})</span>`:''):'<b style="color:var(--warn-tx)">미판정</b>'}</dd>
     <dt>2차 피해</dt><dd>${it.dmg.length?it.dmg.length+'건':'없음'}</dd></dl>
     <table class="ct cchk"><tbody>
       ${row(`노임 <span class="cap">일당 ${won(it.labRate||0)} × ${it.labCnt||0}명</span>`, won(p.lab)+'원')}
@@ -4159,7 +4161,7 @@ function doneView(it){
   const p=costParts(it), tot=p.lab+p.rst+p.etc, pay=ourPay(it), ex=extrasOf(it);
   const doneD = it.doneAt ? new Date(it.doneAt+'T00:00:00') : it.stAt;
   const span = doneD ? bizDays(it.rcvAt, doneD) : null;
-  const b = it.b ? it.b[0]+(it.b[1]==='조정'&&it.b[2]?` (조정 · ${it.b[2]})`:'') : '판정 없음';
+  const b = it.b ? it.b[0]+(it.b[1]==='조정'&&it.b[2]?` (조정 · ${it.b[2]}${it.b[2]==='기타'&&it.adjNote?' — '+it.adjNote:''})`:'') : '판정 없음';
   const notes=(it.notes||[]).slice().sort((a,b)=>(a.d||'').localeCompare(b.d||''));
   const kv=(k,v)=>`<dt>${k}</dt><dd>${v}</dd>`;
   const costLines=[ it.lab?`노임 ${it.labCnt&&it.labRate?`${it.labCnt}품 × ${won(it.labRate)}원 = `:''}${won(it.lab)}원`:'', ...ex.filter(e=>(+e.amt||0)>0).map(e=>`${e.t==='기타'?(e.name||'기타'):e.t} ${won(+e.amt||0)}원${e.our?' (당사 지급)':''}`), (!ex.length&&it.rst)?`2차 피해 복구비 ${won(it.rst)}원`:'' ].filter(Boolean);
