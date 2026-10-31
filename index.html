@@ -2279,13 +2279,11 @@ function detail(id){
       else if(z==='당사') m.innerHTML=`<div class="alert">보증 ${yr}년차는 당사 책임 구간입니다. 처리소장에게 노임이 발생하며 당사 부담입니다.</div>`;
       else m.innerHTML=`<p class="cap" style="margin-top:10px">시공소장이 직접 처리 — 노임 없음, 시공소장 부담</p>`; };
     bindHdPicker(it); show(); }
-  /* 방문 예정일 → 진행 내용 자동 기록 (2026-10-31) — 처음 입력·변경·취소를 한 줄씩 남김, 같은 날 여러 번 바꾸면 그날 자동 기록 한 줄만 고쳐 씀 */
+  /* 방문 예정일 → 진행 내용 자동 기록 (2026-10-31) — 처음 입력·변경·취소를 바꿀 때마다 한 줄씩 남김(같은 날이어도 덮어쓰지 않음 · 잘못 넣은 줄은 진행 내용에서 삭제) */
   const va=$('visitAt'); if(va) va.onchange=()=>{ const cur=(ITEMS.find(i=>i.id===id)||it), old=cur.visitAt||'', nv=va.value||''; if(old===nv) return;
-    const md=d=>d?d.slice(5).replace('-','.'):'', today=ymd(TODAY), N=[...(cur.notes||[])];
-    const k=N.findIndex(n=>n.auto==='visit' && n.d===today), from = k>=0 ? (N[k].vFrom||'') : old;
-    const txt = !nv ? (from?`방문 예정 취소(${md(from)})`:'') : !from ? `${md(nv)} 방문 예정` : (from===nv ? '' : `방문 예정일 변경 ${md(from)} → ${md(nv)}`);
-    if(k>=0) N.splice(k,1);
-    if(txt) N.push({d:today, txt, by:ME()||'', at:iso(), auto:'visit', vFrom:from});
+    const md=d=>d?d.slice(5).replace('-','.'):'', N=[...(cur.notes||[])];
+    const txt = !nv ? `방문 예정 취소(${md(old)})` : !old ? `${md(nv)} 방문 예정` : `방문 예정일 변경 ${md(old)} → ${md(nv)}`;
+    N.push({d:ymd(TODAY), txt, by:ME()||'', at:iso(), auto:'visit'});
     cur.visitAt=nv; cur.notes=N; dbCase(id,{visitAt:nv, notes:N}, nv?`방문 예정일 ${nv}`:'방문 예정일 삭제'); if(typeof refreshNotes==='function') refreshNotes(cur); };
 
   const vA=$('viewAll'); if(vA) vA.onclick=()=>{ DV.all=!DV.all; detail(id); };
