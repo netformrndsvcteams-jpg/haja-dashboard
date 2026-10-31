@@ -878,7 +878,7 @@ function render(){ renderTrack(); const l=visible(); renderChips(l); renderRows(
 
 /* ── 상세 서랍 ── */
 const scrim=document.getElementById('scrim'), drawer=document.getElementById('drawer');
-function openDrawer(html, keep){ const db0=drawer.querySelector('.db'), sy=keep&&db0?db0.scrollTop:0; drawer.classList.remove('wide','center'); drawer.innerHTML=html; drawer.classList.add('on'); scrim.classList.add('on'); drawer.setAttribute('aria-hidden','false'); const f=drawer.querySelector('.x'); f&&f.focus({preventScroll:true}); if(keep){ const db=drawer.querySelector('.db'); if(db) db.scrollTop=sy; } }
+function openDrawer(html, keep){ const db0=drawer.querySelector('.db'), sy=keep&&db0?db0.scrollTop:0; drawer.classList.remove('wide','center','dwide'); drawer.innerHTML=html; drawer.classList.add('on'); scrim.classList.add('on'); drawer.setAttribute('aria-hidden','false'); const f=drawer.querySelector('.x'); f&&f.focus({preventScroll:true}); if(keep){ const db=drawer.querySelector('.db'); if(db) db.scrollTop=sy; } }
 function closeDrawer(){ drawer.classList.remove('on'); scrim.classList.remove('on'); drawer.setAttribute('aria-hidden','true'); openId=null; render(); }
 scrim.onclick=closeDrawer;
 document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&drawer.classList.contains('on')) closeDrawer();
@@ -2873,7 +2873,7 @@ function openSiteForm(nm, formal){
   const s = nm? SITES[nm] : {};
   const mode = !nm?'new':formal?'formal':'edit';
   const v = (k,d='')=> s[k]!==undefined&&s[k]!==null? s[k] : d;
-  window.FG = nm ? gongsOf(s).filter(g=>g!=='기타'||gongsOf(s).length===1) : [];
+  window.FG = nm ? gongsOf(s).filter(g=>g!=='기타'||gongsOf(s).length===1||s.gongNote) : [];   // 기타 내용이 있으면 기타 유지
   const basis = v('wStartBasis','준공일');
   openDrawer(`<div class="dh"><div class="k">${mode==='new'?'현장 마스터 · 신규':mode==='formal'?'확인 대기 → 정식 등록':'현장 마스터 · 수정'}</div><h3>${mode==='new'?'현장 등록':esc(nm)}</h3>
       <div class="m">${mode==='formal'?`간이 등록 ${(s.reg||'').replace(/-/g,'.')} · 비어 있는 계약유형·확정매출액을 채우면 하자예산이 편성됩니다`:'준공 시점에 등록 · 하자예산은 확정매출액 × 적용률로 자동 계산'}${s.pp?` · <b>pour-pay 연결</b>${s.ppDone?` (완료 ${s.ppDone.replace(/-/g,'.')})`:''}`:''}</div>
@@ -2884,7 +2884,8 @@ function openSiteForm(nm, formal){
       <div class="field"><label>ERP 프로젝트코드</label><input class="inp" id="fCode" value="${esc(v('code'))}" placeholder="비워 두면 자재 출고 업로드 때 채움"></div></div>
       <div class="field"><label>계약유형 *</label><div class="ctp" id="fCt">${['컨설팅','기술자문컨설팅','기술자문'].map(c=>`<button type="button" class="${s.ct===c?'on':''}" onclick="pickCt(this)" data-v="${c}">${c}<small>${c==='기술자문'?'1.5%':'3%'}</small></button>`).join('')}</div><p class="cap" style="margin-top:6px">특허료 현장은 하자예산 편성 대상이 아니므로 등록하지 않습니다</p></div>
       <div class="field"><label>확정매출액 (원) *</label><input class="inp amt-in" id="fRev" inputmode="numeric" value="${s.rev!=null&&s.rev!==''?won(s.rev):''}" oninput="const v=this.value.replace(/[^0-9-]/g,'').replace(/(?!^)-/g,'');this.value=v&&v!=='-'?Number(v).toLocaleString('ko-KR'):v;calcBudget()"><p class="cap" style="margin-top:6px">마이너스 현장은 앞에 - 를 붙여 입력 · 하자예산은 0원으로 편성됩니다</p></div>
-      <div class="g2"><div class="field"><label>공종 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="fGongs">${GONG_LIST.map(g=>`<button type="button" data-g="${g}" class="${FG.includes(g)?'on':''}" onclick="const k=FG.indexOf(this.dataset.g);if(k<0)FG.push(this.dataset.g);else FG.splice(k,1);this.classList.toggle('on',k<0)">${g}</button>`).join('')}</div></div>
+      <div class="g2"><div class="field"><label>공종 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="fGongs">${GONG_LIST.map(g=>`<button type="button" data-g="${g}" class="${FG.includes(g)?'on':''}" onclick="const k=FG.indexOf(this.dataset.g);if(k<0)FG.push(this.dataset.g);else FG.splice(k,1);this.classList.toggle('on',k<0);if(this.dataset.g==='기타'){const n=document.getElementById('fGongN');n.style.display=k<0?'':'none';if(k<0)n.focus();}">${g}</button>`).join('')}</div>
+        <input class="inp" id="fGongN" placeholder="기타 공종 내용 (예: 외벽 도장, 실링)" value="${esc(s.gongNote||'')}" style="display:${FG.includes('기타')?'':'none'};margin-top:8px"></div>
       <div class="field"><label>면적 (㎡)</label><input class="inp" id="fArea" inputmode="numeric" value="${v('area')}"></div></div>
       <div class="field"><label>시공소장 * <span class="cap">(여러 명이면 쉼표로 구분)</span></label><input class="inp" id="fBld" list="dlWf" value="${esc(bldsOf(s).join(', '))}" placeholder="이름 입력 또는 선택"><datalist id="dlWf">${WORKERS.map(w=>`<option value="${esc(w)}">`).join('')}</datalist></div>
       <div class="field"><label>현장 주소</label><input class="inp" id="fAddr" value="${esc(v('addr'))}"></div>
@@ -2935,7 +2936,7 @@ async function saveSite(mode){
   if(miss.length){ toast('필수 항목을 입력하세요 — '+miss.join(', ')); return; }
   if(mode==='new' && SITES[nm]){ toast('같은 이름의 현장이 이미 등록되어 있습니다'); return; }
   const wasWait = SITES[nm] && SITES[nm].wait;
-  const data={name:nm, co:g('fCo'), code:g('fCode'), ct, comp:w.comp||null, wy:w.wy||null, rev, gongs:GONG_LIST.filter(x=>(window.FG||[]).includes(x)).length? GONG_LIST.filter(x=>FG.includes(x)) : ['기타'], gong:(GONG_LIST.filter(x=>(window.FG||[]).includes(x)).join('·')||'기타'), area:num(g('fArea'))||null, blds, bld:blds.join(', '), addr:g('fAddr'),
+  const data={name:nm, co:g('fCo'), code:g('fCode'), ct, comp:w.comp||null, wy:w.wy||null, rev, gongs:GONG_LIST.filter(x=>(window.FG||[]).includes(x)).length? GONG_LIST.filter(x=>FG.includes(x)) : ['기타'], gong:(GONG_LIST.filter(x=>(window.FG||[]).includes(x)).join('·')||'기타'), area:num(g('fArea'))||null, blds, bld:blds.join(', '), addr:g('fAddr'), gongNote:(window.FG||[]).includes('기타')?g('fGongN'):'',
     wStartBasis:w.basis, wStart:w.basis==='준공일'?null:w.start, wNote:w.basis==='기타'?g('fWn'):'', wEndManual:w.man, wEnd:w.man?g('fWe'):null, wNone:w.wNone, wait:false, updatedAt:iso()};
   if(!w.comp) data.byr = w.byr;   /* 준공일이 있으면 예산연도는 건드리지 않음(준공 연도 우선) */
   if(wasWait && SITES[nm].siteNote) data.siteNote = SITES[nm].siteNote.split(' · ').filter(t=>!/^정산 전/.test(t)).join(' · ');   /* 정식 등록하면 「정산 전」 안내는 지움 */
@@ -3052,11 +3053,11 @@ function siteBox(name){
     <dt>현재</dt><dd>${s.wNone?`${yr?`준공 ${yr}년차 · `:''}<span class="cap">하자보증 없는 현장 — 부담은 직접 정합니다</span>`:ex?'<span class="zt over">보증기간 경과</span>':!yr?'<span class="cap">준공일 입력 후 연차 계산</span>':`보증 <b>${yr}년차</b>${z?` <span class="zt ${z==='당사'?'our':'bld'}">${z} 책임 구간</span>`:''}`}</dd>`;
   const exAlert = ex?`<div class="alert warn" style="margin-top:10px"><b>보증기간 경과</b> — ${fmtD(e)}에 만료된 현장입니다. 접수는 가능하지만 부담은 자동 판정되지 않고 직접 정합니다.</div>`
     : mi.length?`<div class="alert warn" style="margin-top:10px"><b>${mi.join('·')} 미입력</b> — 접수는 가능하지만 부담이 자동 판정되지 않습니다. 확인되면 바로 입력하세요.${compForm(name)}</div>`:'';
-  if(s.wait) return `<div class="confirm"><h5>${esc(name)} <span class="tg tg-wait">확인 대기</span></h5><dl class="kv"><dt>업체</dt><dd>${esc(s.co)}</dd><dt>공종</dt><dd>${esc(gongsOf(s).join(', '))}</dd>${wRows}<dt>시공소장</dt><dd>${bl}</dd><dt>예산</dt><dd class="cap">정식 등록 후 산정</dd></dl>${exAlert}</div>`;
+  if(s.wait) return `<div class="confirm"><h5>${esc(name)} <span class="tg tg-wait">확인 대기</span></h5><dl class="kv"><dt>업체</dt><dd>${esc(s.co)}</dd><dt>공종</dt><dd>${esc(gongTx(s))}</dd>${wRows}<dt>시공소장</dt><dd>${bl}</dd><dt>예산</dt><dd class="cap">정식 등록 후 산정</dd></dl>${exAlert}</div>`;
   const p=s.budget? s.spent/s.budget*100 : 0;
   return `<div class="confirm"><h5>${esc(name)}</h5><dl class="kv">
     <dt>업체</dt><dd>${esc(s.co)}<span class="tip"><button type="button">담당</button><span class="tipc">${con&&(con.contactName||con.contactPhone)?`${esc(con.contactName||'')} ${esc(con.contactPhone||'')}`:'등록된 담당자가 없습니다 · ⚙ 설정 › 시공사 명부에서 등록'}</span></span></dd><dt>계약유형</dt><dd>${esc(s.ct||'미등록')}</dd>
-    <dt>공종</dt><dd>${esc(gongsOf(s).join(', '))}</dd>
+    <dt>공종</dt><dd>${esc(gongTx(s))}</dd>
     ${wRows}
     <dt>시공소장</dt><dd>${bl}</dd>
     <dt>하자예산</dt><dd class="num">${won(s.budget)}원${s.rev>0?'':' <span class="cap">확정매출 마이너스 · 0원 편성</span>'}</dd>
@@ -3104,6 +3105,7 @@ function gtoks(t){ t=String(t||''); const o=[];
   if(/슬라브|slab/i.test(t)) o.push('슬라브'); if(/슁글|싱글|shingle/i.test(t)) o.push('슁글'); if(/금속기와|metal/i.test(t)) o.push('금속기와');
   if(/PVC/i.test(t)) o.push('PVC'); if(/배수로/.test(t)) o.push('배수로'); if(/옥탑/.test(t)) o.push('옥탑'); if(/우레탄/.test(t)) o.push('우레탄'); if(/재도장|옥상도장/.test(t)) o.push('재도장');
   return GONG_LIST.filter(g=>o.includes(g)); }
+function gongTx(s){ return gongsOf(s).join(', ')+(s&&s.gongNote&&gongsOf(s).includes('기타')?` (기타: ${s.gongNote})`:''); }   // 기타 공종 내용 함께 표시 (2026-11-01)
 function gongsOf(s){ if(!s) return ['기타']; const a = Array.isArray(s.gongs)&&s.gongs.length ? s.gongs.filter(g=>GONG_LIST.includes(g)) : gtoks(s.gong); return a.length? a : ['기타']; }
 const hasG=(x,g)=>(Array.isArray(x&&x.gongs)&&x.gongs.length? x.gongs : gongsOf(x)).includes(g);
 /* 재발 — 같은 현장에서 앞 접수와 부위·현상이 둘 다 겹치면 자동으로 재발 (기간 제한 없음 · 사람이 고르지 않음).
@@ -4214,6 +4216,10 @@ function doneView(it){
       ${chainHtml(it)}
     </div>
     <div class="db">
+      <div class="dsec" id="secProg"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 종결 해제 후 그 단계로 돌아갑니다 · 완료 뒤 같은 하자가 다시 생긴 경우에는 해제하지 말고 새로 접수해 재발로 연결</span></h4>
+        ${progHtml(it).replace('prog locked','prog go ro7').replace(/title="종결된 건입니다[^"]*"/,'')}
+        ${it.paid?`<p class="cap" style="margin-top:8px">지급 완료 건 — 비용을 고치지 않고 다시 처리 완료로 돌아오면 지급 완료 상태가 그대로 복원됩니다. 비용을 고친 경우에만 기존 지급분이 「이전 지급 기록」으로 남습니다.</p>`:''}
+      </div>
       <div class="dsec"><div class="d7sum">
         <div class="d7t"><span>접수 <b>${fmtD(it.rcvAt)}</b></span><i>→</i><span>처리 완료 <b>${doneD?fmtD(doneD):'—'}</b></span>${span!=null?`<em>영업일 ${span}일</em>`:''}</div>
         <dl class="kv">${kv('부위·현상', `${esc(partTx(it))} · ${esc(phTx(it))}`)}${kv('처리소장', esc(hdTx(it)||'—')+(swapped(it)?' <span class="tg tg-swap">교체</span>':''))}${kv('부담', esc(b)+(!pay && it.b && /^(당사|공동)/.test(it.b[0])?' <span class="cap">· 비용 없음 (지급 0원)</span>':''))}
@@ -4234,32 +4240,17 @@ function doneView(it){
 
       ${(it.prevPays||[]).length?`<div class="dsec"><h4>이전 지급 기록</h4><ul class="notes">${it.prevPays.map(q=>`<li><span>${q.paidAt?fmtD(new Date(q.paidAt)):'—'}</span><p>${won(q.amt||0)}원 · 기안 ${esc(q.draftNo||'—')}</p><em>${esc(q.by||'')} 해제 · ${esc(q.why||'')}</em><em></em></li>`).join('')}</ul></div>`:''}
 
-      <div class="dsec" id="reopenBox" hidden><h4>종결 해제 · 앞 단계로</h4>
-        ${it.paid&&ME()!==CFG.payMgr?`<p class="cap" style="color:var(--warn-tx)">지급 완료된 건은 대금관리자${CFG.payMgr?`(${esc(CFG.payMgr)})`:''}로 선택된 경우에만 해제할 수 있습니다. 오른쪽 위 작성자를 대금관리자로 바꿔 주세요.</p>`
-        :`<p class="cap" style="margin:0 0 8px"><b>되돌릴 단계 아이콘</b>을 누르세요 — 그 단계 화면으로 돌아가 평소처럼 수정·진행합니다</p>
-        ${progHtml(it).replace('prog locked','prog go ro7').replace(/title="종결된 건입니다[^"]*"/,'')}
-        ${it.paid?`<p class="cap" style="margin-top:8px">비용을 고치지 않고 다시 처리 완료로 돌아오면 지급 완료 상태가 그대로 복원됩니다. 비용을 고친 경우에만 기존 지급분이 「이전 지급 기록」으로 남습니다.</p>`:''}
-        <p class="cap">완료 뒤 같은 하자가 다시 생긴 경우에는 해제하지 말고 새로 접수해 재발로 연결합니다.</p>`}
-      </div>
-
       <div class="dsec"><details class="logd"><summary>처리 이력 <span class="cap" style="font-weight:400">${(it.log||[]).length}건</span></summary>
         <ul class="logl">${(it.log||[]).slice().reverse().map(l=>`<li><span>${l.at?fmtD(new Date(l.at))+' '+hhmm(new Date(l.at)):''}</span><b>${esc(l.by||'')}</b>${esc(l.msg)}</li>`).join('')||'<li class="cap">기록 없음</li>'}</ul></details>
       </div>
-    </div>
-    <div class="df">
-      <button class="btn btn-ghost" id="reopenBtn">종결 해제 · 앞 단계로</button>
-      <span style="flex:1"></span>
-      <button class="btn btn-pri x2">닫기</button>
     </div>`, openId===id && drawer.classList.contains('on'));
-  drawer.classList.add('center');
+  drawer.classList.add('center'); wideLayout();
   const $=q=>document.getElementById(q);
-  drawer.querySelector('.x').onclick=closeDrawer; drawer.querySelector('.x2').onclick=closeDrawer;
+  drawer.querySelector('.x').onclick=closeDrawer;
   drawer.querySelectorAll('[data-chain]').forEach(b=>b.onclick=()=>{ if(b.dataset.chain!==id) detail(b.dataset.chain); });
-  $('reopenBtn').onclick=()=>{ const bx=$('reopenBox'); bx.hidden=!bx.hidden; if(!bx.hidden){ bx.scrollIntoView({block:'nearest'}); } };
   drawer.querySelectorAll('.ro7 [data-go]').forEach(el=>{ const n=+el.dataset.go; if(n===7){ el.style.opacity='.45'; el.style.cursor='default'; } else el.title=`${n}단계 ${STAGES[n]}(으)로 되돌리기`; });
   drawer.querySelectorAll('.ro7 [data-go]').forEach(el=>el.onclick=()=>{ const to=+el.dataset.go; if(to===7) return; const why='';
     if(!confirm(`${to}단계 ${STAGES[to]}(으)로 되돌릴까요?`)) return;
-    if(it.paid&&ME()!==CFG.payMgr){ toast('지급 완료 건은 대금관리자만 해제할 수 있습니다'); return; }
     const by=ME()||'', at=iso();
     dbCase(id,{st:to, stAt:at, paid:false,
       ...(it.paid?{paidAt:null, payHold:{paidAt:it.paidAt?new Date(it.paidAt).toISOString():null, draftNo:it.draftNo||'', amt:ourPay(it), at, by}}:{}),
