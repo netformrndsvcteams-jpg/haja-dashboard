@@ -2166,7 +2166,7 @@ function detail(id){
   const ALL = DV.all, show = a => ALL || st===7 || a.includes(st);
   openDrawer(`
     <div class="dh"><button class="x" aria-label="닫기">×</button>
-      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}${seqOf(it)>1?` · <b style="color:var(--red)">재발 ${seqOf(it)}차</b>`:''}${!ME()?' · <b style="color:var(--warn-tx)">작성자 미선택 — 이력에 이름이 남지 않습니다</b>':''}</div>
+      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}${seqOf(it)>1?` · <b style="color:var(--red)">재발 ${seqOf(it)}차</b>`:''}${!ME()?' · <b style="color:var(--warn-tx)">작성자 미선택 — 이력에 이름이 남지 않습니다</b>':''} · <button type="button" class="lkb" style="font-size:inherit" onclick="if(confirm('이 접수를 잔디 토픽으로 보낼까요?')) jandiSend('${it.id}','수동')">잔디로 보내기</button></div>
       <h3>${esc(it.site)}</h3>
       <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}${yr?` · 보증 ${yr}년차`:''}${s.comp&&wMiss(s).includes('보증기간')?' · <b style="color:var(--warn-tx)">보증기간 미입력</b>':''}${s.wNone?' · <b>보증 없음</b>':''}${wE?` · 만료 ${fmtD(wE)}`:''}${wX?' · <b style="color:var(--warn-tx)">접수일 기준 보증기간 경과</b>':''}${s.wait?' · <b style="color:var(--yel)">확인 대기 현장</b>':''}</div>
       ${chainHtml(it)}
@@ -2175,7 +2175,7 @@ function detail(id){
       ${SITES[it.site] && wMiss(s).length && st<7?`<div class="dsec"><div class="alert warn" style="margin:0"><b>${wMiss(s).join('·')} 미입력</b> — 보증 연차·부담이 자동 판정되지 않습니다. 확인되면 바로 입력하세요.${compForm(it.site)}</div></div>`:''}
       <div class="dsec"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 바로 이동합니다</span></h4>${progHtml(it)}${missNote(it)}${sumLine(it,s)}
         ${st<7?`<p class="cap" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · ${slaTx(it)} ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
-        ${delayHtml(it)}
+        ${show([2,3,4])?'':delayHtml(it)}
       </div>
 
       ${show([1])||DV.ed?`<div class="dsec" id="secIn"><h4>하자 내용${DV.ed?' <span class="cap" style="font-weight:400">수정 중 — 저장을 눌러야 반영됩니다</span>':''}</h4>
@@ -2203,6 +2203,8 @@ function detail(id){
         <ol class="notes" id="nList">${notesLi(it.notes)}</ol>
         <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><input class="inp" id="nT" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"><button class="btn btn-line sm" id="nAdd">추가</button></div><p class="cap" id="nStat" style="margin-top:6px">입력하면 자동 저장됩니다 · 「추가」나 Enter를 누르면 다음 줄을 새로 씁니다</p>
       </div>`:''}
+
+      ${show([2,3,4])&&delayHtml(it)?`<div class="dsec" style="padding-top:0">${delayHtml(it)}</div>`:''}
 
       ${show([4])?`<div class="dsec"><h4>보수 결과</h4>
         <div class="field"><label>처리완료일 <span class="cap">(4단계 보수 완료로 넘어가면 비어 있을 때 오늘로 채워짐)</span></label><input type="date" class="inp" id="doneD" value="${it.doneAt||''}" style="min-width:0;width:180px"></div>
@@ -2277,7 +2279,14 @@ function detail(id){
       else if(z==='당사') m.innerHTML=`<div class="alert">보증 ${yr}년차는 당사 책임 구간입니다. 처리소장에게 노임이 발생하며 당사 부담입니다.</div>`;
       else m.innerHTML=`<p class="cap" style="margin-top:10px">시공소장이 직접 처리 — 노임 없음, 시공소장 부담</p>`; };
     bindHdPicker(it); show(); }
-  const va=$('visitAt'); if(va) va.onchange=()=>dbCase(id,{visitAt:va.value},`방문 예정일 ${va.value}`);
+  /* 방문 예정일 → 진행 내용 자동 기록 (2026-10-31) — 처음 입력·변경·취소를 한 줄씩 남김, 같은 날 여러 번 바꾸면 그날 자동 기록 한 줄만 고쳐 씀 */
+  const va=$('visitAt'); if(va) va.onchange=()=>{ const cur=(ITEMS.find(i=>i.id===id)||it), old=cur.visitAt||'', nv=va.value||''; if(old===nv) return;
+    const md=d=>d?d.slice(5).replace('-','.'):'', today=ymd(TODAY), N=[...(cur.notes||[])];
+    const k=N.findIndex(n=>n.auto==='visit' && n.d===today), from = k>=0 ? (N[k].vFrom||'') : old;
+    const txt = !nv ? (from?`방문 예정 취소(${md(from)})`:'') : !from ? `${md(nv)} 방문 예정` : (from===nv ? '' : `방문 예정일 변경 ${md(from)} → ${md(nv)}`);
+    if(k>=0) N.splice(k,1);
+    if(txt) N.push({d:today, txt, by:ME()||'', at:iso(), auto:'visit', vFrom:from});
+    cur.visitAt=nv; cur.notes=N; dbCase(id,{visitAt:nv, notes:N}, nv?`방문 예정일 ${nv}`:'방문 예정일 삭제'); if(typeof refreshNotes==='function') refreshNotes(cur); };
 
   const vA=$('viewAll'); if(vA) vA.onclick=()=>{ DV.all=!DV.all; detail(id); };
   const po=$('prevOpen'); if(po) po.onclick=()=>detail(po.dataset.pid);
@@ -2434,7 +2443,7 @@ async function submitIntake(){
     await DB.collection('cases').doc(id).set({site, rc:intake.rc, st:1, rcvAt, stAt:rcvAt, src:'PC', caller, notes:[],
       part:parts[0], parts, partNote:(parts.includes('기타')?(document.getElementById('iPartN')||{}).value||'':'').trim(), ph:phs[0], phs, txt:document.getElementById('iTxt').value.trim(),
       dmg:[], photos:[], unseen:false, createdAt:now, log:[{at:now, by:intake.rc, msg:'접수 등록 (PC)'+(rcvD!==ymd(TODAY)?` · 접수일 ${rcvD}`:'')}]});
-    closeDrawer(); F.stage=1; F.chip=null; toast(`${id} 접수 등록 · ${site}${rp?` · 재발(${rp}와 같은 내용)`:''}`);
+    jandiNew(id); closeDrawer(); F.stage=1; F.chip=null; toast(`${id} 접수 등록 · ${site}${rp?` · 재발(${rp}와 같은 내용)`:''}`);
     if(files.length) uploadPhotos(id, site, files, '처리 전');
   }catch(e){ toast('접수 저장 실패 · '+(e.code||e.message)); if(sb){ sb.disabled=false; sb.textContent='접수 등록'; } }
 }
@@ -2523,6 +2532,7 @@ async function commitLabor(){
 
 /* ── 설정 · 백업 ── */
 async function saveSettings(){
+  try{ await jandiSave(); }catch(e){ if(e.message!=='bad url') toast('잔디 설정 저장 실패 · '+(e.code||e.message)); return; }
   const lines=id=>[...new Set(document.getElementById(id).value.split(/\n|,/).map(s=>s.trim()).filter(Boolean))];
   try{ await DB.collection('config').doc('main').set({recv:lines('sRecv'), payMgr:document.getElementById('sPay').value.trim(), payTel:(document.getElementById('sTel')||{}).value?.trim()||'', draftRef:((document.getElementById('sRef')||{}).value||'').replace(/[^0-9]/g,'')||'327359', startDate:document.getElementById('sStart').value||ymd(TODAY), updatedAt:iso()},{merge:true}); }
   catch(e){ toast('저장 실패 · '+(e.code||e.message)); return; }
@@ -2798,6 +2808,7 @@ function openSettings(tab){
       <div class="field"><label>기안복사용 하이웍스 문서번호 <span class="cap">(입금 기안 버튼이 여는 예전 기안)</span></label><input class="inp" id="sRef" inputmode="numeric" value="${esc(d?d.ref:P6CFG.ref)}"></div></div>
       <p class="cap">운영 시작일 이전의 ERP 출고·노임은 「과거 집행」으로, 이후는 접수 건에서 입력한 비용으로 집계합니다.</p>
     </div>
+    ${jandiSetHtml()}
     <div class="dsec"><h4>백업 · 저장공간</h4>
       <p class="cap" id="sStor">사진 저장공간 확인 중…</p>
       <button class="btn btn-line sm" onclick="exportAll()" style="margin-top:10px">전체 데이터 엑셀로 내려받기</button>
@@ -4280,6 +4291,65 @@ function holdFix(it,to,repay){
   if(same) return {p:{paid:true, paidAt:h.paidAt||null, draftNo:h.draftNo||'', payHold:null}, m:` · 비용 변경 없음 → 지급 완료 상태 복원`};
   return {p:{payHold:null, prevPays:[...(it.prevPays||[]),h]}, m:` · 지급액 변경(${won(h.amt||0)}→${won(ourPay(it))}원) → 해제 전 지급분은 이전 지급 기록으로 보관, 재지급 필요`};
 }
+
+/* ── 잔디 알림 (2026-10-31) ──
+   기존 하자접수 대시보드와 같은 방식: 신규 접수 등록 시 잔디 토픽 인커밍 웹훅으로 자동 전송(설정에서 켠 경우) + 상세 화면 수동 전송
+   웹훅 주소는 코드에 두지 않고 저장소 config/jandi {url, on, mention}에만 보관 · 전송 실패해도 접수에는 영향 없음 */
+const JCFG = {url:'', on:false, mention:''};
+const J_COLOR = '#e87010';
+const DASH_URL = 'https://netformrndsvcteams-jpg.github.io/haja-dashboard/';
+function jandiWatch(){ try{ DB.collection('config').doc('jandi').onSnapshot(d=>{ const c=d.exists?d.data():{}; JCFG.url=c.url||''; JCFG.on=!!c.on; JCFG.mention=c.mention||''; }, ()=>{}); }catch(e){} }
+function jandiPayload(c, id, test){
+  const s=SITES[c.site]||{}, md=d=>{ const x=d instanceof Date?d:new Date(d); return isNaN(x)?'':`${x.getFullYear()}.${String(x.getMonth()+1).padStart(2,'0')}.${String(x.getDate()).padStart(2,'0')}`; };
+  const parts=(c.parts&&c.parts.length?c.parts:[c.part]).filter(Boolean).join(', '), phs=(c.phs&&c.phs.length?c.phs:[c.ph]).filter(Boolean).join(', ');
+  const bld=(s.blds&&s.blds.length?s.blds:[s.bld]).filter(Boolean).join(', ');
+  return { body:`${test?'[시험] ':''}[하자 접수] ${c.site}${JCFG.mention?' '+JCFG.mention:''}`, connectColor:J_COLOR,
+    connectInfo:[
+      {title:'접수번호', description:id},
+      {title:'현장', description:`${c.site}${s.co?` · ${s.co}`:''}${s.wait?' (확인 대기 현장)':''}`},
+      {title:'부위 · 현상', description:`${parts||'—'} · ${phs||'—'}`},
+      {title:'하자 내용', description:String(c.txt||'—').slice(0,300)},
+      {title:'시공소장', description:bld||'—'},
+      {title:'접수일 · 접수자', description:`${md(c.rcvAt)} · ${c.rc||'—'}`},
+      {title:'바로 보기', description:`${DASH_URL}?case=${id}#work`}] };
+}
+async function jandiPost(payload){
+  if(!JCFG.url) return {ok:false, why:'웹훅 주소 없음'};
+  const body=JSON.stringify(payload);
+  try{ const r=await fetch(JCFG.url,{method:'POST', headers:{'Accept':'application/vnd.tosslab.jandi-v2+json','Content-Type':'application/json'}, body}); return {ok:r.ok, why:r.ok?'':'HTTP '+r.status}; }
+  catch(e){ try{ await fetch(JCFG.url,{method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain'}, body}); return {ok:true, nc:true}; }catch(e2){ return {ok:false, why:e2.message}; } }
+}
+async function jandiSend(id, how){
+  try{ const d=await DB.collection('cases').doc(id).get(); if(!d.exists) return;
+    const r=await jandiPost(jandiPayload(d.data(), id));
+    await DB.collection('cases').doc(id).set({log: firebase.firestore.FieldValue.arrayUnion({at:iso(), by:ME()||'', msg: r.ok?`잔디 알림 전송 (${how})`:`잔디 알림 실패 (${how}) · ${r.why}`})},{merge:true});
+    if(how==='수동') toast(r.ok?'잔디로 보냈습니다 — 토픽에서 확인하세요':'잔디 전송 실패 · '+r.why);
+  }catch(e){ if(how==='수동') toast('잔디 전송 실패 · '+(e.code||e.message)); }
+}
+function jandiNew(id){ if(JCFG.on && JCFG.url) setTimeout(()=>jandiSend(id,'자동'), 800); }
+async function jandiTest(){
+  if(!JCFG.url){ toast('웹훅 주소가 없습니다'); return; }
+  const r=await jandiPost(jandiPayload({site:'시험 현장', txt:'POUR CARE 잔디 연동 시험 메시지입니다.', rcvAt:new Date(), rc:ME()||'', part:'일반면', ph:'누수'}, 'HA-0000-000', true));
+  toast(r.ok?'시험 메시지를 보냈습니다 — 잔디 토픽에서 확인하세요':'전송 실패 · '+r.why);
+}
+function jandiSetHtml(){
+  const tail=JCFG.url?'…'+JCFG.url.slice(-6):'';
+  return `<div class="dsec"><h4>잔디 알림 <span class="cap" style="font-weight:400">신규 접수 등록 시 잔디 토픽으로 자동 전송</span></h4>
+    <label class="radio" style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="jOn" ${JCFG.on?'checked':''}> 신규 접수 자동 알림 켜기</label>
+    <div class="g2"><div class="field"><label>멘션 <span class="cap">(제목 뒤에 붙음 · 비워도 됨)</span></label><input class="inp" id="jMen" value="${esc(JCFG.mention)}" placeholder="예: @대금관리"></div>
+    <div class="field"><label>웹훅 주소 <span class="cap">${JCFG.url?`등록됨 ${esc(tail)} · 바꿀 때만 입력`:'미등록'}</span></label><input class="inp" id="jUrl" type="password" autocomplete="off" placeholder="https://wh.jandi.com/connect-api/webhook/…"></div></div>
+    <button type="button" class="btn btn-line sm" onclick="jandiTest()">시험 메시지 보내기</button>
+    <p class="cap" style="margin-top:6px">상세 화면 위쪽 「잔디로 보내기」로 지난 접수를 다시 보낼 수 있습니다 · 보낸 기록은 각 접수의 처리 이력에 남습니다</p></div>`;
+}
+async function jandiSave(){
+  const on=document.getElementById('jOn'); if(!on) return;
+  const u=(document.getElementById('jUrl').value||'').trim();
+  if(u && !/^https:\/\/wh\.jandi\.com\//.test(u)){ toast('잔디 웹훅 주소 형식이 아닙니다'); throw new Error('bad url'); }
+  await DB.collection('config').doc('jandi').set({on:on.checked, mention:(document.getElementById('jMen').value||'').trim(), ...(u?{url:u}:{}), updatedAt:iso(), by:ME()||''},{merge:true});
+}
+/* 링크로 열기 — ?case=접수번호 */
+(function(){ const id=new URLSearchParams(location.search).get('case'); if(!id) return; let n=0; const t=setInterval(()=>{ n++; if(ITEMS.some(i=>i.id===id)){ clearInterval(t); if(location.hash!=='#work') location.hash='#work'; setTimeout(()=>detail(id),200); } else if(n>40) clearInterval(t); },500); })();
+(function w(){ if(typeof DB!=='undefined' && DB) jandiWatch(); else setTimeout(w,500); })();
 
 document.getElementById('todayTag').textContent=TD+' 현재';
 /* 탭 */
