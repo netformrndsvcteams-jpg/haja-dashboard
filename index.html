@@ -2166,7 +2166,7 @@ function detail(id){
   const ALL = DV.all, show = a => ALL || st===7 || a.includes(st);
   openDrawer(`
     <div class="dh"><button class="x" aria-label="닫기">×</button>
-      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}${seqOf(it)>1?` · <b style="color:var(--red)">재발 ${seqOf(it)}차</b>`:''}${!ME()?' · <b style="color:var(--warn-tx)">작성자 미선택 — 이력에 이름이 남지 않습니다</b>':''} · <button type="button" class="lkb" style="font-size:inherit" onclick="if(confirm('이 접수를 잔디 토픽으로 보낼까요?')) jandiSend('${it.id}','수동')">잔디로 보내기</button></div>
+      <div class="k">${it.id} · 접수 ${fmtD(it.rcvAt)} · ${esc(it.rc)}${it.src?` · ${esc(it.src)}`:''}${seqOf(it)>1?` · <b style="color:var(--red)">재발 ${seqOf(it)}차</b>`:''}${!ME()?' · <b style="color:var(--warn-tx)">작성자 미선택 — 이력에 이름이 남지 않습니다</b>':''}</div>
       <h3>${esc(it.site)}</h3>
       <div class="m">${esc(s.co||'')} · ${s.ct||'계약유형 미등록'} · 준공 ${s.comp?s.comp.replace(/-/g,'.'):'<b style="color:var(--warn-tx)">미입력</b>'}${yr?` · 보증 ${yr}년차`:''}${s.comp&&wMiss(s).includes('보증기간')?' · <b style="color:var(--warn-tx)">보증기간 미입력</b>':''}${s.wNone?' · <b>보증 없음</b>':''}${wE?` · 만료 ${fmtD(wE)}`:''}${wX?' · <b style="color:var(--warn-tx)">접수일 기준 보증기간 경과</b>':''}${s.wait?' · <b style="color:var(--yel)">확인 대기 현장</b>':''}</div>
       ${chainHtml(it)}
@@ -4334,7 +4334,7 @@ function jandiSetHtml(){
     <div class="g2"><div class="field"><label>멘션 <span class="cap">(제목 뒤에 붙음 · 비워도 됨)</span></label><input class="inp" id="jMen" value="${esc(JCFG.mention)}" placeholder="예: @대금관리"></div>
     <div class="field"><label>웹훅 주소 <span class="cap">${JCFG.url?`등록됨 ${esc(tail)} · 바꿀 때만 입력`:'미등록'}</span></label><input class="inp" id="jUrl" type="password" autocomplete="off" placeholder="https://wh.jandi.com/connect-api/webhook/…"></div></div>
     <button type="button" class="btn btn-line sm" onclick="jandiTest()">시험 메시지 보내기</button>
-    <p class="cap" style="margin-top:6px">상세 화면 위쪽 「잔디로 보내기」로 지난 접수를 다시 보낼 수 있습니다 · 보낸 기록은 각 접수의 처리 이력에 남습니다</p></div>`;
+    <p class="cap" style="margin-top:6px">켜 두면 신규 접수 등록 시 자동 전송 · 보낸 기록은 각 접수의 처리 이력에 남습니다</p></div>`;
 }
 async function jandiSave(){
   const on=document.getElementById('jOn'); if(!on) return;
