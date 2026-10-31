@@ -2173,12 +2173,12 @@ function detail(id){
     </div>
     <div class="db">
       ${SITES[it.site] && wMiss(s).length && st<7?`<div class="dsec"><div class="alert warn" style="margin:0"><b>${wMiss(s).join('·')} 미입력</b> — 보증 연차·부담이 자동 판정되지 않습니다. 확인되면 바로 입력하세요.${compForm(it.site)}</div></div>`:''}
-      <div class="dsec"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 바로 이동합니다</span></h4>${progHtml(it)}${missNote(it)}${sumLine(it,s)}
+      <div class="dsec" id="secProg"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 이동합니다 · 뒤로 가거나 건너뛸 때는 한 번 더 확인합니다</span></h4>${progHtml(it)}${missNote(it)}${sumLine(it,s)}
         ${st<7?`<p class="cap" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · ${slaTx(it)} ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
         ${show([2,3,4])?'':delayHtml(it)}
       </div>
 
-      ${show([1])||DV.ed?`<div class="dsec" id="secIn"><h4>하자 내용${DV.ed?' <span class="cap" style="font-weight:400">수정 중 — 저장을 눌러야 반영됩니다</span>':''}</h4>
+      ${show([1])||DV.ed?`<div class="dsec" id="secIn" data-col="L"><h4>하자 내용${DV.ed?' <span class="cap" style="font-weight:400">수정 중 — 저장을 눌러야 반영됩니다</span>':''}</h4>
         ${DV.ed?`<div class="inedit"><div class="field"><label>발생 부위 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="eParts">${PARTS.map(p=>`<button type="button" data-p="${p}" class="${DV.ed.parts.includes(p)?'on':''}">${p}</button>`).join('')}</div>
           <input class="inp" id="ePartN" placeholder="기타 부위를 입력하세요" value="${esc(DV.ed.partNote||'')}" style="display:${DV.ed.parts.includes('기타')?'':'none'}"></div>
           <div class="field"><label>하자 현상 <span class="cap">(여러 개 선택 가능)</span></label><div class="ptg" id="ePhs">${PHS.map(h=>`<button type="button" data-h="${h}" class="${DV.ed.phs.includes(h)?'on':''}">${h}</button>`).join('')}</div></div>
@@ -2191,7 +2191,7 @@ function detail(id){
           <div class="g2" style="margin-top:6px"><input class="inp" data-cl="phone" inputmode="tel" placeholder="연락처" value="${esc((it.caller||{}).phone||'')}"><input class="inp" data-cl="office" inputmode="tel" placeholder="관리사무소 연락처" value="${esc((it.caller||{}).office||'')}"></div></dd>
         ${it.txt&&!DV.ed?`<dt>상세</dt><dd style="white-space:pre-wrap">${esc(it.txt)}</dd>`:''}
         </dl></div>`:''}
-      ${show([2])?`<div class="dsec"><h4>배정 · 일정</h4><dl class="kv">
+      ${show([2])?`<div class="dsec" data-col="L"><h4>배정 · 일정</h4><dl class="kv">
         <dt>시공소장</dt><dd>${bldsOf(s).map(b=>{ const m=mgrOf(b); return esc(b)+(m&&m.phone?` <span class="cap">${esc(m.phone)}</span>`:''); }).join(', ')||'—'} <span class="cap">(보증 책임자)</span></dd>
         ${con&&(con.contactName||con.contactPhone)?`<dt>시공사 담당</dt><dd>${esc(con.contactName||'')} <span class="cap">${esc(con.contactPhone||'')}</span></dd>`:''}
         <dt>처리소장</dt><dd>${st<7?hdPicker(it, wOpts):esc(hdTx(it)||'미배정')+(swapped(it)?' <span class="tg tg-swap">교체</span>':'')}</dd>
@@ -2199,12 +2199,12 @@ function detail(id){
         </dl><div id="swapMsg"></div>
       </div>`:''}
 
-      ${show([2,3,4])?`<div class="dsec"><h4>진행 내용 <span class="cap" style="font-weight:400">조율·진행 경과를 날짜순으로 기록</span></h4>
+      ${show([2,3,4])?`<div class="dsec" data-col="R" data-alt="L"><h4>진행 내용 <span class="cap" style="font-weight:400">조율·진행 경과를 날짜순으로 기록</span></h4>
         <ol class="notes" id="nList">${notesLi(it.notes)}</ol>
         <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><input class="inp" id="nT" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"><button class="btn btn-line sm" id="nAdd">추가</button></div><p class="cap" id="nStat" style="margin-top:6px">입력하면 자동 저장됩니다 · 「추가」나 Enter를 누르면 다음 줄을 새로 씁니다</p>
       </div>`:''}
 
-      ${show([2,3,4])&&delayHtml(it)?`<div class="dsec" style="padding-top:0">${delayHtml(it)}</div>`:''}
+      ${show([2,3,4])&&delayHtml(it)?`<div class="dsec" data-col="R" data-alt="L" style="padding-top:0">${delayHtml(it)}</div>`:''}
 
       ${show([4])?`<div class="dsec"><h4>보수 결과</h4>
         <div class="field"><label>처리완료일 <span class="cap">(4단계 보수 완료로 넘어가면 비어 있을 때 오늘로 채워짐)</span></label><input type="date" class="inp" id="doneD" value="${it.doneAt||''}" style="min-width:0;width:180px"></div>
@@ -2247,26 +2247,25 @@ function detail(id){
         <div style="text-align:right;margin-top:8px"><button class="btn btn-line sm" id="roGo">종결 해제</button></div>`}
       </div>`:''}
 
-      ${show([1,3,4])?`<div class="dsec"><h4>사진 <span class="cap" style="font-weight:400">${photos.length}장 · 자동 압축(긴 변 ${PHOTO_MAX}px)</span></h4>
+      ${show([1,3,4])?`<div class="dsec" data-col="R"><h4>사진 <span class="cap" style="font-weight:400">${photos.length}장 · 자동 압축(긴 변 ${PHOTO_MAX}px)</span></h4>
         ${photos.length?`<div class="pgrid">${photos.map(p=>`<a href="https://drive.google.com/thumbnail?id=${p.id}&sz=w1600" target="_blank" rel="noopener" title="${esc(p.kind)} · ${esc(p.by||'')} · ${p.at?fmtD(new Date(p.at)):''}"><img src="https://drive.google.com/thumbnail?id=${p.id}&sz=w320" alt="" loading="lazy"><em>${esc(p.kind)}</em></a>`).join('')}</div>`:'<p class="cap">아직 사진이 없습니다</p>'}
         <div class="pup"><div class="seg sm">${kinds.map(k=>`<button class="${PH_KIND===k?'on':''}" data-kind="${k}">${k}</button>`).join('')}</div>
           <label class="btn btn-line sm">＋ 사진 추가<input type="file" id="phFile" accept="image/*" multiple hidden></label></div>
       </div>`:''}
 
-      ${st<7?`<div class="viewtg"><button class="btn btn-line sm" id="viewAll">${ALL?'이 단계만 보기':'전체 보기 — 다른 단계 내용 확인·수정'}</button></div>`:''}
-      <div class="dsec"><details class="logd"><summary>처리 이력 <span class="cap" style="font-weight:400">${(it.log||[]).length}건</span></summary>
+      ${st<7?`<div class="viewtg" data-col="B"><button class="btn btn-line sm" id="viewAll">${ALL?'이 단계만 보기':'전체 보기 — 다른 단계 내용 확인·수정'}</button></div>`:''}
+      <div class="dsec" data-col="B"><details class="logd"><summary>처리 이력 <span class="cap" style="font-weight:400">${(it.log||[]).length}건</span></summary>
         <ul class="logl">${(it.log||[]).slice().reverse().map(l=>`<li><span>${l.at?fmtD(new Date(l.at))+' '+hhmm(new Date(l.at)):''}</span><b>${esc(l.by||'')}</b>${esc(l.msg)}</li>`).join('')||'<li class="cap">기록 없음</li>'}</ul></details>
       </div>
     </div>
     <div class="df">
-      <button class="btn btn-ghost" id="delCase" style="color:var(--warn-tx)">접수 삭제</button>${st<7&&!DV.ed?`<button class="btn btn-ghost" id="edIn">접수 수정</button>`:''}${st>1&&st<7?`<button class="btn btn-ghost" id="prevSt">이전 단계로</button>`:''}${st===7?`<button class="btn btn-ghost" id="reopenBtn">종결 해제…</button>`:''}<span style="margin-right:auto"></span>
-      <button class="btn btn-ghost x2">닫기</button>
-      ${st<6?`<button class="btn btn-pri" id="nextSt">${st===5&&!payNeeded(it)?'7단계 종결 (지급 없음)':st===5?'6단계 기안으로':(st+1)+'단계로 넘기기'}</button>`:''}
+      <button class="btn btn-ghost" id="delCase" style="color:var(--warn-tx)">삭제</button>${st<7&&!DV.ed?`<button class="btn btn-ghost" id="edIn">수정</button>`:''}${st===7?`<button class="btn btn-ghost" id="reopenBtn">종결 해제…</button>`:''}<span style="margin-right:auto"></span>
       ${st===6?`<button class="btn btn-pri" id="paidBtn">지급 완료 · 처리 완료</button>`:''}
     </div>`, keepScroll);
   drawer.classList.add('center');   // 접수 건 상세는 화면 가운데에 표시
+  wideLayout();   // PC: 넓은 2단 (2026-11-01)
 
-  drawer.querySelector('.x').onclick=closeDrawer; drawer.querySelector('.x2').onclick=closeDrawer;
+  drawer.querySelector('.x').onclick=closeDrawer; { const x2=drawer.querySelector('.x2'); if(x2) x2.onclick=closeDrawer; }
   const $ = q => document.getElementById(q);
   if(!ME() && !window._meWarned){ window._meWarned=true; toast('오른쪽 위에서 작성자를 먼저 선택하면 처리 이력에 이름이 남습니다'); }   // 페이지를 연 뒤 한 번만
 
@@ -3151,7 +3150,7 @@ const phTx = it => phsOf(it).join(', ');
 /* 상세 화면 한 줄 요약 (모든 단계 공통) */
 function sumLine(it, s){
   const b = it.b && it.b[0]!=='부담 미정' ? it.b[0] : '부담 미정', c=callerTx(it.caller);
-  return `<div class="sumline"><span><em>부위·현상</em>${esc(partTx(it))} · ${esc(phTx(it))}</span>${c?`<span><em>연락자</em>${esc(c)}</span>`:''}<span><em>처리소장</em>${esc(hdTx(it)||'미배정')}</span><span><em>부담</em>${esc(b)}</span>${it.doneAt?`<span><em>처리완료</em>${it.doneAt.replace(/-/g,'.')}</span>`:''}</div>`;
+  return `<div class="sumline"><span><em>부위·현상</em>${esc(partTx(it))} · ${esc(phTx(it))}</span>${c?`<span><em>연락자</em>${esc(c)}</span>`:''}<span><em>처리소장</em>${esc(hdTx(it)||'미배정')}</span><span><em>부담</em>${esc(b)}</span>${it.visitAt&&it.st<4?`<span><em>방문 예정</em>${it.visitAt.slice(5).replace('-','.')}</span>`:''}${it.doneAt?`<span><em>처리완료</em>${it.doneAt.replace(/-/g,'.')}</span>`:''}${it.cz&&it.st>4?`<span><em>원인</em>${esc(it.cz)}</span>`:''}</div>`;
 }
 /* 5단계 비용 확인 — 대금관리자 확인용 요약 (입력 없음) */
 function costCheck(it, s){
@@ -3255,6 +3254,13 @@ function progHtml(it){
 function bindProg(it){
   drawer.querySelectorAll('.prog.locked [data-go]').forEach(el=>el.onclick=()=>toast('종결된 건입니다 · 수정하려면 아래 「종결 해제」를 누르세요'));
   drawer.querySelectorAll('.prog.go [data-go]').forEach(el=>el.onclick=()=>{ const to=+el.dataset.go; if(to===it.st) return;
+    /* 지급이 필요한 건은 7단계로 바로 못 감 — 6단계 「지급 완료」에서 지급일·기안번호와 함께 종결 (2026-11-01) */
+    if(to===7 && payNeeded(it) && !it.paid && !holdFix(it,7).p.paid){
+      if(it.st===6){ toast('지급일을 입력한 뒤 아래 「지급 완료 · 처리 완료」를 눌러 주세요'); const d=document.getElementById('pDt')||document.getElementById('paidBtn'); if(d){ d.scrollIntoView({block:'center',behavior:'smooth'}); d.focus&&d.focus({preventScroll:true}); } }
+      else toast('지급이 필요한 건은 6단계 기안 진행에서 「지급 완료」로 종결합니다');
+      return; }
+    const skip6 = it.st===5 && to===7;   // 지급 없음 → 6단계 해당 없음
+    if((to<it.st || (to-it.st>=2 && !skip6)) && !confirm(`${it.st}단계 ${STAGES[it.st]} → ${to}단계 ${STAGES[to]}(으)로 ${to<it.st?'되돌릴':'이동할'}까요?`)) return;
     const extra = to<7 ? {paid:false, ...(it.st===7?{paidAt:null}:{})} : {};
     const hf=holdFix(it,to);
     dbCase(it.id,{st:to, stAt:iso(), ...extra, ...(to>=4&&!it.doneAt?{doneAt:ymd(TODAY)}:{}), ...hf.p},`${it.st}→${to}단계 ${STAGES[to]} (직접 이동)${hf.m}`); toast(`${it.id} → ${to}단계 ${STAGES[to]}${hf.p.paid?' · 지급 완료 복원':''}`); });
@@ -4348,6 +4354,59 @@ async function jandiSave(){
 /* 링크로 열기 — ?case=접수번호 */
 (function(){ const id=new URLSearchParams(location.search).get('case'); if(!id) return; let n=0; const t=setInterval(()=>{ n++; if(ITEMS.some(i=>i.id===id)){ clearInterval(t); if(location.hash!=='#work') location.hash='#work'; setTimeout(()=>detail(id),200); } else if(n>40) clearInterval(t); },500); })();
 (function w(){ if(typeof DB!=='undefined' && DB) jandiWatch(); else setTimeout(w,500); })();
+
+/* ════════════════════════════════════════════
+   접수 상세 — PC 넓은 2단 (2026-11-01)
+   · 위: 진행 아이콘·요약(전체 폭) / 왼쪽: 지금 단계 작업 / 오른쪽: 진행 내용·지연 사유·사진 / 아래: 전체 보기·처리 이력
+   · 왼쪽이 비면 진행 내용·지연 사유를 왼쪽으로, 한쪽만 있으면 한 칸 전체 폭
+   · 폭 1100px 미만(휴대폰·좁은 창)은 기존 한 줄 배치
+   ════════════════════════════════════════════ */
+document.head.insertAdjacentHTML('beforeend', `<style>
+@media (min-width:1100px){
+  .drawer.dwide{--wb-bg:#eef6fe;--wb-ln:#d3e6f8;--wb-hd:#e3f0fc;--wb-tx:#16304d;--wb-a1:#1a8cf0;--wb-a2:#7cc0f5;--wb-sub:#5d7a99}
+  .drawer.center.dwide{width:min(1240px,calc(100vw - 40px))}
+  /* 바탕은 연회색, 항목마다 흰 카드 — 영역 구분 (2026-11-01) */
+  .drawer.dwide .db{padding:18px 24px 20px;background:var(--wb-bg)}
+  .drawer.dwide .db .dsec{background:#fff;border:1px solid var(--wb-ln);border-radius:14px;padding:0 18px 16px;margin:0 0 14px;box-shadow:0 1px 2px rgba(20,45,80,.04)}
+  .drawer.dwide .db .dsec:last-child{border-bottom:1px solid var(--wb-ln)}
+  .drawer.dwide .db .dsec > h4{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0 -18px 14px;padding:12px 18px 11px;border-bottom:1px solid var(--wb-ln);background:var(--wb-hd);color:var(--wb-tx);border-radius:14px 14px 0 0;font-size:14.5px}
+  .drawer.dwide .db .dsec > h4::before{content:'';width:4px;height:14px;border-radius:2px;background:var(--hd-c,#8aa0b8);align-self:center}
+  .drawer.dwide #secProg,.drawer.dwide .dL{--hd-c:var(--wb-a1)}
+  .drawer.dwide .dR{--hd-c:var(--wb-a2)}
+  .drawer.dwide .db .dsec[style*="padding-top:0"]{padding:0;background:none;border:0;box-shadow:none}
+  .drawer.dwide .db .dsec .dlyw{margin-top:0}
+  .drawer.dwide .db .dsec:has(> .logd){padding:12px 18px}
+  .drawer.dwide .db .dsec:has(> .alert){padding:12px 14px}
+  .drawer.dwide .viewtg{margin:2px 0 14px}
+  .dcols{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(0,1fr);gap:0 16px;align-items:start}
+  .dcols.one{grid-template-columns:minmax(0,1fr)}
+  .dcol{min-width:0}
+  .dcol .colh{font-size:12px;font-weight:700;letter-spacing:.02em;color:var(--wb-sub);margin:2px 4px 8px;display:flex;gap:6px;align-items:center}
+  .dcol .colh i{width:8px;height:8px;border-radius:50%;background:var(--hd-c)}
+  .dcols .notes{max-height:300px;overflow:auto}
+  .dcols .dR .pgrid{grid-template-columns:repeat(4,1fr)}
+  /* 6단계 기안 절차 — ①·② / ③-1·③-2 두 개씩 나란히 */
+  .drawer.dwide .p6l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+}
+</style>`);
+function wideLayout(){
+  drawer.classList.remove('dwide');
+  if(window.innerWidth<1100) return;
+  const db=drawer.querySelector('.db'); if(!db || db.querySelector('.dcols')) return;
+  const kids=[...db.children], L=[], R=[], ALT=[];
+  kids.forEach(el=>{ if(el.id==='secProg' || !el.classList.contains('dsec') && !el.dataset.col) return;
+    const c=el.dataset.col; if(c==='B') return; if(!c && kids.indexOf(el)<kids.indexOf(db.querySelector('#secProg'))) return;   // 진행 위 경고 등은 위에 그대로
+    if(c==='R'){ R.push(el); if(el.dataset.alt) ALT.push(el); } else L.push(el); });
+  if(!L.length && ALT.length){ ALT.forEach(el=>{ R.splice(R.indexOf(el),1); L.push(el); }); }
+  if(!L.length && !R.length) return;
+  const box=document.createElement('div'); box.className='dcols'+(L.length&&R.length?'':' one');
+  const cl=document.createElement('div'); cl.className='dcol dL'; if(L.length&&R.length) cl.insertAdjacentHTML('beforeend','<div class="colh"><i></i>지금 단계에서 할 일</div>'); L.forEach(el=>cl.appendChild(el));
+  const cr=document.createElement('div'); cr.className='dcol dR'; if(L.length&&R.length) cr.insertAdjacentHTML('beforeend','<div class="colh"><i></i>'+(R.some(e=>e.querySelector('#nList'))?'진행 기록 · 사진':'사진')+'</div>'); R.forEach(el=>cr.appendChild(el));
+  if(L.length) box.appendChild(cl); if(R.length) box.appendChild(cr);
+  const bottom=db.querySelector('[data-col="B"]');
+  db.insertBefore(box, bottom||null);
+  drawer.classList.add('dwide');
+}
 
 document.getElementById('todayTag').textContent=TD+' 현재';
 /* 탭 */
