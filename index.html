@@ -3858,7 +3858,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 </style>`);
 function viewTg(){ return `<span class="wvt" role="group" aria-label="목록 보기 방식"><button type="button" data-wv="list" class="${WV==='list'?'on':''}" aria-pressed="${WV==='list'}">리스트</button><button type="button" data-wv="card" class="${WV==='card'?'on':''}" aria-pressed="${WV==='card'}">카드</button></span>`; }
 function cardNote(it){
-  const N=(it.notes||[]).slice().sort((a,b)=>(b.d||'').localeCompare(a.d||''))[0];
+  const N=(it.notes||[]).filter(n=>!/^\[종결 해제/.test(n.txt||'')).sort((a,b)=>(b.d||'').localeCompare(a.d||''))[0];
   if(!N||!N.txt) return '';
   const d=(N.d||'').slice(5).replace('-','/');
   return `<div class="cnote" title="${esc(N.txt)}"><span>${d?`<b>${d}</b>`:''}${esc(String(N.txt).replace(/\s*\n\s*/g,' '))}</span></div>`;
