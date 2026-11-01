@@ -1848,7 +1848,7 @@ function renderSummary(){
   const splitOur = r => { const our=ourOf(r); if(!our) return [0,0]; const it=r.live? ITEMS.find(x=>x.id===r.id) : null; const p=it? costParts(it) : {lab:r.lab||0, rst:r.rst||0, etc:0};
     if(r.b[0]==='시공소장 부담') return [0,our]; const tot=(p.lab||0)+(p.rst||0)+(p.etc||0); if(!tot) return [our,0]; const l=Math.round(our*(p.lab||0)/tot); return [l, our-l]; };
   const labOther = rs26.reduce((a,r)=>{ const [l,o]=splitOur(r); return [a[0]+l, a[1]+o]; },[0,0]);
-  const segs = [['자재비',mat26+matU26,'#1a8cf0',matU26?`등록 현장에 연결되지 않은 하자 자재 출고 ${won(matU26)}원 포함`:''],['노임',labOther[0],'#11a39a','당사 부담·당사 대납·공동 부담(당사 몫)의 노임'],['기타',labOther[1],'#f0a020','장비대·재료비·세대 복구비 등 노임 외 당사 지급']];
+  const segs = [['자재비',mat26+matU26,'#1a8cf0',matU26?`등록 현장에 연결되지 않은 하자 자재 출고 ${won(matU26)}원 포함`:''],['노임',labOther[0],'#11a39a','당사 부담·당사 대납·공동 부담(당사 몫)의 노임'],['기타(장비대, 세대 복구비 등)',labOther[1],'#f0a020','장비대·재료비·세대 복구비 등 노임 외 당사 지급']];
   /* 부담별 3항목 (2026-11-02 사용자 지정): 당사 부담(공동 부담 당사 몫·운영 전 노임 포함) / 당사 대납 / 기타(세대 복구비 — 시공소장 무상 처리 건에서 당사가 낸 복구비) */
   const bTypes = [['당사 부담',by('당사 부담')+by('공동 부담')+by('과거 이력')],['당사 대납',by('당사 대납')],['기타(세대 복구비)',by('시공소장 부담')]].filter(x=>x[1]>0);
   const T26 = segs.reduce((a,s)=>a+s[1],0);
@@ -1896,7 +1896,7 @@ function renderSummary(){
       <a class="card clk" href="#cost/burden"><div class="ch"><h3>당사 지출 <b class="num">${won(T26)}</b>원</h3><span class="cap">전년 같은 기간(1~${CM}월) ${won(prevSame)}원 대비 ${prevSame?((T26/prevSame-1)*100>=0?'+':'')+((T26/prevSame-1)*100).toFixed(1)+'%':'—'}</span></div>
         <div class="stack">${segs.filter(s=>s[1]>0).map(s=>`<i style="width:${s[1]/T26*100}%;background:${s[2]}" title="${s[0]} ${won(s[1])}원 (${pct(s[1],T26)})${s[3]?' · '+s[3]:''}"></i>`).join('')}</div>
         <div class="lgd">${segs.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} <b class="num">${won(s[1])}원</b> <em>${pct(s[1],T26)}</em></span>`).join('')}</div>
-        <div class="cyb"><span class="cybh">노임·기타 부담별</span>${bTypes.map(([k,v])=>`<span>${k} <b>${won(v)}원</b></span>`).join('')}</div></a>
+        </a>
       <div class="card"><div class="ch"><h3>월별 하자비용</h3><span class="cap">발생 월 기준 · 자재비 + 노임·복구비(당사분)</span></div>
         <div class="vbars sm"><div class="vy">${ticks.slice().reverse().map(t=>`<span>${t?(t/1e6)+'백만':'0'}</span>`).join('')}</div>
         <div class="vplot">${ticks.map(t=>`<u style="bottom:${t/top*100}%"></u>`).join('')}${mon.map(b=>`<div class="vb ${b.cur?'cur':''}" tabindex="0"><i style="height:${b.v/top*100}%"></i><em>${b.l} · ${won(b.v)}원${b.cur?' (진행 중)':''}</em><span>${b.l}</span></div>`).join('')}</div></div></div>
