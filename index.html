@@ -653,6 +653,8 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .zt{display:inline-block;font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;margin-left:4px}.zt.bld{background:#effaf1;color:#1d6b35}.zt.our{background:#e6f3ff;color:#0f6fc2}.zt.over{background:#fff0e6;color:#c2410c;margin-left:0}
 .settabs{margin-top:14px;display:inline-flex}.settools{display:flex;gap:10px;align-items:center;margin-bottom:12px}.settools .inp{max-width:300px}
 .d2.warn{color:var(--warn-tx)}
+
+.cyb{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:12px;padding:10px 12px;border-radius:10px;background:#f6f9fc;font-size:12.5px;color:#4a5f78}.cyb .cybh{font-weight:700;color:#33506e;margin-right:2px}.cyb span:not(.cybh){background:#fff;border:1px solid #e1e8f0;border-radius:999px;padding:2px 10px}.cyb b{color:#16304d}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -1842,7 +1844,12 @@ function renderSummary(){
   const rs26 = allRecs().filter(r=>r.date.getFullYear()===CY);
   const mat26 = rs26.reduce((a,r)=>a+(r.mat||0)-(r.ret||0),0), matU26 = matU(m=>m.date.getFullYear()===CY);
   const by = t => rs26.filter(r=>r.b[0]===t).reduce((a,r)=>a+ourOf(r),0);
-  const segs = [['자재비',mat26,'#1a8cf0'],['자재비 (현장 미연결)',matU26,'#8fc7f7'],['당사 부담',by('당사 부담'),'#11a39a'],['당사 대납',by('당사 대납'),'#7b5cff'],['공동 부담 당사 몫',by('공동 부담'),'#e2457f'],['과거 노임 (운영 전)',by('과거 이력'),'#9aa6b4']].filter(x=>x[0]!=='과거 노임 (운영 전)'||x[1]>0);
+  /* 당사 지급액을 노임 / 기타(장비대·재료비·세대 복구비 등)로 나눔 — 공동 부담은 시공사 몫을 비율대로 뺌, 시공소장 부담 당사 지급분은 기타항목이라 기타 */
+  const splitOur = r => { const our=ourOf(r); if(!our) return [0,0]; const it=r.live? ITEMS.find(x=>x.id===r.id) : null; const p=it? costParts(it) : {lab:r.lab||0, rst:r.rst||0, etc:0};
+    if(r.b[0]==='시공소장 부담') return [0,our]; const tot=(p.lab||0)+(p.rst||0)+(p.etc||0); if(!tot) return [our,0]; const l=Math.round(our*(p.lab||0)/tot); return [l, our-l]; };
+  const labOther = rs26.reduce((a,r)=>{ const [l,o]=splitOur(r); return [a[0]+l, a[1]+o]; },[0,0]);
+  const segs = [['자재비',mat26+matU26,'#1a8cf0',matU26?`등록 현장에 연결되지 않은 하자 자재 출고 ${won(matU26)}원 포함`:''],['노임',labOther[0],'#11a39a','당사 부담·당사 대납·공동 부담(당사 몫)의 노임'],['기타',labOther[1],'#f0a020','장비대·재료비·세대 복구비 등 노임 외 당사 지급']];
+  const bTypes = [['당사 부담',by('당사 부담')],['당사 대납',by('당사 대납')],['공동 부담 당사 몫',by('공동 부담')],['시공소장 부담 중 당사 지급',by('시공소장 부담')],['과거 노임 (운영 전)',by('과거 이력')]].filter(x=>x[1]>0);
   const T26 = segs.reduce((a,s)=>a+s[1],0);
   const prevSame = allRecs().filter(r=>r.date.getFullYear()===CY-1 && r.date.getMonth()<=TODAY.getMonth()).reduce((a,r)=>a+(r.mat||0)-(r.ret||0)+ourOf(r),0) + matU(m=>m.date.getFullYear()===CY-1 && m.date.getMonth()<=TODAY.getMonth());
   const mon = Array.from({length:CM},(_,i)=>{ const a=rs26.filter(r=>r.date.getMonth()===i); return {l:(i+1)+'월', v:a.reduce((x,r)=>x+(r.mat||0)-(r.ret||0)+ourOf(r),0)+matU(m=>m.date.getFullYear()===CY&&m.date.getMonth()===i), cur:i===CM-1}; });
@@ -1883,12 +1890,12 @@ function renderSummary(){
         <td>${r.ov?`<span class="stt st-over">초과 ${r.ov}</span>`:''}${r.rk?`<span class="stt st-risk">초과 예상 ${r.rk}</span>`:''}${!r.ov&&!r.rk?'<span class="cap">—</span>':''}</td></tr>`).join('')}
       </tbody><tfoot><tr><td>합계</td><td class="amt">${reg.length}곳</td><td class="amt">${won(B)}</td><td class="amt">${won(S)}</td><td></td><td class="amt">${pct(S,B)}</td><td class="amt">${allA.length}건</td><td></td></tr></tfoot></table></a>
 
-    ${band('올해 하자비용',PL0,'당사 지출 = 자재비 + 당사가 지급한 노임·복구비')}
+    ${band('올해 하자비용',PL0,'당사 지출 = 자재비 + 노임 + 기타(장비대·세대 복구비 등)')}
     <div class="g2c wide-l">
       <a class="card clk" href="#cost/burden"><div class="ch"><h3>당사 지출 <b class="num">${won(T26)}</b>원</h3><span class="cap">전년 같은 기간(1~${CM}월) ${won(prevSame)}원 대비 ${prevSame?((T26/prevSame-1)*100>=0?'+':'')+((T26/prevSame-1)*100).toFixed(1)+'%':'—'}</span></div>
-        <div class="stack">${segs.filter(s=>s[1]>0).map(s=>`<i style="width:${s[1]/T26*100}%;background:${s[2]}" title="${s[0]} ${won(s[1])}원 (${pct(s[1],T26)})"></i>`).join('')}</div>
+        <div class="stack">${segs.filter(s=>s[1]>0).map(s=>`<i style="width:${s[1]/T26*100}%;background:${s[2]}" title="${s[0]} ${won(s[1])}원 (${pct(s[1],T26)})${s[3]?' · '+s[3]:''}"></i>`).join('')}</div>
         <div class="lgd">${segs.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} <b class="num">${won(s[1])}원</b> <em>${pct(s[1],T26)}</em></span>`).join('')}</div>
-        <p class="cap note">시공소장 부담 건은 노임 지급이 없고 자재비만 포함됩니다 · 「자재비 (현장 미연결)」은 등록 현장에 연결 안 된 하자 자재 출고</p></a>
+        <div class="cyb"><span class="cybh">노임·기타 부담별</span>${bTypes.map(([k,v])=>`<span>${k} <b>${won(v)}원</b></span>`).join('')}</div></a>
       <div class="card"><div class="ch"><h3>월별 하자비용</h3><span class="cap">발생 월 기준 · 자재비 + 노임·복구비(당사분)</span></div>
         <div class="vbars sm"><div class="vy">${ticks.slice().reverse().map(t=>`<span>${t?(t/1e6)+'백만':'0'}</span>`).join('')}</div>
         <div class="vplot">${ticks.map(t=>`<u style="bottom:${t/top*100}%"></u>`).join('')}${mon.map(b=>`<div class="vb ${b.cur?'cur':''}" tabindex="0"><i style="height:${b.v/top*100}%"></i><em>${b.l} · ${won(b.v)}원${b.cur?' (진행 중)':''}</em><span>${b.l}</span></div>`).join('')}</div></div></div>
