@@ -3051,11 +3051,13 @@ function siteBox(name){
   const wRows = `<dt>준공일</dt><dd>${s.comp?s.comp.replace(/-/g,'.'):'<span class="zt over">미입력</span>'}</dd>
     <dt>하자보증</dt><dd>${s.wNone?'<b>보증 없음</b>':`${s.wy?s.wy+'년':'<span class="zt over">미입력</span>'} <span class="cap">${ws?fmtD(new Date(ws)):'—'} ~ ${e?fmtD(e):'—'}${s.wStartBasis&&s.wStartBasis!=='준공일'?` · 기산 ${esc(s.wStartBasis)}`:''}</span>`}</dd>
     <dt>현재</dt><dd>${s.wNone?`${yr?`준공 ${yr}년차 · `:''}<span class="cap">하자보증 없는 현장 — 부담은 직접 정합니다</span>`:ex?'<span class="zt over">보증기간 경과</span>':!yr?'<span class="cap">준공일 입력 후 연차 계산</span>':`보증 <b>${yr}년차</b>${z?` <span class="zt ${z==='당사'?'our':'bld'}">${z} 책임 구간</span>`:''}`}</dd>`;
-  const exAlert = ex?`<div class="alert warn" style="margin-top:10px"><b>보증기간 경과</b> — ${fmtD(e)}에 만료된 현장입니다. 접수는 가능하지만 부담은 자동 판정되지 않고 직접 정합니다.</div>`
+  const exTop = ex?`<div class="alert exp"><b>하자보증기간이 만료된 현장입니다</b> — ${fmtD(e)} 만료 · 접수는 가능하지만 부담은 자동 판정되지 않고 직접 정합니다.</div>`:'';   // 2026-11-01 맨 위·눈에 띄게
+  const exTag = ex?' <span class="tg tg-exp">하자보증 만료</span>':'';
+  const exAlert = ex? ''
     : mi.length?`<div class="alert warn" style="margin-top:10px"><b>${mi.join('·')} 미입력</b> — 접수는 가능하지만 부담이 자동 판정되지 않습니다. 확인되면 바로 입력하세요.${compForm(name)}</div>`:'';
-  if(s.wait) return `<div class="confirm"><h5>${esc(name)} <span class="tg tg-wait">확인 대기</span></h5><dl class="kv"><dt>업체</dt><dd>${esc(s.co)}</dd><dt>공종</dt><dd>${esc(gongTx(s))}</dd>${wRows}<dt>시공소장</dt><dd>${bl}</dd><dt>예산</dt><dd class="cap">정식 등록 후 산정</dd></dl>${exAlert}</div>`;
+  if(s.wait) return `<div class="confirm"><h5>${esc(name)} <span class="tg tg-wait">확인 대기</span>${exTag}</h5>${exTop}<dl class="kv"><dt>업체</dt><dd>${esc(s.co)}</dd><dt>공종</dt><dd>${esc(gongTx(s))}</dd>${wRows}<dt>시공소장</dt><dd>${bl}</dd><dt>예산</dt><dd class="cap">정식 등록 후 산정</dd></dl>${exAlert}</div>`;
   const p=s.budget? s.spent/s.budget*100 : 0;
-  return `<div class="confirm"><h5>${esc(name)}</h5><dl class="kv">
+  return `<div class="confirm"><h5>${esc(name)}${exTag}</h5>${exTop}<dl class="kv">
     <dt>업체</dt><dd>${esc(s.co)}<span class="tip"><button type="button">담당</button><span class="tipc">${con&&(con.contactName||con.contactPhone)?`${esc(con.contactName||'')} ${esc(con.contactPhone||'')}`:'등록된 담당자가 없습니다 · ⚙ 설정 › 시공사 명부에서 등록'}</span></span></dd><dt>계약유형</dt><dd>${esc(s.ct||'미등록')}</dd>
     <dt>공종</dt><dd>${esc(gongTx(s))}</dd>
     ${wRows}
@@ -3084,8 +3086,8 @@ function siteHits(q){ const k=normName(q); return q? Object.keys(SITES).filter(n
 function intakeRes(){
   const q=intake.q.trim(), hits=siteHits(q); let h='';
   if(intake.site && SITES[intake.site]){ const s=SITES[intake.site];   // 현장을 고르면 목록을 접고 고른 현장만 남김
-    h += `<div class="res"><button data-site="${esc(intake.site)}" class="on"><b>${esc(intake.site)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}<small>${esc(s.co)} · ${s.comp?`준공 ${s.comp.slice(0,7).replace('-','.')}`:'준공일 미입력'}</small></button></div><button class="lkb" id="chgSite" style="margin:-4px 0 12px">다른 현장 선택 (검색 결과 ${hits.length}곳)</button>`;
-  } else if(q && hits.length) h += `<div class="res">${hits.map(n=>{const s=SITES[n];return `<button data-site="${esc(n)}" class="${intake.site===n?'on':''}"><b>${esc(n)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}${wExpired(n,TODAY)?'<span class="tg tg-swap">보증 경과</span>':''}<small>${esc(s.co)} · ${s.comp?`준공 ${s.comp.slice(0,7).replace('-','.')} · 보증 ${gYear(n,TODAY)}년차`:'준공일 미입력'}${s.comp&&!s.wy&&!s.wNone?' · 보증기간 미입력':''}${s.wNone?' · 보증 없음':''}</small></button>`;}).join('')}</div>`;
+    h += `<div class="res"><button data-site="${esc(intake.site)}" class="on"><b>${esc(intake.site)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}${wExpired(intake.site,TODAY)?'<span class="tg tg-exp">하자보증 만료</span>':''}<small>${esc(s.co)} · ${s.comp?`준공 ${s.comp.slice(0,7).replace('-','.')}`:'준공일 미입력'}</small></button></div><button class="lkb" id="chgSite" style="margin:-4px 0 12px">다른 현장 선택 (검색 결과 ${hits.length}곳)</button>`;
+  } else if(q && hits.length) h += `<div class="res">${hits.map(n=>{const s=SITES[n];return `<button data-site="${esc(n)}" class="${intake.site===n?'on':''}"><b>${esc(n)}</b>${s.wait?'<span class="tg tg-wait">확인 대기</span>':''}${wExpired(n,TODAY)?'<span class="tg tg-exp">하자보증 만료</span>':''}<small>${esc(s.co)} · ${s.comp?`준공 ${s.comp.slice(0,7).replace('-','.')} · 보증 ${gYear(n,TODAY)}년차`:'준공일 미입력'}${s.comp&&!s.wy&&!s.wNone?' · 보증기간 미입력':''}${s.wNone?' · 보증 없음':''}</small></button>`;}).join('')}</div>`;
   if(q && !hits.length) h += `<div class="noresult"><b>「${esc(q)}」</b> 현장이 마스터에 없습니다.<br>아는 정보 4가지만 넣어 간이 등록하면 접수를 바로 이어갈 수 있습니다. 나머지는 대금관리자가 채워 정식 등록합니다.<br><button class="btn btn-ter" style="margin-top:12px" id="goQuick">간이 등록으로 계속</button></div>`;
   if(!q) h += `<p class="cap">현장명 일부를 입력하세요. 비슷한 이름이 많으니 결과의 업체·준공 연월을 함께 확인하세요.</p>`;
   if(q && hits.length && !intake.site) h = `<p class="qkl">검색 ${hits.length}곳 · 찾는 현장이 없나요? <button type="button" class="lkb" id="goQuick">간이 등록</button> <span class="cap">현장명·시공사·준공일·시공소장 4가지만 넣고 접수를 이어갑니다</span></p>` + h;
@@ -3380,6 +3382,13 @@ async function delSite(nm){
     closeDrawer(); toast(`「${nm}」 현장 삭제 · 삭제 기록에 보관`);
   }catch(e){ toast('삭제 실패 · '+(e.code||e.message)); }
 }
+
+/* 하자보증 만료 표시 (2026-11-01) */
+document.head.insertAdjacentHTML('beforeend', `<style>
+.tg.tg-exp{background:#fdecec;color:#c42b2b;font-weight:700}
+.alert.exp{margin:4px 0 12px;background:#fff4f4;border:1.5px solid #f3b4b4;color:#8f1f1f;border-radius:10px;padding:10px 14px;font-size:13px;line-height:1.55}
+.alert.exp b{color:#c42b2b}
+</style>`);
 
 
 /* ════ 하자 자재 출고 — 월 단위 일괄 업로드 (2026-10-19 확정)
@@ -4218,7 +4227,6 @@ function doneView(it){
     <div class="db">
       <div class="dsec" id="secProg"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 종결 해제 후 그 단계로 돌아갑니다 · 완료 뒤 같은 하자가 다시 생긴 경우에는 해제하지 말고 새로 접수해 재발로 연결</span></h4>
         ${progHtml(it).replace('prog locked','prog go ro7').replace(/title="종결된 건입니다[^"]*"/,'')}
-        ${it.paid?`<p class="cap" style="margin-top:8px">지급 완료 건 — 비용을 고치지 않고 다시 처리 완료로 돌아오면 지급 완료 상태가 그대로 복원됩니다. 비용을 고친 경우에만 기존 지급분이 「이전 지급 기록」으로 남습니다.</p>`:''}
       </div>
       <div class="dsec"><div class="d7sum">
         <div class="d7t"><span>접수 <b>${fmtD(it.rcvAt)}</b></span><i>→</i><span>처리 완료 <b>${doneD?fmtD(doneD):'—'}</b></span>${span!=null?`<em>영업일 ${span}일</em>`:''}</div>
@@ -4378,6 +4386,15 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   .dcols .dR .pgrid{grid-template-columns:repeat(4,1fr)}
   /* 6단계 기안 절차 — ①·② / ③-1·③-2 두 개씩 나란히 */
   .drawer.dwide .p6l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+  /* 진행 아이콘을 머리(고정 영역) 오른쪽으로 — 스크롤해도 항상 보임 (2026-11-01) */
+  .drawer.dwide .dhg{display:grid;grid-template-columns:minmax(0,1fr) minmax(440px,600px);gap:24px;align-items:center;padding-right:48px}
+  .drawer.dwide .dhg .dhl{min-width:0}
+  .drawer.dwide .dhg .prog{margin:0}
+  .drawer.dwide .dhg .prog div{font-size:10.5px}
+  .drawer.dwide .dhg .prog div i{width:28px;height:28px;margin-bottom:4px;border-radius:9px}
+  .drawer.dwide .dhg .prog::before{top:17px}
+  .drawer.dwide .dhg .prog.go div{padding:4px 2px 4px}
+  .drawer.dwide .dhg .proghint{font-size:11px;color:var(--wb-sub);text-align:right;margin-top:2px}
 }
 </style>`);
 function wideLayout(){
@@ -4390,6 +4407,20 @@ function wideLayout(){
     if(c==='R'){ R.push(el); if(el.dataset.alt) ALT.push(el); } else L.push(el); });
   if(!L.length && ALT.length){ ALT.forEach(el=>{ R.splice(R.indexOf(el),1); L.push(el); }); }
   if(!L.length && !R.length) return;
+  /* 진행 아이콘 → 머리 오른쪽 */
+  const dh=drawer.querySelector('.dh'), sp=db.querySelector('#secProg'), pg=sp&&sp.querySelector('.prog');
+  if(dh && pg && !dh.querySelector('.dhg')){
+    const g=document.createElement('div'); g.className='dhg';
+    const l=document.createElement('div'); l.className='dhl';
+    [...dh.children].filter(e=>e.matches('.k,h3,.m')).forEach(e=>l.appendChild(e));
+    const r=document.createElement('div'); r.className='dhr'; r.appendChild(pg);
+    r.insertAdjacentHTML('beforeend', `<div class="proghint">${pg.classList.contains('ro7')?'아이콘을 누르면 종결 해제 후 그 단계로 돌아갑니다':'아이콘을 누르면 그 단계로 이동 · 뒤로 가거나 건너뛸 때는 확인'}</div>`);
+    g.appendChild(l); g.appendChild(r);
+    const x=dh.querySelector('.x'); dh.insertBefore(g, x? x.nextSibling : dh.firstChild);
+    const h=sp.querySelector('h4');
+    if(pg.classList.contains('ro7')){ if(h) h.remove(); if(!sp.textContent.trim()) sp.remove(); else sp.style.padding='12px 18px'; }
+    else if(h) h.innerHTML='요약';
+  }
   const box=document.createElement('div'); box.className='dcols'+(L.length&&R.length?'':' one');
   const cl=document.createElement('div'); cl.className='dcol dL'; if(L.length&&R.length) cl.insertAdjacentHTML('beforeend','<div class="colh"><i></i>지금 단계에서 할 일</div>'); L.forEach(el=>cl.appendChild(el));
   const cr=document.createElement('div'); cr.className='dcol dR'; if(L.length&&R.length) cr.insertAdjacentHTML('beforeend','<div class="colh"><i></i>'+(R.some(e=>e.querySelector('#nList'))?'진행 기록 · 사진':'사진')+'</div>'); R.forEach(el=>cr.appendChild(el));
