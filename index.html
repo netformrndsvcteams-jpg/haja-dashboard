@@ -2199,7 +2199,7 @@ function detail(id){
         </dl><div id="swapMsg"></div>
       </div>`:''}
 
-      ${show([2,3,4])?`<div class="dsec" data-col="R" data-alt="L"><h4>진행 내용 <span class="cap" style="font-weight:400">조율·진행 경과를 날짜순으로 기록</span></h4>
+      ${show([2,3,4])?`<div class="dsec" data-col="R" data-alt="L"><h4>진행 내용</h4>
         <ol class="notes" id="nList">${notesLi(it.notes)}</ol>
         <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><input class="inp" id="nT" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"><button class="btn btn-line sm" id="nAdd">추가</button></div><p class="cap" id="nStat" style="margin-top:6px">입력하면 자동 저장됩니다 · 「추가」나 Enter를 누르면 다음 줄을 새로 씁니다</p>
       </div>`:''}
@@ -2207,10 +2207,9 @@ function detail(id){
       ${show([2,3,4])&&delayHtml(it)?`<div class="dsec" data-col="R" data-alt="L" style="padding-top:0">${delayHtml(it)}</div>`:''}
 
       ${show([4])?`<div class="dsec"><h4>보수 결과</h4>
-        <div class="field"><label>처리완료일 <span class="cap">(4단계 보수 완료로 넘어가면 비어 있을 때 오늘로 채워짐)</span></label><input type="date" class="inp" id="doneD" value="${it.doneAt||''}" style="min-width:0;width:180px"></div>
+        <div class="field"><label>처리완료일</label><input type="date" class="inp" id="doneD" value="${it.doneAt||''}" style="min-width:0;width:180px"></div>
         <div class="field"><label>하자 원인</label>
-          ${st<7?`<select class="sel" id="selCz"><option value="">선택</option>${CAUSES.map(c=>`<option ${it.cz===c?'selected':''}>${c}</option>`).join('')}</select>`:`<p>${esc(it.cz||'—')}</p>`}
-          <p class="cap" style="margin-top:6px">사용자 과실은 원인으로만 기록합니다 — 부담은 보증 기준을 따릅니다</p></div>
+          ${st<7?`<select class="sel" id="selCz"><option value="">선택</option>${CAUSES.map(c=>`<option ${it.cz===c?'selected':''}>${c}</option>`).join('')}</select>`:`<p>${esc(it.cz||'—')}</p>`}</div>
         <div class="field"><label>2차 피해 ${it.dmg.length?`${it.dmg.length}건`:''}</label>
           ${it.dmg.length?`<ul class="dmg-list">${it.dmg.map((d,k)=>`<li><b>${esc(d[0])}</b> · ${esc(d[1])}${d[2]?` · 복구 ${esc(d[2])}`:''}${st<7?` <button class="lkb" data-deldmg="${k}">삭제</button>`:''}</li>`).join('')}</ul>`:'<p class="cap">없음</p>'}
           ${st<7?`<div class="dmgadd"><select class="sel" id="dT">${DMGS.map(d=>`<option>${d}</option>`).join('')}</select><input class="inp" id="dL" placeholder="위치 (예: 101동 1401호 천장)"><input class="inp" id="dF" placeholder="복구 내용 (예: 도배)"><button class="btn btn-line sm" id="dAdd">추가</button></div>`:''}
@@ -3293,7 +3292,7 @@ function costSection(it, s, st){
       ${free?`<label class="tgl our"><input type="checkbox" data-f="our" ${e.our?'checked':''} ${ed?'':'disabled'}> 당사 지급(협의)</label>`:''}
       ${e.rcpt.length?`<div class="rclist">${e.rcpt.map((r,j)=>`<a href="https://drive.google.com/file/d/${r.id}/view" target="_blank" rel="noopener">🧾 ${esc(r.name||'영수증')}</a>${ed?`<button class="lkb" data-rdel="${j}">삭제</button>`:''}`).join('')}</div>`:`<div class="rclist cap">${e.amt&&!NO_RCPT.includes(e.t)?'영수증 없음':''}</div>`}
     </div>`;
-  return `<div class="dsec" id="costSec"><h4>비용 <span class="cap" style="font-weight:400">원 단위 · 노임·장비대는 전자세금계산서 처리, 그 외 항목은 영수증 첨부</span></h4>
+  return `<div class="dsec" id="costSec"><h4>비용</h4>
     ${s.wait?`<div class="alert warn"><b>확인 대기 현장</b> — 정식 등록 전이라 하자예산 집계에 반영되지 않습니다. 예산·지급 › 현장·예산에서 정식 등록하세요.</div>`:''}
     ${head}
     <div class="labrow"><div class="field"><label>일당 (노임단가)</label><span class="amtw"><input class="inp amt" id="cRate" inputmode="numeric" value="${d.rate?won(d.rate):''}" placeholder="0" ${ed?'':'disabled'}><em>원</em></span></div>
@@ -4414,7 +4413,7 @@ function wideLayout(){
     const l=document.createElement('div'); l.className='dhl';
     [...dh.children].filter(e=>e.matches('.k,h3,.m')).forEach(e=>l.appendChild(e));
     const r=document.createElement('div'); r.className='dhr'; r.appendChild(pg);
-    r.insertAdjacentHTML('beforeend', `<div class="proghint">${pg.classList.contains('ro7')?'아이콘을 누르면 종결 해제 후 그 단계로 돌아갑니다':'아이콘을 누르면 그 단계로 이동 · 뒤로 가거나 건너뛸 때는 확인'}</div>`);
+    if(pg.classList.contains('ro7')) r.insertAdjacentHTML('beforeend', `<div class="proghint">아이콘을 누르면 종결 해제 후 그 단계로 돌아갑니다</div>`);
     g.appendChild(l); g.appendChild(r);
     const x=dh.querySelector('.x'); dh.insertBefore(g, x? x.nextSibling : dh.firstChild);
     const h=sp.querySelector('h4');
