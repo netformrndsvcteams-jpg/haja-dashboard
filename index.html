@@ -4163,8 +4163,9 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 /* ── 사업자 정보(세금계산서 발행용) — 표 · 이미지 (2026-10-26) ── */
 function p6BizRows(it){ const {s}=p6Info(it), con=p6TaxCon(it); return [['상호',con.name||con.bizName||s.co],['사업자등록번호',con.bizNo],['대표자명',con.ceoName],['업태',con.bizType],['종목',con.bizItem],['사업장 주소',con.bizAddress],['세금계산서 수신 이메일',con.bizEmail]]; }
 function p6BizTable(it){ const a=p6KAmt(it);
-  return `<div class="p6biz"><div class="p6bh">사업자 정보 <span>세금계산서 발행용</span></div><table>${p6BizRows(it).map(([k,v])=>`<tr><th>${k}</th><td>${v&&String(v).trim()?esc(v):'<b class="p6miss">확인 필요</b>'}</td></tr>`).join('')}</table>
-    <div class="p6ba"><span>품목 <b>유지보수 수수료</b></span><span>공급가액 <b>${won(a.sup)}</b></span><span>세액 <b>${won(a.vat)}</b></span><span>합계 <b>${won(a.tot)}</b></span><span>비고 <b>${esc(it.site)}</b></span></div></div>`; }
+  const rows=p6BizRows(it), miss=rows.filter(([k,v])=>!(v&&String(v).trim())).length;   /* 기본 접힘 · 펼친 상태는 같은 건 다시 그릴 때 유지 (2026-11-01) */
+  return `<details class="p6biz" ${(window.P6BIZ_OPEN||{})[it.id]?'open':''} ontoggle="(window.P6BIZ_OPEN=window.P6BIZ_OPEN||{})['${it.id}']=this.open"><summary class="p6bh">사업자 정보 <span>세금계산서 발행용</span><em class="p6bs">${esc(rows[0][1]||'')} · 합계 ${won(a.tot)}원${miss?` · <b class="p6miss">확인 필요 ${miss}</b>`:''}</em><i class="p6bt">펼치기</i></summary><table>${p6BizRows(it).map(([k,v])=>`<tr><th>${k}</th><td>${v&&String(v).trim()?esc(v):'<b class="p6miss">확인 필요</b>'}</td></tr>`).join('')}</table>
+    <div class="p6ba"><span>품목 <b>유지보수 수수료</b></span><span>공급가액 <b>${won(a.sup)}</b></span><span>세액 <b>${won(a.vat)}</b></span><span>합계 <b>${won(a.tot)}</b></span><span>비고 <b>${esc(it.site)}</b></span></div></details>`; }
 function p6BizBlob(it){
   const rows=p6BizRows(it), a=p6KAmt(it), W=760, P=36, KW=210, F='"Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR","Noto Sans CJK KR",sans-serif';
   const c=document.createElement('canvas'), x=c.getContext('2d');
@@ -4191,6 +4192,11 @@ function p6BizBlob(it){
 }
 document.head.insertAdjacentHTML('beforeend', `<style>
 .p6biz{border:1.5px solid #f3d27a;border-radius:10px;overflow:hidden;background:#fff}
+details.p6biz>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:6px;flex-wrap:wrap}details.p6biz>summary::-webkit-details-marker{display:none}
+details.p6biz>summary .p6bs{font-style:normal;font-weight:500;font-size:12.5px;color:#5a4a10;margin-left:4px}
+details.p6biz>summary .p6bt{font-style:normal;margin-left:auto;font-size:12px;font-weight:600;color:var(--sky-d,#1270c4)}
+details.p6biz>summary .p6bt::after{content:' ▾'}details.p6biz[open]>summary .p6bt{font-size:0}details.p6biz[open]>summary .p6bt::after{content:'접기 ▴';font-size:12px}
+details.p6biz:not([open]){border-color:#f0dfa8}
 .p6bh{background:#fff8e1;padding:8px 12px;font-weight:700;font-size:13.5px;border-left:5px solid #f5b400}.p6bh span{font-weight:500;font-size:12px;color:#8a6d00;margin-left:6px}
 .p6biz table{width:100%;border-collapse:collapse;font-size:13px}
 .p6biz th{width:150px;text-align:left;font-weight:600;color:var(--ink2);padding:7px 12px;background:var(--bg2,#f6f8fb);vertical-align:top;white-space:nowrap}
