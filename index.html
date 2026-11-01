@@ -4390,7 +4390,9 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   .dcols .notes{max-height:300px;overflow:auto}
   .dcols .dR .pgrid{grid-template-columns:repeat(4,1fr)}
   /* 6단계 기안 절차 — ①·② / ③-1·③-2 두 개씩 나란히 */
-  .drawer.dwide .p6l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:start}
+  .drawer.dwide .p6l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:stretch;grid-auto-rows:1fr}
+  .drawer.dwide .p6l > .p6{height:100%;box-sizing:border-box}
+  .drawer.dwide .p6l:has(details.p6biz[open]){grid-auto-rows:auto}   /* 사업자 정보를 펼치면 그 줄만 늘어남 (같은 줄 상자는 같은 높이) */
   /* 진행 아이콘을 머리(고정 영역) 오른쪽으로 — 스크롤해도 항상 보임 (2026-11-01) */
   .drawer.dwide .dhg{display:grid;grid-template-columns:minmax(0,1fr) minmax(440px,600px);gap:24px;align-items:center;padding-right:48px}
   .drawer.dwide .dhg .dhl{min-width:0}
