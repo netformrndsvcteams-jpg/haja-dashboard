@@ -2174,7 +2174,7 @@ function detail(id){
     <div class="db">
       ${SITES[it.site] && wMiss(s).length && st<7?`<div class="dsec"><div class="alert warn" style="margin:0"><b>${wMiss(s).join('·')} 미입력</b> — 보증 연차·부담이 자동 판정되지 않습니다. 확인되면 바로 입력하세요.${compForm(it.site)}</div></div>`:''}
       <div class="dsec" id="secProg"><h4>진행 <span class="cap" style="font-weight:400">아이콘을 누르면 그 단계로 이동합니다 · 뒤로 가거나 건너뛸 때는 한 번 더 확인합니다</span></h4>${progHtml(it)}${missNote(it)}${sumLine(it,s)}
-        ${st<7?`<p class="cap" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · ${slaTx(it)} ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
+        ${st<7?`<p class="cap stl" data-st="${st}" data-din="${it.dIn}" data-sla="${SLA[st]}" data-ov="${over(it)}" style="margin-top:12px">현재 ${st}단계 ${STAGES[st]} · ${slaTx(it)} ${over(it)>0?`<b style="color:var(--red)">· ${over(it)}일 초과</b>`:''}</p>`:`<p class="cap" style="margin-top:12px">처리 완료 · ${fmtD(it.stAt)} 종결</p>`}
         ${show([2,3,4])?'':delayHtml(it)}
       </div>
 
@@ -3152,8 +3152,8 @@ const hasH=(r,h)=>phsOf(r).includes(h);
 const phTx = it => phsOf(it).join(', ');
 /* 상세 화면 한 줄 요약 (모든 단계 공통) */
 function sumLine(it, s){
-  const b = it.b && it.b[0]!=='부담 미정' ? it.b[0] : '부담 미정', c=callerTx(it.caller);
-  return `<div class="sumline"><span><em>부위·현상</em>${esc(partTx(it))} · ${esc(phTx(it))}</span>${c?`<span><em>연락자</em>${esc(c)}</span>`:''}<span><em>처리소장</em>${esc(hdTx(it)||'미배정')}</span><span><em>부담</em>${esc(b)}</span>${it.visitAt&&it.st<4?`<span><em>방문 예정</em>${it.visitAt.slice(5).replace('-','.')}</span>`:''}${it.doneAt?`<span><em>처리완료</em>${it.doneAt.replace(/-/g,'.')}</span>`:''}${it.cz&&it.st>4?`<span><em>원인</em>${esc(it.cz)}</span>`:''}</div>`;
+  const b = it.b && it.b[0]!=='부담 미정' ? it.b[0] : '부담 미정', bl=s?bldsOf(s).join(', '):'';   /* 연락자 → 업체·시공소장 (2026-11-01) */
+  return `<div class="sumline"><span><em>부위·현상</em>${esc(partTx(it))} · ${esc(phTx(it))}</span>${s&&s.co?`<span><em>업체</em>${esc(s.co)}</span>`:''}<span><em>시공소장</em>${esc(bl||'—')}</span><span><em>처리소장</em>${esc(hdTx(it)||'미배정')}</span><span><em>부담</em>${esc(b)}</span>${it.visitAt&&it.st<4?`<span><em>방문 예정</em>${it.visitAt.slice(5).replace('-','.')}</span>`:''}${it.doneAt?`<span><em>처리완료</em>${it.doneAt.replace(/-/g,'.')}</span>`:''}${it.cz&&it.st>4?`<span><em>원인</em>${esc(it.cz)}</span>`:''}</div>`;
 }
 /* 5단계 비용 확인 — 대금관리자 확인용 요약 (입력 없음) */
 function costCheck(it, s){
@@ -4393,10 +4393,24 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   .drawer.dwide .dhg .prog div i{width:28px;height:28px;margin-bottom:4px;border-radius:9px}
   .drawer.dwide .dhg .prog::before{top:17px}
   .drawer.dwide .dhg .prog.go div{padding:4px 2px 4px}
+  /* 요약 카드 가독성 (2026-11-01) — 단계·기한 칩 / 항목 타일 / 빈 값 경고 */
+  .drawer.dwide #secProg .stl2{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
+  .drawer.dwide #secProg .stl2 .c1{font-size:15px;font-weight:800;color:var(--wb-tx);background:#e3f0fc;border-radius:999px;padding:5px 14px}
+  .drawer.dwide #secProg .stl2 .c2{font-size:13px;color:#33506e;background:#fff;border:1px solid var(--wb-ln);border-radius:999px;padding:4px 12px}
+  .drawer.dwide #secProg .stl2 .c2 b{font-size:14px;color:var(--wb-tx)}
+  .drawer.dwide #secProg .stl2 .ok{color:#178a45;background:#eaf7ef;border-color:#cdebd8}
+  .drawer.dwide #secProg .stl2 .td{color:#9a5b00;background:#fff4e0;border-color:#f6d9a8;font-weight:700}
+  .drawer.dwide #secProg .stl2 .ov{color:#fff;background:#e5484d;border-color:#e5484d;font-weight:700}
+  .drawer.dwide #secProg .sumline{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;background:none;padding:0;margin:0;font-size:14.5px}
+  .drawer.dwide #secProg .sumline span{display:flex;flex-direction:column;gap:3px;background:#f7fbff;border:1px solid var(--wb-ln);border-radius:10px;padding:10px 14px;font-weight:700;color:var(--wb-tx);line-height:1.35}
+  .drawer.dwide #secProg .sumline em{font-style:normal;font-size:11.5px;font-weight:600;color:var(--wb-sub);margin:0}
+  .drawer.dwide #secProg .missn{margin:12px 0 0;padding:9px 14px;border-radius:10px;background:#fff6e8;border:1px solid #f6d9a8;color:#9a5b00 !important;font-size:13px}
+  .drawer.dwide #secProg .missn b{color:#8a4b00}
   .drawer.dwide .dhg .proghint{font-size:11px;color:var(--wb-sub);text-align:right;margin-top:2px}
 }
 </style>`);
 function wideLayout(){
+  try{ if(typeof enhanceBurden==='function') enhanceBurden(); }catch(e){ console.warn('enhanceBurden',e); }   /* 비용부담 선택 화면 (PC·휴대폰 공통) */
   drawer.classList.remove('dwide');
   if(window.innerWidth<1100) return;
   const db=drawer.querySelector('.db'); if(!db || db.querySelector('.dcols')) return;
@@ -4419,6 +4433,13 @@ function wideLayout(){
     const h=sp.querySelector('h4');
     if(pg.classList.contains('ro7')){ if(h) h.remove(); if(!sp.textContent.trim()) sp.remove(); else sp.style.padding='12px 18px'; }
     else if(h) h.innerHTML='요약';
+    /* 요약 카드 재배치: 단계·기한 칩 → 항목 타일 → 빈 값 경고 */
+    const stl=sp.querySelector('.stl');
+    if(stl){ const d=stl.dataset, ov=+d.ov, nm=(STAGES[+d.st]||'');
+      const st2=document.createElement('div'); st2.className='stl2';
+      st2.innerHTML=`<span class="c1">${d.st}단계 ${nm}</span><span class="c2">이 단계 <b>${d.din}</b>영업일째 · 기한 ${d.sla}영업일</span>`+(ov>0?`<span class="c2 ov">기한 ${ov}영업일 초과</span>`:ov===0?`<span class="c2 td">오늘 마감</span>`:`<span class="c2 ok">기한 내 · ${-ov}영업일 남음</span>`);
+      const ref=h? h.nextSibling : sp.firstChild; sp.insertBefore(st2, ref); stl.remove(); }
+    sp.querySelectorAll('p.cap').forEach(p=>{ if(/아직 비어 있는 값/.test(p.textContent)){ p.classList.add('missn'); p.removeAttribute('style'); p.innerHTML=p.innerHTML.replace(/아직 비어 있는 값: ([^—]+)/,'⚠ 아직 비어 있는 값: <b>$1</b>'); sp.appendChild(p); } });
   }
   const box=document.createElement('div'); box.className='dcols'+(L.length&&R.length?'':' one');
   const cl=document.createElement('div'); cl.className='dcol dL'; if(L.length&&R.length) cl.insertAdjacentHTML('beforeend','<div class="colh"><i></i>지금 단계에서 할 일</div>'); L.forEach(el=>cl.appendChild(el));
@@ -4428,6 +4449,108 @@ function wideLayout(){
   db.insertBefore(box, bottom||null);
   drawer.classList.add('dwide');
 }
+
+/* ════════════════════════════════════════════
+   비용부담 선택 화면 (2026-11-01) — 결과를 크게, 선택지는 카드·버튼으로
+   · 기존 라디오·선택칸(#adjR·#adjT·#shV)은 숨겨 두고 그대로 사용 → 저장·경고·재계산 로직은 기존 코드 그대로
+   · 버튼을 누르면 기존 칸 값을 바꾸고 change 이벤트를 보내 자동 저장
+   ════════════════════════════════════════════ */
+const BX_MEAN = {
+  '당사 부담':'당사 책임 — 노임·복구비를 당사가 지급',
+  '당사 대납':'시공소장 책임 구간이지만 다른 소장이 처리 — 당사가 대신 지급(회수 없음)',
+  '시공소장 부담':'시공소장 무상 처리 — 노임 지급 없음',
+  '공동 부담':'시공사와 나눠 냄 — 시공사 몫 금액 입력',
+  '부담 미정':'아직 정하지 않았습니다'
+};
+const BX_CLS = {'당사 부담':'t1','당사 대납':'t2','시공소장 부담':'t3','공동 부담':'t4','부담 미정':'t0'};
+const bxChip = t => `<span class="bxchip ${BX_CLS[t]||'t0'}">${esc(t)}</span>`;
+function enhanceBurden(){
+  const bo=drawer.querySelector('.bopt'); if(!bo || bo.dataset.bx) return; bo.dataset.bx='1';
+  const it=ITEMS.find(i=>i.id===openId); if(!it) return;
+  const radios=[...bo.querySelectorAll('[name=bmode]')], rA=radios.find(r=>r.value==='auto'), rJ=radios.find(r=>r.value==='adj');
+  const adjR=bo.querySelector('#adjR'), adjT=bo.querySelector('#adjT'), shW=bo.querySelector('#shW'), ab=bo.querySelector('#adjBox');
+  if(!rA||!rJ||!adjR||!adjT) return;
+  const lA=rA.closest('label'), lJ=rJ.closest('label'), autoB=lA.querySelector('b'), autoCap=lA.querySelector('.cap');
+  const autoT=autoB?autoB.textContent.trim():'', autoOk=!!BX_MEAN[autoT];
+  const isAdj=it.b&&it.b[1]==='조정', cur=it.b&&it.b[0]?it.b[0]:'부담 미정';
+  const reasons=[...adjR.options].map(o=>o.value);
+  const resOf=r=> (r in ADJ && ADJ[r]!=null)? ADJ[r] : null;
+  const ui=document.createElement('div'); ui.className='bx';
+  ui.innerHTML=`
+    <div class="bxres"><span class="bxlab">현재 부담</span>${bxChip(cur)}<span class="bxm">${esc(BX_MEAN[cur]||'')}</span>${isAdj?`<span class="bxsub">예외 · ${esc(it.b[2]||'')}${it.b[2]==='기타'&&it.adjNote?' — '+esc(it.adjNote):''}</span>`:it.b&&it.b[1]==='보증'?'<span class="bxsub">보증 기준</span>':''}${cur==='공동 부담'&&it.sh?`<span class="bxsub">시공사 몫 ${won(it.sh)}원</span>`:''}</div>
+    <div class="bxopt">
+      <button type="button" class="bxc ${!isAdj&&rA.checked?'on':''}" data-m="auto" ${autoOk?'':'disabled'}>
+        <span class="bxt">보증 기준 (자동)</span>${autoOk?bxChip(autoT):''}
+        <small>${autoOk?esc(autoCap?autoCap.textContent.trim():''):esc(autoT||'계산할 수 없습니다')}</small></button>
+      <button type="button" class="bxc ${isAdj?'on':''}" data-m="adj">
+        <span class="bxt">예외로 바꾸기</span><small>보증 기준과 다르게 정할 때 — 사유를 고르면 부담이 정해집니다</small></button>
+    </div>
+    <div class="bxadj" ${isAdj?'':'hidden'}>
+      <div class="bxh">사유</div>
+      <div class="bxrs">${reasons.map(r=>{ const t=resOf(r); return `<button type="button" class="bxr ${isAdj&&it.b[2]===r?'on':''}" data-r="${esc(r)}"><b>${esc(r)}</b>${t?`<span>→ ${bxChip(t)}</span>`:'<span class="cap">→ 부담 직접 선택</span>'}</button>`; }).join('')}</div>
+      <div class="bxtw" ${isAdj&&resOf(it.b[2])==null?'':'hidden'}>
+        <div class="bxh">부담</div>
+        <div class="bxts">${[...adjT.options].map(o=>`<button type="button" class="bxtb ${isAdj&&it.b[0]===o.value?'on':''}" data-t="${esc(o.value)}">${bxChip(o.value)}</button>`).join('')}</div>
+        <input class="inp bxnote" placeholder="기타 사유 메모 (예: 관리사무소 요청으로 회사 처리)" value="${esc(it.adjNote||'')}">
+      </div>
+      <div class="bxsh"></div>
+    </div>`;
+  bo.insertBefore(ui, bo.firstChild);
+  /* 기존 표시는 숨김 (값·이벤트는 그대로 사용) */
+  [lA,lJ].forEach(l=>l.style.display='none');
+  if(ab){ const g=ab.querySelector('.g2'); if(g) g.style.display='none'; ab.removeAttribute('hidden'); ab.classList.add('bxhide'); }
+  if(shW) ui.querySelector('.bxsh').appendChild(shW);
+  bo.querySelectorAll('.burden-line').forEach(p=>p.style.display='none');
+  const adjBox=ui.querySelector('.bxadj'), tw=ui.querySelector('.bxtw');
+  const fire=(el,ev='change')=>el.dispatchEvent(new Event(ev,{bubbles:true}));
+  const setRes=t=>{ const r=ui.querySelector('.bxres'); r.querySelector('.bxchip').outerHTML=bxChip(t); r.querySelector('.bxm').textContent=BX_MEAN[t]||''; };
+  ui.querySelector('[data-m=auto]').onclick=()=>{ if(!autoOk) return;
+    ui.querySelectorAll('.bxc').forEach(b=>b.classList.toggle('on',b.dataset.m==='auto')); adjBox.hidden=true;
+    rA.checked=true; fire(rA); setRes(autoT); };
+  ui.querySelector('[data-m=adj]').onclick=()=>{ ui.querySelectorAll('.bxc').forEach(b=>b.classList.toggle('on',b.dataset.m==='adj')); adjBox.hidden=false; };
+  ui.querySelectorAll('.bxr').forEach(b=>b.onclick=()=>{ const r=b.dataset.r, t=resOf(r);
+    ui.querySelectorAll('.bxr').forEach(x=>x.classList.toggle('on',x===b));
+    tw.hidden = t!=null; adjR.value=r; rJ.checked=true;
+    if(t!=null){ fire(adjR); setRes(t); }
+    else { ui.querySelectorAll('.bxtb').forEach(x=>x.classList.remove('on')); }   /* 기타 — 부담을 고르면 저장 */
+  });
+  ui.querySelectorAll('.bxtb').forEach(b=>b.onclick=()=>{ const t=b.dataset.t;
+    ui.querySelectorAll('.bxtb').forEach(x=>x.classList.toggle('on',x===b));
+    adjR.value='기타'; rJ.checked=true; adjT.value=t; fire(adjT); setRes(t); });
+  const note=ui.querySelector('.bxnote');
+  if(note) note.onchange=()=>{ const v=note.value.trim(); if((it.adjNote||'')===v) return; dbCase(it.id,{adjNote:v||null}, v?`부담 조정 메모 · ${v.slice(0,40)}`:'부담 조정 메모 삭제'); };
+}
+document.head.insertAdjacentHTML('beforeend', `<style>
+.bx{display:flex;flex-direction:column;gap:12px;margin-bottom:6px}
+.bxres{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding:12px 14px;border-radius:12px;background:#f5f9fe;border:1px solid #d9e7f5}
+.bxres .bxlab{font-size:12px;font-weight:700;color:#5d7a99}
+.bxres .bxm{font-size:13.5px;color:#22384f;font-weight:600}
+.bxres .bxsub{font-size:12px;color:#5d7a99;background:#fff;border:1px solid #d9e7f5;border-radius:999px;padding:2px 10px}
+.bxchip{display:inline-block;font-size:13px;font-weight:800;border-radius:999px;padding:4px 12px;line-height:1.3;white-space:nowrap}
+.bxres .bxchip{font-size:15px;padding:5px 14px}
+.bxchip.t1{background:#e3f6f4;color:#0b7f78}.bxchip.t2{background:#efeaff;color:#5b3fd6}.bxchip.t3{background:#eef1f5;color:#4a5a6e}.bxchip.t4{background:#fde9f0;color:#c02a63}.bxchip.t0{background:#fff1e0;color:#a35a00}
+.bxopt{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bxc{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:12px 14px;border-radius:12px;border:1.5px solid #d9e2ec;background:#fff;cursor:pointer;font:inherit;color:inherit}
+.bxc:hover{border-color:#9ccaf3}
+.bxc.on{border-color:var(--sky,#1a8cf0);box-shadow:0 0 0 3px #e3f0fc;background:#fbfdff}
+.bxc[disabled]{opacity:.6;cursor:not-allowed}
+.bxc .bxt{font-size:14px;font-weight:800;color:#16304d;display:flex;align-items:center;gap:6px}
+.bxc.on .bxt::before{content:'✓';color:var(--sky,#1a8cf0)}
+.bxc small{font-size:12px;color:#5d7a99;line-height:1.45}
+.bxadj{padding:12px 14px;border-radius:12px;background:#f7f9fc;border:1px dashed #cfdbe8;display:flex;flex-direction:column;gap:8px}
+.bxh{font-size:12px;font-weight:700;color:#5d7a99}
+.bxrs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.bxr{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border-radius:10px;border:1.5px solid #d9e2ec;background:#fff;cursor:pointer;font:inherit;color:#16304d;text-align:left}
+.bxr b{font-size:13.5px}
+.bxr.on{border-color:var(--sky,#1a8cf0);box-shadow:0 0 0 3px #e3f0fc}
+.bxts{display:flex;flex-wrap:wrap;gap:8px}
+.bxtb{border:1.5px solid transparent;background:none;padding:2px;border-radius:999px;cursor:pointer}
+.bxtb.on{border-color:var(--sky,#1a8cf0)}
+.bxnote{margin-top:4px}
+.adjbox.bxhide{display:contents}
+.bxsh .field{margin:4px 0 0}
+@media (max-width:640px){ .bxopt,.bxrs{grid-template-columns:1fr} }
+</style>`);
 
 document.getElementById('todayTag').textContent=TD+' 현재';
 /* 탭 */
