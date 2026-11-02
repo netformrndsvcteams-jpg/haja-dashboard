@@ -4149,14 +4149,19 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .p6amt{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;margin:0 0 12px;padding:10px 12px;background:var(--bg2,#f6f8fb);border-radius:8px;font-size:13px}
 .p6amt b{font-variant-numeric:tabular-nums}
 .p6l{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:8px}
-.p6{border:1.5px solid var(--line2);border-radius:10px;padding:10px 12px;background:#fff}
+/* 상자 구분 (2026-11-02) — 테두리 강조 + 제목 띠 색 · 지금 단계는 파랑, 끝난 단계는 초록 */
+.p6{border:1.5px solid #b7cde3;border-radius:10px;padding:0;background:#fff;overflow:hidden}
 .p6.p6now{border-color:var(--sky);box-shadow:0 0 0 3px var(--sky-10,#e8f3ff)}
-.p6.ok{background:#f3faf5;border-color:#cfe9d7}
-.p6h{display:flex;align-items:center;gap:8px;font-size:13.5px}
+.p6.ok{background:#f3faf5;border-color:#9fd6b2}
+.p6h{display:flex;align-items:center;gap:8px;font-size:13.5px;padding:8px 12px;background:#eef4fa;color:#16304d;font-weight:600}
+.p6h:not(:last-child){border-bottom:1px solid #d3e0ec}
+.p6.p6now .p6h{background:#dcedfd}.p6.p6now .p6h:not(:last-child){border-bottom-color:#b5d7f7}
+.p6.ok .p6h{background:#e2f4e8}.p6.na .p6h{background:none;font-weight:500}
 .p6h b{color:var(--sky-d,#1270c4);min-width:30px}.p6.ok .p6h b{color:#178a45}
 .p6h .p6r{margin-left:auto;display:flex;align-items:center;gap:6px}
 .p6d{font-size:12px;color:#178a45;font-weight:600}
-.p6b{margin-top:8px;display:flex;flex-direction:column;gap:6px}
+.p6b{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px}
+.p6b .cap{color:#3f5168;font-size:12.5px;line-height:1.5;margin:0}
 .p6btn{display:flex;flex-wrap:wrap;gap:6px}
 .p6pre{white-space:pre-wrap;font:12.5px/1.55 inherit;background:var(--bg2,#f6f8fb);border-radius:8px;padding:10px 12px;margin:0;max-height:260px;overflow:auto}
 .tg-p6{background:#fff1e6;color:#b85c00}
@@ -4398,9 +4403,8 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   .dcols .notes{max-height:300px;overflow:auto}
   .dcols .dR .pgrid{grid-template-columns:repeat(4,1fr)}
   /* 6단계 기안 절차 — ①·② / ③-1·③-2 두 개씩 나란히 */
-  .drawer.dwide .p6l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;align-items:stretch;grid-auto-rows:1fr}
-  .drawer.dwide .p6l > .p6{height:100%;box-sizing:border-box}
-  .drawer.dwide .p6l:has(details.p6biz[open]){grid-auto-rows:auto}   /* 사업자 정보를 펼치면 그 줄만 늘어남 (같은 줄 상자는 같은 높이) */
+  .drawer.dwide .p6l{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:stretch}   /* 줄마다 내용만큼 높이 (같은 줄 상자는 같은 높이) */
+  .drawer.dwide .p6l > .p6{box-sizing:border-box}
   /* 진행 아이콘을 머리(고정 영역) 오른쪽으로 — 스크롤해도 항상 보임 (2026-11-01) */
   .drawer.dwide .dhg{display:grid;grid-template-columns:minmax(0,1fr) minmax(440px,600px);gap:24px;align-items:center;padding-right:48px}
   .drawer.dwide .dhg .dhl{min-width:0}
@@ -4420,7 +4424,12 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   .drawer.dwide #secProg .sumline{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;background:none;padding:0;margin:0;font-size:14.5px}
   .drawer.dwide #secProg .sumline span{display:flex;flex-direction:column;gap:3px;background:#f7fbff;border:1px solid var(--wb-ln);border-radius:10px;padding:10px 14px;font-weight:700;color:var(--wb-tx);line-height:1.35}
   .drawer.dwide #secProg .sumline em{font-style:normal;font-size:11.5px;font-weight:600;color:var(--wb-sub);margin:0}
-  .drawer.dwide #secProg .missn{margin:12px 0 0;padding:9px 14px;border-radius:10px;background:#fff6e8;border:1px solid #f6d9a8;color:#9a5b00 !important;font-size:13px}
+  /* 요약 안 지연 사유 — 항목 타일과 같은 모양·간격 (2026-11-02) */
+  .drawer.dwide #secProg .dlyw{margin-top:10px}
+  .drawer.dwide #secProg .dly{padding:10px 14px;border:1px solid var(--wb-ln);border-radius:10px;background:#f7fbff}
+  .drawer.dwide #secProg .dly.need{border-color:#f3b4b4;background:#fff7f7}
+  .drawer.dwide #secProg .dly summary{font-size:13px;align-items:center}
+  .drawer.dwide #secProg .missn{margin:10px 0 0;padding:9px 14px;border-radius:10px;background:#fff6e8;border:1px solid #f6d9a8;color:#9a5b00 !important;font-size:13px}
   .drawer.dwide #secProg .missn b{color:#8a4b00}
   .drawer.dwide .dhg .proghint{font-size:11px;color:var(--wb-sub);text-align:right;margin-top:2px}
 }
