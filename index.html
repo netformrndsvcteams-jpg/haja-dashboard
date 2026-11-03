@@ -2673,15 +2673,15 @@ function conOf(name){ const k=nkey(name); return k ? (allCons().find(c=>nkey(c.n
 function workerNames(){ return [...new Set([...allMgrs().map(m=>m.name), ...CFG.workers])].filter(Boolean).sort((a,b)=>a.localeCompare(b,'ko')); }
 
 /* ── pour-pay 현장 → 하자 현장 후보 ── */
-/* 완료 판정 : pour-pay index.html 3191~3211행과 동일 (공정률 100% + 컨설팅·노무비 회차 있음 + 미입금 0) — pour-pay 규칙이 바뀌면 같이 고칠 것 */
+/* 완료 판정 (2026-11-04 사용자 결정) : 공정률 100% + 컨설팅 잔금 계산서 발행일 입력 — 입금일·노무비 입금은 보지 않음
+   잔금 회차(type balance 또는 이름 「잔금」)가 없으면 컨설팅 회차 전부에 발행일이 있어야 함 */
+function ppBal(s){ const cp=toArr(s.consultingPays); return cp.filter(p=>p.type==='balance'||/잔금/.test(p.name||'')); }
 function ppIsDone(s){
-  const t=s.siteType||'consulting', useC=t!=='direct', useL=t!=='transfer';
-  const cp=toArr(s.consultingPays), lp=toArr(s.laborPays);
-  const sum=a=>a.reduce((x,p)=>x+(Number(p.amount)||0),0), rem=a=>sum(a)-sum(a.filter(p=>p.paidDate));
-  const cOK=!useC||(cp.length>0&&rem(cp)<=0), lOK=!useL||(lp.length>0&&rem(lp)<=0);
-  return (Number(s.progress)||0)>=100 && cOK && lOK;
+  if((Number(s.progress)||0)<100) return false;
+  const cp=toArr(s.consultingPays), b=ppBal(s);
+  return b.length ? b.every(p=>p.issueDate) : (cp.length>0 && cp.every(p=>p.issueDate));
 }
-function ppDoneDate(s){ const d=[...toArr(s.consultingPays),...toArr(s.laborPays)].map(p=>p.paidDate).filter(Boolean).sort(); return d.length?d[d.length-1]:''; }
+function ppDoneDate(s){ const b=ppBal(s), L=(b.length?b:toArr(s.consultingPays)).map(p=>p.issueDate).filter(Boolean).sort(); return L.length?L[L.length-1]:''; }   // 잔금 계산서 발행일
 /* 확정매출 = pour-pay 대금현황 탭 「컨설팅 총액」과 같은 산식 (저장값 consultingTotal은 쓰지 않음) */
 function ppRev(s){
   const lab=toArr(s.constructions).reduce((a,c)=>a+(Number(c.cost)||0),0)+(Number(s.extraLabor)||0);
@@ -2722,7 +2722,7 @@ function rowIssues(r){ const e=[]; if(r.conflict) e.push('이름 중복'); if(!r
 /* ── 가져오기 서랍 ── */
 let PPI = null;
 function openPPImport(){
-  if(PP.st!=='ok'){ openDrawer(`<div class="dh"><div class="k">pour-pay 연동</div><h3>완료 현장 가져오기</h3><div class="m">pour-pay에서 완료 단계로 넘어간 컨설팅 현장을 하자 현장으로 등록합니다</div><button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
+  if(PP.st!=='ok'){ openDrawer(`<div class="dh"><div class="k">pour-pay 연동</div><h3>완료 현장 가져오기</h3><div class="m">pour-pay에서 공정률 100%이고 잔금 계산서가 발행된 컨설팅 현장을 하자 현장으로 등록합니다</div><button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
       <div class="db"><div class="dsec">${PP.st==='loading'||PP.st==='idle'?'<p class="cap">pour-pay 읽는 중… 잠시 후 다시 눌러 주세요</p>':`<div class="alert warn"><b>pour-pay에 연결하지 못했습니다</b> — ${esc(PP.err)}<br>pour-pay Firebase 콘솔의 승인된 도메인과 Realtime Database 읽기 규칙을 확인하세요.</div>`}
       <button class="btn btn-line sm" onclick="ppLoad(true).then(openPPImport)" style="margin-top:12px">다시 읽기</button></div></div>
       <div class="df"><button class="btn btn-ghost" onclick="closeDrawer()">닫기</button></div>`); return; }
@@ -2736,7 +2736,7 @@ function drawPPImport(sc){
   const R=PPI.rows, sel=R.filter(r=>r.on), bad=sel.filter(r=>rowIssues(r).length);
   const wyOpt = v => `<option value="">미입력</option>${wyList(v).map(y=>`<option ${v==y?'selected':''} value="${y}">${y}년</option>`).join('')}`;
   openDrawer(`<div class="dh"><div class="k">pour-pay 연동 · 읽기 전용</div><h3>완료 현장 가져오기</h3>
-      <div class="m">pour-pay에서 완료(정산·입금 끝) 단계인 컨설팅 현장 ${sc.done.length}곳 · 마지막 읽기 ${PP.at?hhmm(PP.at):'—'} · 확정매출 = 컨설팅 총액(총 공사금액 − 노무비 − 기타경비)</div>
+      <div class="m">pour-pay에서 공정률 100% · 잔금 계산서 발행된 컨설팅 현장 ${sc.done.length}곳 · 마지막 읽기 ${PP.at?hhmm(PP.at):'—'} · 확정매출 = 컨설팅 총액(총 공사금액 − 노무비 − 기타경비)</div>
       <button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
     <div class="db"><div class="dsec">
       <div class="ppyrs"><span class="cap">준공연도별 완료 현장</span>${Object.entries(yr).sort().map(([y,n])=>`<span class="stt st-end">${y} · ${n}곳</span>`).join('')}</div>
@@ -3077,7 +3077,7 @@ function ppBanner(){ return ppBanner0(); }   /* 준공일·보증기간 미입�
 function ppBanner0(){
   if(PP.st!=='ok') return PP.st==='err'?`<div class="banner soft"><img class="bi2" src="${ICON.c_link}" alt=""><div><b>pour-pay에 연결하지 못했습니다</b><span>${esc(PP.err)} · 완료 현장 가져오기를 쓰려면 pour-pay 연결이 필요합니다. 기존 등록 현장과 접수는 그대로 쓸 수 있습니다.</span></div><button class="btn btn-line" onclick="ppLoad(true)">다시 읽기</button></div>`:'';
   const sc=ppScan(), n=sc.pend.length, c=sc.chg.length; if(!n&&!c) return '';
-  return `<div class="banner"><img class="bi2" src="${ICON.c_link}" alt=""><div><b>${n?`pour-pay 완료 현장 ${n}곳 가져오기 대기`:''}${n&&c?' · ':''}${c?`pour-pay에서 값이 바뀐 등록 현장 ${c}곳`:''}</b><span>pour-pay에서 정산·입금까지 끝나 완료 단계로 넘어간 컨설팅 현장입니다. 확정매출(컨설팅 총액)·준공일·시공소장을 확인하고 등록하면 하자예산이 편성됩니다.</span></div><button class="btn btn-yel" onclick="openPPImport()">확인하고 가져오기</button></div>`;
+  return `<div class="banner"><img class="bi2" src="${ICON.c_link}" alt=""><div><b>${n?`pour-pay 완료 현장 ${n}곳 가져오기 대기`:''}${n&&c?' · ':''}${c?`pour-pay에서 값이 바뀐 등록 현장 ${c}곳`:''}</b><span>pour-pay에서 공정률 100%이고 잔금 계산서가 발행된 컨설팅 현장입니다. 확정매출(컨설팅 총액)·준공일·시공소장을 확인하고 등록하면 하자예산이 편성됩니다.</span></div><button class="btn btn-yel" onclick="openPPImport()">확인하고 가져오기</button></div>`;
 }
 
 /* ── 한글 입력 끊김 방지 : 검색어를 칠 때 입력칸은 그대로 두고 결과만 다시 그림 ── */
