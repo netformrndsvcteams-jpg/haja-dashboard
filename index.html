@@ -2209,7 +2209,7 @@ function detail(id){
 
       ${show([2,3,4])?`<div class="dsec" data-col="R" data-alt="L"><h4>진행 내용</h4>
         <ol class="notes" id="nList">${notesLi(it.notes)}</ol>
-        <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><input class="inp" id="nT" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"><button class="btn btn-line sm" id="nAdd">추가</button></div><p class="cap" id="nStat" style="margin-top:6px">입력하면 자동 저장됩니다 · 「추가」나 Enter를 누르면 다음 줄을 새로 씁니다</p>
+        <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><input class="inp" id="nT" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"><button class="btn btn-line sm" id="nAdd">추가</button></div><p class="cap" id="nStat" style="margin-top:6px">다 쓴 뒤 「추가」나 Enter를 누르면 저장됩니다</p>
       </div>`:''}
 
       ${show([2,3,4])&&delayHtml(it)?`<div class="dsec" data-col="R" data-alt="L" style="padding-top:0">${delayHtml(it)}</div>`:''}
@@ -2316,7 +2316,7 @@ function detail(id){
       if(parts.includes('기타') && !e.partNote.trim()) return toast('기타 부위 내용을 입력하세요');
       try{ await dbCase(id,{parts, part:parts[0], phs, ph:phs[0], partNote:parts.includes('기타')?e.partNote.trim():'', txt:e.txt.trim()}, `접수 내용 수정 · ${parts.join('·')} / ${phs.join('·')}`); DV.ed=null; toast('접수 내용을 수정했습니다'); detail(id); }catch(err){} };
   }
-  /* 진행 내용 — 입력하면 자동 저장 (같은 줄은 계속 고쳐 씀, Enter면 다음 줄) */
+  /* 진행 내용 — 「추가」·Enter를 누를 때 저장 */
   const nt=$('nT'), nd=$('nD'), ns=$('nStat');
   if(nt){ let dAt=null, tm=null;
     const cur=()=>((ITEMS.find(i=>i.id===id)||it).notes||[]);
@@ -2324,10 +2324,9 @@ function detail(id){
       if(!t){ if(k>=0){ a.splice(k,1); await dbCase(id,{notes:a}); it.notes=a; refreshNotes(it); dAt=null; if(ns) ns.textContent='입력하면 자동 저장됩니다 · Enter를 누르면 다음 줄을 새로 씁니다'; } return; }
       let first=false; if(k>=0) a[k]={...a[k], d, txt:t}; else { dAt=iso(); first=true; a.push({d, txt:t, by:ME()||'', at:dAt}); }
       try{ await dbCase(id,{notes:a}, first?`진행 내용 추가 · ${d}`:null); it.notes=a; refreshNotes(it); if(ns) ns.textContent=`자동 저장됨 · ${hhmm(new Date())}`; }catch(e){} };
-    nt.oninput=()=>{ clearTimeout(tm); if(ns) ns.textContent='저장 중…'; tm=setTimeout(save,700); };
-    nt.onblur=()=>{ if(tm) save(); };
-    if(nd) nd.onchange=()=>{ if(dAt||nt.value.trim()) save(); };
-    const next=async()=>{ if(!nt.value.trim()){ toast('진행 내용을 입력하세요'); nt.focus(); return; } await save(); nt.value=''; dAt=null; if(ns) ns.textContent='저장됨 · 다음 내용을 입력하세요'; nt.focus(); };
+    /* 자동 저장 삭제 (2026-11-03 사용자 요청) — 생각하며 쓰는 중에 저장되지 않도록 「추가」·Enter를 눌렀을 때만 저장 */
+    nt.oninput=()=>{ if(ns) ns.textContent=nt.value.trim()?'아직 저장 전 · 「추가」나 Enter를 누르면 저장됩니다':'다 쓴 뒤 「추가」나 Enter를 누르면 저장됩니다'; };
+    const next=async()=>{ if(!nt.value.trim()){ toast('진행 내용을 입력하세요'); nt.focus(); return; } await save(); nt.value=''; dAt=null; if(ns) ns.textContent=`저장됨 · ${hhmm(new Date())} · 다음 내용을 입력하세요`; nt.focus(); };
     nt.onkeydown=e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); next(); } };
     const na=$('nAdd'); if(na){ na.onmousedown=e=>e.preventDefault(); na.onclick=next; }
   }
