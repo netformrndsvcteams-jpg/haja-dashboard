@@ -657,6 +657,8 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .cyb{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:12px;padding:10px 12px;border-radius:10px;background:#f6f9fc;font-size:12.5px;color:#4a5f78}.cyb .cybh{font-weight:700;color:#33506e;margin-right:2px}.cyb span:not(.cybh){background:#fff;border:1px solid #e1e8f0;border-radius:999px;padding:2px 10px}.cyb b{color:#16304d}
 
 .grr .gv i.lo{opacity:.45}.grr{grid-template-columns:200px 1fr 60px 110px}.grr em{white-space:nowrap;font-size:12px}
+
+.msub{font-size:16px;margin:4px 0 10px}.mnavb{display:flex;flex-direction:column;gap:6px;margin:12px 8px 4px}.mnavb .btn{justify-content:flex-start}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -673,6 +675,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
     <a href="#work" class="on" data-t="work">접수·처리</a>
     <a href="#analysis" data-t="analysis">하자 리포트</a>
     <a href="#cost" data-t="cost">예산·지급</a>
+    <a href="#mat" data-t="mat">자재</a>
   </nav>
   <div class="nav-r">
     <span class="cap sync" id="sync">저장소 연결 중…</span><span class="cap stor" id="stor" hidden></span><label class="melb" for="me">작성자</label><select class="sel sm me" id="me" title="작성자 — 처리 이력에 이름이 남습니다"><option value="">작성자 선택</option></select><button class="btn btn-ghost gear" onclick="openSettings()" title="설정">⚙</button>
@@ -718,6 +721,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
 <div id="v-cost" hidden><div class="cwrap"><aside class="cnav" id="cnav"></aside><section class="cmain" id="cmain"></section></div></div>
 <div id="v-analysis" hidden><div class="cwrap"><aside class="cnav" id="anav"></aside><section class="cmain" id="amain"></section></div></div>
 <div id="v-summary" hidden></div>
+<div id="v-mat" hidden><div class="cwrap"><aside class="cnav" id="mnav"></aside><section class="cmain" id="mmain"></section></div></div>
 <div id="v-other" class="ph" hidden><b id="phT"></b>접수·처리·예산·지급 화면과 같은 체계로 이어서 구성합니다</div>
 
 <div class="scrim" id="scrim"></div>
@@ -1127,7 +1131,6 @@ const CVIEWS = [
   ['burden','부담 판정','2696-fe0f','판정별 비용'],
   ['subpay','대납 누적','1f91d','시공소장별 기록'],
   ['pay','기안·지급','1f4b8','5~7단계 돈 흐름'],
-  ['ret','자재 회수','267b-fe0f','출고·회수·반영'],
 ];
 const PERIODS = [[String(CY),PL0],[String(CY-1),`${CY-1}년`],[String(CY-2),`${CY-2}년`],['all','전체 누적']];
 const inP = d => d && (CF.period==='all' || String(d.getFullYear())===CF.period);
@@ -1145,6 +1148,7 @@ function head(title, tag, sub, right=''){
   return `<div class="vh"><div><h2>${title}${tag?`<span class="ptag">${tag}</span>`:''}</h2>${sub?`<p class="cap">${sub}</p>`:''}</div><div class="vh-r">${right}</div></div>`;
 }
 function renderCost(){
+  if((location.hash||'').startsWith('#mat')){ renderMat(); return; }
   renderCostNav();
   const m = document.getElementById('cmain');
   m.innerHTML = ({overview:vOverview, sites:vSites, burden:vBurden, subpay:vSubpay, pay:vPay, ret:vRet}[CF.view]||vOverview)();
@@ -1494,8 +1498,43 @@ function vRet(){
     </div>`;
 }
 
+
+/* ════════════════════════════════════════════
+   자재 탭 (2026-11-04) — 하자 자재 출고·소모량·회수
+   ════════════════════════════════════════════ */
+const MVIEWS = [['use','소모량·출고 현장','1f4e6','품목별 소모량 · 현장 순위'],['ret','자재 회수','267b-fe0f','출고·회수·반영']];
+const MF = {view:'use'};
+function renderMatNav(){
+  const n=document.getElementById('mnav'); if(!n) return;
+  n.innerHTML = `<div class="cnav-h">자재</div>` + MVIEWS.map(([k,l,ic,d])=>`<a href="#mat/${k}" class="${MF.view===k?'on':''}"><span class="ni"><img class="e" src="${ICON[k==='ret'?'c_ret':'c_out']||ICON.c_ret}" alt=""></span><span><b>${l}</b><small>${d}</small></span></a>`).join('')
+    + `<div class="mnavb"><button class="btn btn-line sm" onclick="openMatUpload()"><img class="bi" src="${ICON.c_up}" alt="">ERP 출고 내역 올리기</button><button class="btn btn-line sm" onclick="openMatCfg()">현장 연결 · 단가표</button></div>`
+    + `<p class="cnav-f">출처: 이카운트 하자 출고<br>(거래처 「하자」) 월 단위 업로드</p>`;
+}
+function renderMat(){
+  const v=document.getElementById('v-mat'); if(!v || v.hidden) return;
+  renderMatNav();
+  const m=document.getElementById('mmain');
+  if(MF.view==='ret'){ m.innerHTML = vRet(); return; }
+  /* 자재 */
+  const mm = MATS.filter(m=>inY(m.date,SF.mperiod));
+  const ag = {}; mm.forEach(m=>{ const k=m.item; const o=ag[k]||(ag[k]={item:k,unit:m.unit,out:0,ret:0,amt:0,sites:new Set()}); if(m.qty>=0) o.out+=m.qty; else o.ret+=-m.qty; o.amt+=m.amt; o.sites.add(m.site||m.raw); });
+  const items = Object.values(ag).sort((a,b)=>b.amt-a.amt), mTot = items.reduce((a,o)=>a+o.amt,0), iMax=Math.max(...items.map(o=>o.amt),1);
+  const shown = SF.showAll? items : items.slice(0,8);
+
+  m.innerHTML = head('소모량·출고 현장','',`${sLabel(SF.mperiod)} · 하자 보수용 자재 출고 기준`, `<label class="psel"><span>기간</span>${sSel('mperiod')}</label>`) + `
+    <h3 class="msub">자재별 소모량</h3>
+    <div class="tcard"><table class="ct mt"><thead><tr><th>품목</th><th style="width:60px">단위</th><th class="amt" style="width:100px">출고 수량</th><th class="amt" style="width:90px">회수(반품)</th><th class="amt" style="width:100px">순사용</th><th class="amt" style="width:130px">금액(원)</th><th style="width:220px">비중</th><th class="amt" style="width:90px">사용 현장</th></tr></thead><tbody>
+      ${shown.map(o=>`<tr><td><b>${String(o.item).replace(/\s*\[[^\]]+\]\s*$/,'')}</b></td><td>${(o.unit&&o.unit!=='—')?o.unit:((String(o.item).match(/\[([^\]]+)\]\s*$/)||[])[1]||'—')}</td><td class="amt">${won(o.out)}</td><td class="amt ${o.ret?'':'mut'}">${o.ret?won(o.ret):'—'}</td><td class="amt"><b>${won(o.out-o.ret)}</b></td><td class="amt">${won(o.amt)}</td>
+        <td><div class="hb"><i style="width:${o.amt/iMax*100}%;background:linear-gradient(90deg,#7cc8ff,var(--sky))"></i><span class="cap">${pct(o.amt,mTot)}</span></div></td><td class="amt">${o.sites.size}곳</td></tr>`).join('')||'<tr><td colspan="8" class="empty">이 기간 출고 내역이 없습니다</td></tr>'}
+    </tbody>${items.length?`<tfoot><tr><td>${items.length}개 품목${items.length>8?` · <button class="lkb" onclick="SF.showAll=!SF.showAll;renderMat()">${SF.showAll?'상위 8개만':'전체 보기'}</button>`:''}</td><td></td><td></td><td></td><td></td><td class="amt">${won(mTot)}</td><td></td><td class="amt">${new Set(mm.map(m=>m.site||m.raw)).size}곳</td></tr></tfoot>`:''}</table></div>
+    <p class="cap note">${MATS_SRC==='none'?'아직 올린 ERP 출고 내역이 없습니다 · ':`업로드 데이터 ${MATS.length}행 · `}출처: 이카운트 하자 출고(거래처 「하자」) 월 단위 업로드 · 등록 현장 연결과 무관하게 전체 출고 집계 · 수량이 음수인 행은 반품(회수) · 품목명 개편 반영(코트재 → 코트재Ⅰ, 탑코트재 → 상도코트재)</p>
+    ${matRankCard()}
+`;
+}
+function matRoute(sub){ MF.view = MVIEWS.some(x=>x[0]===sub)? sub : 'use'; renderMat(); window.scrollTo(0,0); }
+
 /* 비용 탭 라우팅 */
-function costRoute(sub){ CF.view = CVIEWS.some(v=>v[0]===sub)? sub : 'overview'; renderCost(); window.scrollTo(0,0); }
+function costRoute(sub){ if(sub==='ret'){ location.hash='#mat/ret'; return; } CF.view = CVIEWS.some(v=>v[0]===sub)? sub : 'overview'; renderCost(); window.scrollTo(0,0); }
 
 
 /* ════════════════════════════════════════════
@@ -1820,7 +1859,7 @@ const SF = {period:String(CY), mperiod:String(CY), showAll:false};
 const SPER = [[String(CY),PL0],[String(CY-1),`${CY-1}년`],[String(CY-2),`${CY-2}년`],['all','전체 누적']];
 const sLabel = k => SPER.find(p=>p[0]===k)[1];
 const inY = (d,k) => d && (k==='all' || String(d.getFullYear())===k);
-const sSel = (key) => `<select class="sel sm" onchange="SF.${key}=this.value;renderSummary()">${SPER.map(([k,l])=>`<option value="${k}" ${SF[key]===k?'selected':''}>${l}</option>`).join('')}</select>`;
+const sSel = (key) => `<select class="sel sm" onchange="SF.${key}=this.value;renderSummary();renderMat()">${SPER.map(([k,l])=>`<option value="${k}" ${SF[key]===k?'selected':''}>${l}</option>`).join('')}</select>`;
 const band = (title, chip, right='') => `<div class="band"><h3>${title}</h3><span class="bchip">${chip}</span><span class="band-r">${right}</span></div>`;
 
 function renderSummary(){
@@ -1874,11 +1913,6 @@ function renderSummary(){
   const sMax = Math.max(...sc.map(x=>x.n),1);
   const phs = PHS6.map(h=>[h,ra.filter(r=>hasH(r,h)).length]).sort((a,b)=>b[1]-a[1]);
   AF.period=svA; AF.gong=svG;
-  /* 자재 */
-  const mm = MATS.filter(m=>inY(m.date,SF.mperiod));
-  const ag = {}; mm.forEach(m=>{ const k=m.item; const o=ag[k]||(ag[k]={item:k,unit:m.unit,out:0,ret:0,amt:0,sites:new Set()}); if(m.qty>=0) o.out+=m.qty; else o.ret+=-m.qty; o.amt+=m.amt; o.sites.add(m.site||m.raw); });
-  const items = Object.values(ag).sort((a,b)=>b.amt-a.amt), mTot = items.reduce((a,o)=>a+o.amt,0), iMax=Math.max(...items.map(o=>o.amt),1);
-  const shown = SF.showAll? items : items.slice(0,8);
 
   el.innerHTML = `<main class="wrap sum">
     <div class="vh"><div><h2>오늘 현황</h2><p class="cap">하자 처리·비용·발생 현황을 한 화면에서 봅니다 · 블록마다 기준 기간이 다르니 오른쪽 표시를 확인하세요 · 블록을 누르면 상세 탭으로 이동</p></div></div>
@@ -1922,13 +1956,6 @@ function renderSummary(){
         <p class="cap note">나머지 ${phs.slice(3).map(p=>`${p[0]} ${p[1]}`).join(' · ')}</p></a>
     </div>
 
-    ${band('자재별 소모량',sLabel(SF.mperiod),`<label class="psel"><span>기간</span>${sSel('mperiod')}</label>`)}
-    <div class="tcard"><table class="ct mt"><thead><tr><th>품목</th><th style="width:60px">단위</th><th class="amt" style="width:100px">출고 수량</th><th class="amt" style="width:90px">회수(반품)</th><th class="amt" style="width:100px">순사용</th><th class="amt" style="width:130px">금액(원)</th><th style="width:220px">비중</th><th class="amt" style="width:90px">사용 현장</th></tr></thead><tbody>
-      ${shown.map(o=>`<tr><td><b>${String(o.item).replace(/\s*\[[^\]]+\]\s*$/,'')}</b></td><td>${(o.unit&&o.unit!=='—')?o.unit:((String(o.item).match(/\[([^\]]+)\]\s*$/)||[])[1]||'—')}</td><td class="amt">${won(o.out)}</td><td class="amt ${o.ret?'':'mut'}">${o.ret?won(o.ret):'—'}</td><td class="amt"><b>${won(o.out-o.ret)}</b></td><td class="amt">${won(o.amt)}</td>
-        <td><div class="hb"><i style="width:${o.amt/iMax*100}%;background:linear-gradient(90deg,#7cc8ff,var(--sky))"></i><span class="cap">${pct(o.amt,mTot)}</span></div></td><td class="amt">${o.sites.size}곳</td></tr>`).join('')||'<tr><td colspan="8" class="empty">이 기간 출고 내역이 없습니다</td></tr>'}
-    </tbody>${items.length?`<tfoot><tr><td>${items.length}개 품목${items.length>8?` · <button class="lkb" onclick="SF.showAll=!SF.showAll;renderSummary()">${SF.showAll?'상위 8개만':'전체 보기'}</button>`:''}</td><td></td><td></td><td></td><td></td><td class="amt">${won(mTot)}</td><td></td><td class="amt">${new Set(mm.map(m=>m.site||m.raw)).size}곳</td></tr></tfoot>`:''}</table></div>
-    <p class="cap note">${MATS_SRC==='none'?'아직 올린 ERP 출고 내역이 없습니다 · ':`업로드 데이터 ${MATS.length}행 · `}출처: 이카운트 하자 출고(거래처 「하자」) 월 단위 업로드 · 등록 현장 연결과 무관하게 전체 출고 집계 · 수량이 음수인 행은 반품(회수) · 품목명 개편 반영(코트재 → 코트재Ⅰ, 탑코트재 → 상도코트재)</p>
-    ${matRankCard()}
   </main>`;
 }
 
@@ -2108,7 +2135,7 @@ function _rebuild(){
 function rerender(){
   const t=(location.hash||'#work').slice(1).split('/')[0];
   render();
-  if(t==='cost') renderCost(); else if(t==='analysis') renderAna(); else if(t==='summary') renderSummary();
+  if(t==='cost') renderCost(); else if(t==='analysis') renderAna(); else if(t==='summary') renderSummary(); else if(t==='mat') renderMat();
   if(openId && drawer.classList.contains('on')){
     const a=document.activeElement; if(!(a && drawer.contains(a) && /INPUT|SELECT|TEXTAREA/.test(a.tagName))) detail(openId);
   }
@@ -3621,7 +3648,7 @@ function matRankCard(){
   return `<div class="tcard" style="margin-top:14px"><div class="ch" style="padding:14px 16px 0"><h3>자재 출고 현장 순위</h3><span class="cap">${sLabel(SF.mperiod)} · 금액 순 · 등록 현장 ${won(regA)}원(${pct(regA,tot)}) · 미등록·미연결 ${won(tot-regA)}원(${pct(tot-regA,tot)})</span></div>
     <table class="ct mt"><thead><tr><th style="width:44px" class="amt">순위</th><th>현장</th><th class="amt" style="width:90px">출고일 수</th><th class="amt" style="width:130px">금액(원)</th><th style="width:22%"></th><th>주요 품목</th><th style="width:110px">최근 출고</th></tr></thead><tbody>
     ${shown.map((o,i)=>{ const ti=Object.entries(o.it).sort((a,b)=>b[1]-a[1])[0]; return `<tr><td class="amt">${i+1}</td><td><b>${esc(o.k)}</b>${o.reg?'<span class="tg tg-ok">등록</span>':''}</td><td class="amt">${o.days.size}</td><td class="amt"><b>${won(o.amt)}</b></td><td><div class="hb"><i style="width:${o.amt/mx*100}%;background:linear-gradient(90deg,#7cc8ff,var(--sky))"></i><span class="cap">${pct(o.amt,tot)}</span></div></td><td class="wrap-t">${ti?esc(ti[0]):'—'}</td><td>${fmtD(o.last)}</td></tr>`; }).join('')}
-    </tbody><tfoot><tr><td></td><td>${L.length}곳${L.length>10?` · <button class="lkb" onclick="SF.rankAll=!SF.rankAll;renderSummary()">${SF.rankAll?'상위 10곳만':'전체 보기'}</button>`:''}</td><td></td><td class="amt">${won(tot)}</td><td colspan="3"></td></tr></tfoot></table>
+    </tbody><tfoot><tr><td></td><td>${L.length}곳${L.length>10?` · <button class="lkb" onclick="SF.rankAll=!SF.rankAll;renderMat()">${SF.rankAll?'상위 10곳만':'전체 보기'}</button>`:''}</td><td></td><td class="amt">${won(tot)}</td><td colspan="3"></td></tr></tfoot></table>
     <p class="cap note" style="padding:0 16px 12px">현장명은 출고 전표 적요 원문 기준 · 「등록」은 등록 현장에 연결된 출고(예산 소진율에 반영) · 회수(반품)는 금액에서 차감</p></div>`;
 }
 function matYearCard(){
@@ -4605,11 +4632,12 @@ document.getElementById('todayTag').textContent=TD+' 현재';
 /* 탭 */
 function route(){ const t=(location.hash||'#work').slice(1).split('/')[0];
   document.querySelectorAll('#tabs a').forEach(a=>a.classList.toggle('on',a.dataset.t===t));
-  document.getElementById('v-work').hidden = t!=='work'; document.getElementById('v-cost').hidden = t!=='cost'; document.getElementById('v-analysis').hidden = t!=='analysis'; document.getElementById('v-summary').hidden = t!=='summary'; document.getElementById('v-other').hidden = true;
+  document.getElementById('v-work').hidden = t!=='work'; document.getElementById('v-cost').hidden = t!=='cost'; document.getElementById('v-analysis').hidden = t!=='analysis'; document.getElementById('v-summary').hidden = t!=='summary'; document.getElementById('v-mat').hidden = t!=='mat'; document.getElementById('v-other').hidden = true;
   if(t==='cost') costRoute((location.hash.split('/')[1])||'overview');
   if(t==='summary'){ renderSummary(); window.scrollTo(0,0); }
   if(t==='analysis') anaRoute((location.hash.split('/')[1])||'overview');
-  const nm={summary:'오늘 현황',analysis:'하자 리포트',cost:'예산·지급'}[t]; if(nm) document.getElementById('phT').textContent=nm; }
+  if(t==='mat') matRoute((location.hash.split('/')[1])||'use');
+  const nm={summary:'오늘 현황',analysis:'하자 리포트',cost:'예산·지급',mat:'자재'}[t]; if(nm) document.getElementById('phT').textContent=nm; }
 window.addEventListener('hashchange',route); route();
 render();
 </script>
