@@ -583,7 +583,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .g3c{display:grid;grid-template-columns:1.2fr 1fr .8fr;gap:18px}
 .g3c>.card{margin-bottom:0}
 .gmini{display:flex;flex-direction:column;gap:8px}
-.gm{display:grid;grid-template-columns:96px 1fr 48px 118px;gap:10px;align-items:center;font-size:13px}.gm .gp{font-size:11.5px;color:var(--ink2);white-space:nowrap}.gm .gv i.lo{opacity:.45}
+.gm{display:grid;grid-template-columns:96px 1fr 48px 118px;gap:10px;align-items:center;font-size:13px}.gm .gp{font-size:11.5px;color:var(--ink2);white-space:nowrap;opacity:0;transition:opacity .15s}.gm:hover .gp,.gm:focus-within .gp{opacity:1}.gm .gv i.lo{opacity:.45}
 .gm .gv{position:relative;height:10px;border-radius:999px;background:var(--s2)}
 .gm .gv i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,#7cc8ff,var(--sky))}
 .gm .gv i.hi{background:linear-gradient(90deg,#ffc34d,var(--warn))}
@@ -1948,7 +1948,7 @@ function renderSummary(){
     ${band('하자 발생 유형',sLabel(SF.period),`<label class="psel"><span>기간</span>${sSel('period')}</label>`)}
     <div class="g3c">
       <a class="card clk" href="#analysis/gong"><div class="ch"><h3>공종별 하자 발생</h3><span class="cap">접수 건수 순 · 비율 = 건수 ÷ 보증 중 현장 수 · 여러 공종 현장은 공종마다 포함</span></div>
-        <div class="gmini">${grs.map(x=>`<div class="gm"><span>${x[0]}</span><span class="gv"><i class="${x[3]<5?'lo':''}" style="width:${x[1]/gMax*100}%"></i></span><b class="num">${x[1]}건</b><small class="gp">${x[3]}곳 대비 ${(x[2]*100).toFixed(0)}%${x[3]<5?' · 표본 적음':''}</small></div>`).join('')}</div></a>
+        <div class="gmini">${grs.map(x=>`<div class="gm" title="${x[0]} ${x[1]}건 · 보증 중 ${x[3]}곳 대비 ${(x[2]*100).toFixed(0)}%"><span>${x[0]}</span><span class="gv"><i class="${x[3]<5?'lo':''}" style="width:${x[1]/gMax*100}%"></i></span><b class="num">${x[1]}건</b><small class="gp">${x[3]}곳 대비 ${(x[2]*100).toFixed(0)}%${x[3]<5?' · 표본 적음':''}</small></div>`).join('')}</div></a>
       <a class="card clk" href="#analysis/season"><div class="ch"><h3>계절별 발생</h3><span class="cap">접수일 기준 · ${ra.length}건</span></div>
         <div class="smini">${sc.map(x=>`<div class="sm1 ${x.n===sMax?'pk':''}"><span class="si">${AI('s_'+x.s)}</span><b>${x.s}</b><strong class="num">${x.n}건</strong><small>${x.top[1]?`${x.top[0]} ${x.top[1]}건 최다`:'—'}</small><div class="sbar"><i style="width:${x.n/sMax*100}%"></i></div></div>`).join('')}</div></a>
       <a class="card clk" href="#analysis/part"><div class="ch"><h3>현상 상위 3</h3><span class="cap">${ra.length}건 중</span></div>
