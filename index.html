@@ -3416,6 +3416,8 @@ const PRICE_SEED = {"POUR 강화제Ⅰ [18L]": [200900, "2026-08"], "POUR 듀얼
 const MCFG = {alias:{}, price:null};
 let MATU = [];
 const matPrice = it => { const P = MCFG.price || {}; if(P[it]!=null) return Number(P[it]); const s=PRICE_SEED[it]; return s? s[0] : null; };
+/* 출고 현장명 연결 기록 찾기 — 띄어쓰기 차이는 같은 이름으로 봄 (2026-11-04) */
+const matAl = raw => { const A=MCFG.alias||{}; if(A[raw]) return A[raw]; const k=String(raw||'').replace(/\s/g,''); const e=Object.entries(A).find(([x])=>x.replace(/\s/g,'')===k); return e? e[1] : undefined; };
 const matRaw = s => { let t=String(s==null?'':s).replace(/\s+/g,' ').trim(); t=t.replace(/\s*하자\s*$/,'').trim(); return (!t||t==='하자'||/^\(?누락\)?$/.test(t)) ? '' : t; };
 /* ── 같은 단지(같은 이름) 여러 계약 — 자재는 단지 하나로 연결하고, 계약 배정은 근거가 있을 때만 (A안 · 2026-10-25)
    ① 연결된 현장과 이름이 같은 현장(괄호·「아파트」·띄어쓰기 무시)을 모두 같은 단지로 묶음
@@ -3426,7 +3428,7 @@ const grpKey = n => String(n||'').replace(/\(.*?\)/g,'').replace(/아파트|\s/g
 function grpOf(n){ const k=grpKey(n); return Object.keys(SITES).filter(x=>!SITES[x].wait && grpKey(x)===k); }
 let MATG = [];
 function matAssign(raw, d){
-  const L=(MCFG.alias[raw]||[]).filter(n=>SITES[n]); if(!L.length) return {site:null, grp:null};
+  const L=(matAl(raw)||[]).filter(n=>SITES[n]); if(!L.length) return {site:null, grp:null};
   const G=[...new Set(L.flatMap(n=>{ const g=grpOf(n); return g.length? g : [n]; }))];
   if(G.length===1){ const s=SITES[G[0]], e=wEndOf(s); return (e && d>e) ? {site:null, grp:null} : {site:G[0], grp:null}; }
   const act=G.filter(n=>{ const s=SITES[n]; if(!s.comp) return false; const c=new Date(s.comp), e=wEndOf(s); return c<=d && (!e || d<=e); });
@@ -3442,7 +3444,7 @@ function grpLine(nm){
   return `<small class="grpl">같은 단지 계약 ${G.length}건 · 단지 합계 예산 ${won(b)} / 집행 ${won(sp)}원${ga?` (단지 공통 자재 ${won(ga)}원 포함)`:''} · ${pct(sp,b)}</small>`;
 }
 function matSiteFor(raw, d){
-  const L=(MCFG.alias[raw]||[]).filter(n=>SITES[n]); if(!L.length) return null; if(L.length===1) return L[0];
+  const L=(matAl(raw)||[]).filter(n=>SITES[n]); if(!L.length) return null; if(L.length===1) return L[0];
   const b=L.filter(n=>SITES[n].comp && new Date(SITES[n].comp)<=d).sort((x,y)=>new Date(SITES[y].comp)-new Date(SITES[x].comp));
   return b[0] || L.slice().sort((x,y)=>new Date(SITES[x].comp||0)-new Date(SITES[y].comp||0))[0];
 }
@@ -3490,13 +3492,16 @@ function matParse(wb){
   const C={d:col('일자'),it:col('품목명','품목'),q:col('수량'),a:col('공급가액'),c:col('거래처'),n:col('적요'),s:h.findIndex(c=>c==='현장'),pn:col('프로젝트명')};
   if(C.q<0) return {err:'「수량」 열이 없습니다'};
   const slipRaw={}; let skipC=0;
+  /* 적요가 전표 안에서 여러 줄로 나뉜 경우(예: 「동탄역시범한화꿈에」+「그린프레스티지」) 같은 전표의 적요를 이어 붙임 (2026-11-04) */
+  const slipMemo={};
+  if(C.n>=0) a.slice(hi+1).forEach(r=>{ const dn=String(r[C.d]||'').trim(); if(!r[C.it] || /계\s*$/.test(dn) || /합계|소계/.test(dn+String(r[C.it]))) return; const m=matRaw(r[C.n]); if(!m) return; const L=slipMemo[dn]||(slipMemo[dn]=[]); if(!L.includes(m)) L.push(m); });
   a.slice(hi+1).forEach(r=>{
     const dn=String(r[C.d]||''); if(!r[C.it] || /계\s*$/.test(dn) || /합계|소계/.test(dn+String(r[C.it]))) return;
     if(C.c>=0 && r[C.c] && !String(r[C.c]).includes('하자')){ skipC++; return; }
     const d=toD(r[C.d]); if(!d) return;
     const slip=dn.trim(); let raw='';
     if(C.s>=0) raw=matRaw(r[C.s]); else if(C.pn>=0 && matRaw(r[C.pn])) raw=matRaw(r[C.pn]);
-    if(!raw){ if(!(slip in slipRaw)) slipRaw[slip]=C.n>=0?matRaw(r[C.n]):''; raw=slipRaw[slip]; } else if(!(slip in slipRaw)) slipRaw[slip]=raw;
+    if(!raw){ if(!(slip in slipRaw)) slipRaw[slip]=(slipMemo[slip]||[]).join(' '); raw=slipRaw[slip]; } else if(!(slip in slipRaw)) slipRaw[slip]=raw;
     const item=fixItem(r[C.it]), q=num(r[C.q]); let amt=C.a>=0?num(r[C.a]):0;
     if(!amt){ const p=matPrice(item); amt = p==null? null : Math.round(q*p); }
     rows.push({date:d, raw:raw||'(현장 미상)', item, qty:q, amt});
@@ -3510,14 +3515,14 @@ function readMat(file){
   fr.onload=e=>{
     const P=matParse(XLSX.read(e.target.result,{type:'array',cellDates:true})), box=document.getElementById('mPrev');
     if(P.err){ box.innerHTML=`<div class="alert warn"><b>읽지 못했습니다</b> — ${P.err}</div>`; return; }
-    const key=r=>[ymd(r.date),r.raw,r.item,r.qty].join('|'), have=new Set(MATS.map(key)), seen=new Set();
+    const key=r=>[ymd(r.date),String(r.raw).replace(/\s/g,''),r.item,r.qty].join('|'), have=new Set(MATS.map(key)), seen=new Set();
     const fresh=P.rows.filter(r=>{ const k=key(r); if(have.has(k)||seen.has(k)) return false; seen.add(k); return true; }), dup=P.rows.length-fresh.length;
     const noP=fresh.filter(r=>r.amt==null), noPI=[...new Set(noP.map(r=>r.item))];
     const sum=fresh.reduce((x,r)=>x+(r.amt||0),0);
     /* 등록 현장 연결 후보 */
     const g={}; fresh.forEach(r=>{ if(r.raw==='(현장 미상)') return; const o=g[r.raw]||(g[r.raw]={raw:r.raw,n:0,amt:0,d:r.date}); o.n++; o.amt+=r.amt||0; if(r.date<o.d) o.d=r.date; });
     const known=[], ask=[], none=[];
-    Object.values(g).forEach(o=>{ if(MCFG.alias[o.raw]){ (MCFG.alias[o.raw].length?known:none).push(o); return; } const c=matCands(o.raw); if(c.length){ o.c=c; o.pick=matPick(c,o.d); o.on=c.some(x=>x.how==='이름 일치'); ask.push(o); } else none.push(o); });
+    Object.values(g).forEach(o=>{ if(matAl(o.raw)){ (matAl(o.raw).length?known:none).push(o); return; } const c=matCands(o.raw); if(c.length){ o.c=c; o.pick=matPick(c,o.d); o.on=c.some(x=>x.how==='이름 일치'); ask.push(o); } else none.push(o); });
     ask.sort((x,y)=>y.amt-x.amt); none.sort((x,y)=>y.amt-x.amt);
     MUP={fresh, ask};
     const ys=[...new Set(fresh.map(r=>r.date.getFullYear()))].sort();
