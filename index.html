@@ -583,7 +583,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .g3c{display:grid;grid-template-columns:1.2fr 1fr .8fr;gap:18px}
 .g3c>.card{margin-bottom:0}
 .gmini{display:flex;flex-direction:column;gap:8px}
-.gm{display:grid;grid-template-columns:96px 1fr 44px;gap:10px;align-items:center;font-size:13px}
+.gm{display:grid;grid-template-columns:96px 1fr 48px 118px;gap:10px;align-items:center;font-size:13px}.gm .gp{font-size:11.5px;color:var(--ink2);white-space:nowrap}.gm .gv i.lo{opacity:.45}
 .gm .gv{position:relative;height:10px;border-radius:999px;background:var(--s2)}
 .gm .gv i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,#7cc8ff,var(--sky))}
 .gm .gv i.hi{background:linear-gradient(90deg,#ffc34d,var(--warn))}
@@ -655,6 +655,8 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .d2.warn{color:var(--warn-tx)}
 
 .cyb{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-top:12px;padding:10px 12px;border-radius:10px;background:#f6f9fc;font-size:12.5px;color:#4a5f78}.cyb .cybh{font-weight:700;color:#33506e;margin-right:2px}.cyb span:not(.cybh){background:#fff;border:1px solid #e1e8f0;border-radius:999px;padding:2px 10px}.cyb b{color:#16304d}
+
+.grr .gv i.lo{opacity:.45}.grr{grid-template-columns:200px 1fr 60px 110px}.grr em{white-space:nowrap;font-size:12px}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -1579,6 +1581,12 @@ const aIn = r => (AF.period==='all' || String(r.date.getFullYear())===AF.period)
 const AI = c => `<img class="e" src="${ICON['a_'+c]}" alt="">`;
 
 /* 노출(현장·년) : 기간 동안 보증기간 안에 있던 현장-연수 합 → 공종·연차 비교용 분모 */
+/* 보증 중 현장 수 : 기간 동안 하루라도 보증기간 안에 있던 현장 수 → 공종별 발생 비율의 분모 (2026-11-04) */
+function gSites(filterSite){
+  const from = AF.period==='all'? null : new Date(AF.period+'-01-01'), to = AF.period==='all'? TODAY : (AF.period==='2026'? TODAY : new Date(Number(AF.period)+1+'-01-01'));
+  let n=0; Object.entries(SITES).forEach(([nm,s])=>{ if(filterSite && !filterSite(nm,s)) return; const c=new Date(s.comp), e=new Date(c); e.setFullYear(e.getFullYear()+(s.wy||5));
+    const a=new Date(Math.max(c, from||c)), b=new Date(Math.min(e, to)); if(b>a) n++; }); return n;
+}
 function exposure(filterSite){
   const from = AF.period==='all'? null : new Date(AF.period+'-01-01'), to = AF.period==='all'? TODAY : (AF.period===String(CY)? TODAY : new Date(Number(AF.period)+1+'-01-01'));
   let tot=0;
@@ -1628,7 +1636,7 @@ function aOverview(){
   const pc = cntBy(rs,r=>r.part+' · '+r.ph); const topPC = Object.entries(pc).sort((a,b)=>b[1]-a[1])[0];
   const sc = cntBy(rs,r=>r.se); const topS = Object.entries(sc).sort((a,b)=>b[1]-a[1])[0];
   const sLeak = rs.filter(r=>r.se===topS[0]&&hasH(r,'누수')).length;
-  const gr = GONGS.map(g=>{ const n=rs.filter(r=>hasG(r,g)).length, ex=exposure((nm,s)=>hasG(s,g)); return [g,n,ex?n/ex:0,ex]; }).filter(x=>x[3]>=1&&x[1]>0).sort((a,b)=>b[2]-a[2]);
+  const gr = GONGS.map(g=>{ const n=rs.filter(r=>hasG(r,g)).length, sn=gSites((nm,s)=>hasG(s,g)); return [g,n,sn?n/sn:0,sn]; }).filter(x=>x[3]>0&&x[1]>0).sort((a,b)=>b[1]-a[1]);
   const allEx = exposure(AF.gong?(nm,s)=>hasG(s,AF.gong):null), allRate = rs.length/(allEx||1);
   const ycR = ys=>{ const a=czd.filter(r=>ys.includes(r.yr)); return {p:a.length?a.filter(r=>r.cz==='경년 열화').length/a.length:0,n:a.length}; }, yc=[ycR([1,2]),ycR([4,5])];
   /* 월별 추이 */
@@ -1646,7 +1654,7 @@ function aOverview(){
     <div class="sig">
       <a class="sg" href="#analysis/part"><span class="si">${AI('part')}</span><small>가장 많은 조합</small><b>${topPC[0]}</b><p>${topPC[1]}건 · 전체의 ${pct(topPC[1],rs.length)}</p></a>
       <a class="sg" href="#analysis/season"><span class="si">${AI('s_'+topS[0])}</span><small>가장 많은 계절</small><b>${topS[0]} ${topS[1]}건</b><p>그중 누수 ${sLeak}건 (${pct(sLeak,topS[1],0)})</p></a>
-      <a class="sg" href="#analysis/gong"><span class="si">${AI('gong')}</span><small>발생률 높은 공종</small><b>${gr[0]?gr[0][0]:'—'}</b><p>${gr[0]?`현장·년당 ${gr[0][2].toFixed(2)}건 · 평균 ${allRate.toFixed(2)}건의 ${(gr[0][2]/allRate).toFixed(1)}배`:'—'}</p></a>
+      <a class="sg" href="#analysis/gong"><span class="si">${AI('gong')}</span><small>하자 많은 공종</small><b>${gr[0]?gr[0][0]+' '+gr[0][1]+'건':'—'}</b><p>${gr[0]?`보증 중 ${gr[0][3]}곳 대비 ${(gr[0][2]*100).toFixed(0)}%`:'—'}</p></a>
       <a class="sg" href="#analysis/cause"><span class="si">${AI('cause')}</span><small>경년 열화 비중</small><b>1~2년차 ${(yc[0].p*100).toFixed(0)}% → 4~5년차 ${(yc[1].p*100).toFixed(0)}%</b><p>원인 확정 ${yc[0].n}건 / ${yc[1].n}건 기준${yc[1].n<10?' · 건수가 적어 참고용':''}</p></a>
     </div>
     <div class="g2c wide-l">
@@ -1707,24 +1715,25 @@ function aSeason(){
 /* ── 4. 공종 ── */
 function aGong(){
   const keepG = AF.gong; const rs = anaRecs().filter(r=>(AF.period==='all'||String(r.date.getFullYear())===AF.period));
-  const rows = GONGS.map(g=>{ const a=rs.filter(r=>hasG(r,g)), sites=Object.values(SITES).filter(s=>hasG(s,g)).length, ex=exposure((nm,s)=>hasG(s,g));
+  /* 2026-11-04 사용자 결정 : 건수 순 + 보증 중 현장 수 대비 비율 (현장·년당 기준 폐지) */
+  const rows = GONGS.map(g=>{ const a=rs.filter(r=>hasG(r,g)), sites=gSites((nm,s)=>hasG(s,g)), all=Object.values(SITES).filter(s=>hasG(s,g)).length;
     const czd=a.filter(r=>r.cz); const area=Object.values(SITES).filter(s=>hasG(s,g)).reduce((x,s)=>x+(s.area||0),0);
     const topPh = PHS6.map(h=>[h,a.filter(r=>hasH(r,h)).length]).sort((x,y)=>y[1]-x[1])[0];
-    return {g,n:a.length,sites,ex,rate:ex?a.length/ex:0,area,per:area?a.length/area*10000:0,mdef:czd.filter(r=>r.cz==='자재 결함').length,czd:czd.length,topPh,cost:a.filter(r=>r.st===7).reduce((x,r)=>x+r.cost,0),cn:a.filter(r=>r.st===7).length}; }).filter(r=>r.sites);
-  const allN=rows.reduce((a,r)=>a+r.n,0), allEx=rows.reduce((a,r)=>a+r.ex,0), avg=allN/(allEx||1);
-  rows.sort((a,b)=>b.rate-a.rate);
-  const mx = Math.max(...rows.map(r=>r.rate),.01);
-  return head('공종', '', `${aLabel()} · 공종별 현장 수가 달라 건수 대신 「현장·년당 발생」으로 비교합니다`, `<label class="psel"><span>기간</span><select class="sel" onchange="AF.period=this.value;renderAna()">${APERIODS.map(([k,l])=>`<option value="${k}" ${AF.period===k?'selected':''}>${l}</option>`).join('')}</select></label>`)
-  + `<div class="card"><div class="ch"><h3>공종별 발생률</h3><span class="cap">현장·년당 발생 = 접수 건수 ÷ (보증기간 안에 있던 현장 수 × 연수) · 점선 = 전체 평균 ${avg.toFixed(2)}건</span></div>
-      <div class="gr">${rows.map(r=>`<button class="grr ${keepG===r.g?'on':''}" onclick="AF.gong=AF.gong==='${r.g}'?'':'${r.g}';renderAna()" title="${r.g} · ${r.n}건 / ${r.ex.toFixed(1)}현장·년">
-        <span class="gk"><b>${r.g}</b><small>현장 ${r.sites}곳 · ${r.n}건</small></span>
-        <span class="gv"><i class="${r.rate>avg*1.25?'hi':''}" style="width:${r.rate/mx*100}%"></i><u style="left:${avg/mx*100}%"></u></span>
-        <b class="num">${r.rate.toFixed(2)}</b><em>${(r.rate/avg).toFixed(1)}배</em></button>`).join('')}</div>
-      <p class="cap note">주황 막대 = 평균의 1.25배 이상 · 행을 누르면 다른 화면(부위·현상 등)도 그 공종으로 좁혀집니다 · 현장 수가 적은 공종은 값이 크게 흔들리므로 참고용입니다</p></div>
-    <div class="tcard"><table class="ct"><thead><tr><th>공종</th><th class="amt">현장</th><th class="amt">접수</th><th class="amt">현장·년당</th><th class="amt">1만㎡당</th><th>주요 현상</th><th class="amt">자재 결함</th><th class="amt">건당 처리비용(원)</th></tr></thead><tbody>
-      ${rows.map(r=>`<tr><td><b>${r.g}</b></td><td class="amt">${r.sites}곳</td><td class="amt">${r.n}</td><td class="amt"><b>${r.rate.toFixed(2)}</b></td><td class="amt">${r.area?r.per.toFixed(1):'—'}</td><td>${r.topPh[1]?`${r.topPh[0]} ${r.topPh[1]}건`:'—'}</td><td class="amt ${r.czd&&r.mdef/r.czd>.15?'neg':''}">${r.mdef}건${r.czd?` <small class="d2i">${pct(r.mdef,r.czd,0)}</small>`:''}</td><td class="amt">${r.cn?won(Math.round(r.cost/r.cn/100)*100):'—'}</td></tr>`).join('')}
+    return {g,n:a.length,sites,all,rate:sites?a.length/sites:0,hit:new Set(a.map(r=>r.site)).size,area,per:area?a.length/area*10000:0,mdef:czd.filter(r=>r.cz==='자재 결함').length,czd:czd.length,topPh,cost:a.filter(r=>r.st===7).reduce((x,r)=>x+r.cost,0),cn:a.filter(r=>r.st===7).length}; }).filter(r=>r.all);
+  rows.sort((a,b)=>b.n-a.n||b.rate-a.rate);
+  const mx = Math.max(...rows.map(r=>r.n),1);
+  const P = v => (v*100).toFixed(0)+'%';
+  return head('공종', '', `${aLabel()} · 접수 건수 순 · 비율 = 접수 건수 ÷ 보증 중 현장 수 · 여러 공종 현장은 공종마다 포함`, `<label class="psel"><span>기간</span><select class="sel" onchange="AF.period=this.value;renderAna()">${APERIODS.map(([k,l])=>`<option value="${k}" ${AF.period===k?'selected':''}>${l}</option>`).join('')}</select></label>`)
+  + `<div class="card"><div class="ch"><h3>공종별 하자 발생</h3><span class="cap">막대 = 접수 건수 · 오른쪽 = 보증 중 현장 수 대비 비율(기간 중 하루라도 보증기간 안에 있던 현장)</span></div>
+      <div class="gr">${rows.map(r=>`<button class="grr ${keepG===r.g?'on':''}" onclick="AF.gong=AF.gong==='${r.g}'?'':'${r.g}';renderAna()" title="${r.g} · ${r.n}건 / 보증 중 ${r.sites}곳">
+        <span class="gk"><b>${r.g}</b><small>보증 중 ${r.sites}곳 · 하자 난 현장 ${r.hit}곳</small></span>
+        <span class="gv"><i class="${r.sites<5?'lo':''}" style="width:${r.n/mx*100}%"></i></span>
+        <b class="num">${r.n}건</b><em>${r.sites?P(r.rate):'—'}${r.sites&&r.sites<5?' · 표본 적음':''}</em></button>`).join('')}</div>
+      <p class="cap note">행을 누르면 다른 화면(부위·현상 등)도 그 공종으로 좁혀집니다 · 보증 중 현장이 5곳 미만인 공종은 흐리게 표시(비율이 크게 흔들려 참고용)</p></div>
+    <div class="tcard"><table class="ct"><thead><tr><th>공종</th><th class="amt">보증 중 현장</th><th class="amt">접수</th><th class="amt">현장 대비</th><th class="amt">하자 난 현장</th><th class="amt">1만㎡당</th><th>주요 현상</th><th class="amt">자재 결함</th><th class="amt">건당 처리비용(원)</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td><b>${r.g}</b></td><td class="amt">${r.sites}곳</td><td class="amt"><b>${r.n}</b></td><td class="amt">${r.sites?P(r.rate):'—'}</td><td class="amt">${r.hit}곳${r.sites?` <small class="d2i">${P(r.hit/r.sites)}</small>`:''}</td><td class="amt">${r.area?r.per.toFixed(1):'—'}</td><td>${r.topPh[1]?`${r.topPh[0]} ${r.topPh[1]}건`:'—'}</td><td class="amt ${r.czd&&r.mdef/r.czd>.15?'neg':''}">${r.mdef}건${r.czd?` <small class="d2i">${pct(r.mdef,r.czd,0)}</small>`:''}</td><td class="amt">${r.cn?won(Math.round(r.cost/r.cn/100)*100):'—'}</td></tr>`).join('')}
     </tbody></table></div>
-    <p class="cap note">1만㎡당 = 접수 건수 ÷ 현장 면적 합계 × 10,000 (기간 무관 면적 기준) · 자재 결함 비중 15% 초과 공종은 주황으로 표시 · 미사용 공종(${GONGS.filter(g=>!rows.some(r=>r.g===g)).join(', ')})은 등록 현장이 없어 제외</p>`;
+    <p class="cap note">현장 대비 = 접수 건수 ÷ 보증 중 현장 수 · 하자 난 현장 = 접수가 1건 이상인 현장 · 1만㎡당 = 접수 건수 ÷ 현장 면적 합계 × 10,000 · 자재 결함 비중 15% 초과 공종은 주황으로 표시 · 미사용 공종(${GONGS.filter(g=>!rows.some(r=>r.g===g)).join(', ')})은 등록 현장이 없어 제외</p>`;
 }
 
 /* ── 5. 원인·연차 ── */
@@ -1858,9 +1867,9 @@ function renderSummary(){
   /* 유형 */
   AF.period = SF.period; AF.gong='';
   const ra = anaRecs().filter(r=>inY(r.date,SF.period));
-  const grs = GONGS.map(g=>{ const n=ra.filter(r=>hasG(r,g)).length, ex=exposure((nm,s)=>hasG(s,g)); return [g,n,ex?n/ex:0,ex]; }).filter(x=>x[3]>=.5);
+  const grs = GONGS.map(g=>{ const n=ra.filter(r=>hasG(r,g)).length, sn=gSites((nm,s)=>hasG(s,g)); return [g,n,sn?n/sn:0,sn]; }).filter(x=>x[3]>0);
   const exAll = exposure(null), avg = ra.length/(exAll||1);
-  grs.sort((a,b)=>b[2]-a[2]); const gMax=Math.max(...grs.map(x=>x[2]),.01);
+  grs.sort((a,b)=>b[1]-a[1]||b[2]-a[2]); const gMax=Math.max(...grs.map(x=>x[1]),1);
   const sc = SEASONS.map(([s,ic,d])=>{ const a=ra.filter(r=>r.se===s); const top=PHS6.map(h=>[h,a.filter(r=>hasH(r,h)).length]).sort((x,y)=>y[1]-x[1])[0]; return {s,d,n:a.length,top}; });
   const sMax = Math.max(...sc.map(x=>x.n),1);
   const phs = PHS6.map(h=>[h,ra.filter(r=>hasH(r,h)).length]).sort((a,b)=>b[1]-a[1]);
@@ -1904,8 +1913,8 @@ function renderSummary(){
 
     ${band('하자 발생 유형',sLabel(SF.period),`<label class="psel"><span>기간</span>${sSel('period')}</label>`)}
     <div class="g3c">
-      <a class="card clk" href="#analysis/gong"><div class="ch"><h3>공종별 발생률</h3><span class="cap">현장·년당 발생 · 점선 = 평균 ${avg.toFixed(2)}</span></div>
-        <div class="gmini">${grs.map(x=>`<div class="gm"><span>${x[0]}</span><span class="gv"><i class="${x[2]>avg*1.25?'hi':''}" style="width:${x[2]/gMax*100}%"></i><u style="left:${avg/gMax*100}%"></u></span><b class="num">${x[2].toFixed(2)}</b></div>`).join('')}</div></a>
+      <a class="card clk" href="#analysis/gong"><div class="ch"><h3>공종별 하자 발생</h3><span class="cap">접수 건수 순 · 비율 = 건수 ÷ 보증 중 현장 수 · 여러 공종 현장은 공종마다 포함</span></div>
+        <div class="gmini">${grs.map(x=>`<div class="gm"><span>${x[0]}</span><span class="gv"><i class="${x[3]<5?'lo':''}" style="width:${x[1]/gMax*100}%"></i></span><b class="num">${x[1]}건</b><small class="gp">${x[3]}곳 대비 ${(x[2]*100).toFixed(0)}%${x[3]<5?' · 표본 적음':''}</small></div>`).join('')}</div></a>
       <a class="card clk" href="#analysis/season"><div class="ch"><h3>계절별 발생</h3><span class="cap">접수일 기준 · ${ra.length}건</span></div>
         <div class="smini">${sc.map(x=>`<div class="sm1 ${x.n===sMax?'pk':''}"><span class="si">${AI('s_'+x.s)}</span><b>${x.s}</b><strong class="num">${x.n}건</strong><small>${x.top[1]?`${x.top[0]} ${x.top[1]}건 최다`:'—'}</small><div class="sbar"><i style="width:${x.n/sMax*100}%"></i></div></div>`).join('')}</div></a>
       <a class="card clk" href="#analysis/part"><div class="ch"><h3>현상 상위 3</h3><span class="cap">${ra.length}건 중</span></div>
