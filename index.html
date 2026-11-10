@@ -4425,6 +4425,8 @@ async function jandiSave(){
 }
 /* 링크로 열기 — ?case=접수번호 */
 (function(){ const id=new URLSearchParams(location.search).get('case'); if(!id) return; let n=0; const t=setInterval(()=>{ n++; if(ITEMS.some(i=>i.id===id)){ clearInterval(t); if(location.hash!=='#work') location.hash='#work'; setTimeout(()=>detail(id),200); } else if(n>40) clearInterval(t); },500); })();
+/* 링크로 접수 창 열기 — ?intake=1 (OS 하자관리 「＋ 하자 직접 등록」에서 들어옴) · 자료를 다 불러온 뒤 접수 창을 열고, 새로고침 때 다시 뜨지 않게 주소에서 intake 를 지움 */
+(function(){ const q=new URLSearchParams(location.search); if(q.get('intake')!=='1'||q.get('case')) return; let n=0; const t=setInterval(()=>{ n++; const all=Object.values(LOADED).every(Boolean); if(all||(n>40&&LOADED.sites&&LOADED.config)){ clearInterval(t); if(location.hash!=='#work') location.hash='#work'; setTimeout(()=>{ if(!drawer.classList.contains('on')) openIntake(); try{ q.delete('intake'); const r=q.toString(); history.replaceState(null,'',location.pathname+(r?'?'+r:'')+location.hash); }catch(e){} },200); } else if(n>60) clearInterval(t); },500); })();
 (function w(){ if(typeof DB!=='undefined' && DB) jandiWatch(); else setTimeout(w,500); })();
 
 /* ════════════════════════════════════════════
