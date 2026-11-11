@@ -2589,7 +2589,7 @@ function exportAll(){
   const wb=XLSX.utils.book_new();
   const add=(name,rows)=>XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows.length?rows:[{'':'데이터 없음'}]), name);
   add('현장', Object.values(SITES).map(s=>({현장명:s.name, 업체명:s.co, ERP코드:s.code||'', 계약유형:s.ct||'', 준공일:s.comp, 보증기간:s.wy, 확정매출액:s.rev||'', 하자예산:s.budget||'', 집행:s.spent||'', 공종:s.gong||'', 면적:s.area||'', 시공소장:s.bld, 주소:s.addr||'', 보증기산기준:s.wStartBasis||'준공일', 보증기산일:wStartOf(s)||'', 보증만료일:wEndOf(s)?ymd(wEndOf(s)):'', 만료일수동:s.wEndManual?'Y':'', pourpay연결:s.pp?'Y':'', pourpay완료일:s.ppDone||'', 확인대기:s.wait?'Y':''})));
-  add('접수', ITEMS.map(i=>({접수번호:i.id, 현장:i.site, 접수일:ymd(i.rcvAt), 접수자:i.rc, 단계:`${i.st} ${STAGES[i.st]}`, 부위:partTx(i), 현상:phTx(i), 상세:i.txt||'', 연락자유형:(i.caller||{}).type||'', 연락자:(i.caller||{}).name||'', 연락처:(i.caller||{}).phone||'', 관리사무소연락처:(i.caller||{}).office||'', 처리완료일:i.doneAt||'', 진행내용:(i.notes||[]).slice().sort((a,b)=>(a.d||'').localeCompare(b.d||'')).map(n=>`${n.d} ${n.txt}`).join('\n'), 처리소장:hdTx(i), 원인:i.cz||'', 부담:i.b?i.b[0]:'', 근거:i.b?i.b[1]:'', 조정사유:i.b&&i.b[2]||'', 일당:i.labRate||'', 시공인원:i.labCnt||'', 노임:i.lab||0, 복구비:costParts(i).rst, 기타경비:costParts(i).etc, 기타항목:extrasOf(i).map(e=>`${e.t==='기타'?e.name:e.t} ${e.amt}${e.our?'(당사지급)':''}${e.rcpt&&e.rcpt.length?' 영수증'+e.rcpt.length:''}`).join('; '), 당사지급:ourPay(i), 시공사몫:i.sh||0, 기안번호:i.draftNo||'', 지급일:i.paidAt?ymd(i.paidAt):'', '2차피해':(i.dmg||[]).map(d=>d.join('/')).join('; '), 사진수:(i.photos||[]).length, 확약서:pledgeLbl(i), 확약서발송일:(i.pledge||{}).sentAt||'', 확약서서명일:(i.pledge||{}).signedAt||''})));
+  add('접수', ITEMS.map(i=>({접수번호:i.id, 현장:i.site, 접수일:ymd(i.rcvAt), 접수자:i.rc, 단계:`${i.st} ${STAGES[i.st]}`, 부위:partTx(i), 현상:phTx(i), 상세:i.txt||'', 연락자유형:(i.caller||{}).type||'', 연락자:(i.caller||{}).name||'', 연락처:(i.caller||{}).phone||'', 관리사무소연락처:(i.caller||{}).office||'', 처리완료일:i.doneAt||'', 진행내용:(i.notes||[]).slice().sort((a,b)=>(a.d||'').localeCompare(b.d||'')).map(n=>`${n.d} ${n.txt}`).join('\n'), 처리소장:hdTx(i), 원인:i.cz||'', 부담:i.b?i.b[0]:'', 근거:i.b?i.b[1]:'', 조정사유:i.b&&i.b[2]||'', 일당:i.labRate||'', 시공인원:i.labCnt||'', 노임:i.lab||0, 복구비:costParts(i).rst, 기타경비:costParts(i).etc, 기타항목:extrasOf(i).map(e=>`${e.t==='기타'?e.name:e.t} ${e.amt}${e.our?'(당사지급)':''}${e.rcpt&&e.rcpt.length?' 영수증'+e.rcpt.length:''}`).join('; '), 당사지급:ourPay(i), 시공사몫:i.sh||0, 기안번호:i.draftNo||'', 지급일:i.paidAt?ymd(i.paidAt):'', '2차피해':(i.dmg||[]).map(d=>d.join('/')).join('; '), 사진수:(i.photos||[]).length, 확약서:pledgeLbl(i), 확약서발송일:(i.pledge||{}).sentAt||'', 확약서서명일:(i.pledge||{}).signedAt||'', 확약서서명본:pledgeFiles(i).length})));
   add('자재출고', MATS.map(m=>({일자:ymd(m.date), 현장:m.site, 품목:m.item, 단위:m.unit, 수량:m.qty, 금액:m.amt})));
   add('과거노임', HIST.filter(h=>h.lab).map(h=>({지급일:ymd(h.date), 현장:h.site, 노임:h.lab})));
   add('소장명부', allMgrs().map(m=>({이름:m.name, 연락처:m.phone||'', 상호:m.bizName||'', 사업자등록번호:m.bizNumber||'', 사업장주소:m.bizAddress||'', 출처:m.src==='pp'?'pour-pay':'직접 등록'})));
@@ -4308,7 +4308,7 @@ function doneView(it){
       <div class="dsec"><div class="d7sum">
         <div class="d7t"><span>접수 <b>${fmtD(it.rcvAt)}</b></span><i>→</i><span>처리 완료 <b>${doneD?fmtD(doneD):'—'}</b></span>${span!=null?`<em>영업일 ${span}일</em>`:''}</div>
         <dl class="kv">${kv('부위·현상', `${esc(partTx(it))} · ${esc(phTx(it))}`)}${kv('처리소장', esc(hdTx(it)||'—')+(swapped(it)?' <span class="tg tg-swap">교체</span>':''))}${kv('부담', esc(b)+(!pay && it.b && /^(당사|공동)/.test(it.b[0])?' <span class="cap">· 비용 없음 (지급 0원)</span>':''))}
-        ${pay?kv('지급', `<b>${won(pay)}원</b> <span class="cap">(부가세 별도)</span>${it.paidAt?` · 지급일 ${fmtD(it.paidAt)}`:''}${it.draftNo?` · 기안 ${esc(it.draftNo)}`:''}`):''}${pledgeOf(it)?kv('하자확약서', esc(pledgeTx(it))):''}</dl>
+        ${pay?kv('지급', `<b>${won(pay)}원</b> <span class="cap">(부가세 별도)</span>${it.paidAt?` · 지급일 ${fmtD(it.paidAt)}`:''}${it.draftNo?` · 기안 ${esc(it.draftNo)}`:''}`):''}${pledgeOf(it)?kv('하자확약서', esc(pledgeTx(it))+(pledgeFiles(it).length?`<span class="plg-fl">${pledgeFilesHtml(it,false)}</span>`:'')):''}</dl>
       </div></div>
 
       <div class="dsec"><h4>하자 내용 <span class="cap" style="font-weight:400">접수 내용과 진행 경과 · 날짜순</span></h4>
@@ -4654,6 +4654,7 @@ function route(){ const t=(location.hash||'#work').slice(1).split('/')[0];
    · 실제 발송과 서명은 지금처럼 카톡 안내문 + 확약서 링크로 하고, 여기서는 안내문 복사와 상태·날짜 기록을 한다
    · 목록 「확약 대기」 칩·꼬리표 / 3단계(처리중) 이상으로 넘길 때 서명 전이면 알림(막지 않음) / 엑셀 「접수」 시트 3개 열
    · 공통 확약서 링크는 config/main.pledgeUrl · 날짜를 지울 때는 키를 없애지 않고 빈 값으로 둔다(merge 저장이라 키가 남기 때문)
+   · 서명본 보관(2026-11-11 추가) : pledge.files = [{id, name, at, by}] · 영수증과 같은 통로(사진은 압축, PDF는 원본 10MB 이하)로 드라이브 접수번호 폴더에 올린다
    ════════════════════════════════════════════ */
 ICON.pledge = ICON.c_link;
 document.head.insertAdjacentHTML('beforeend', `<style>
@@ -4664,6 +4665,9 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .plg .plg-d{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 .plg .plg-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
 .plg .plg-url{word-break:break-all}
+.plg .plg-files{display:flex;gap:8px 12px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.plg .plg-files a,.plg-fl a{font-size:13px;color:var(--sky-d);font-weight:600;word-break:break-all}
+.plg-fl{display:inline-flex;gap:4px 10px;flex-wrap:wrap;margin-left:8px}
 </style>`);
 const PLG = [['na','해당 없음'],['need','발송 전'],['sent','발송함'],['signed','서명 완료']];
 function pledgeOf(it){ const p=it&&it.pledge; return p&&p.st?p:null; }
@@ -4671,7 +4675,9 @@ function pledgeLbl(it){ const p=pledgeOf(it); return p?(PLG.find(x=>x[0]===p.st)
 function pledgeOpen(it){ const p=pledgeOf(it); return !!p && it.st<7 && (p.st==='need'||p.st==='sent'); }   // 아직 챙겨야 하는 건
 function pledgeWaitDays(it){ const p=pledgeOf(it); return p&&it.st<7&&p.st==='sent'&&p.sentAt ? Math.max(0,dDiff(new Date(p.sentAt+'T00:00:00'),TODAY)) : null; }
 function pledgeTx(it){ const p=pledgeOf(it); if(!p) return '기록 없음'; const w=pledgeWaitDays(it), d=v=>v.replace(/-/g,'.');
-  return pledgeLbl(it)+(p.sentAt&&p.st!=='na'&&p.st!=='need'?` · 발송 ${d(p.sentAt)}`:'')+(p.signedAt&&p.st==='signed'?` · 서명 ${d(p.signedAt)}`:'')+(w!=null?` · 서명 대기 ${w}일째`:''); }
+  return pledgeLbl(it)+(p.sentAt&&p.st!=='na'&&p.st!=='need'?` · 발송 ${d(p.sentAt)}`:'')+(p.signedAt&&p.st==='signed'?` · 서명 ${d(p.signedAt)}`:'')+(w!=null?` · 서명 대기 ${w}일째`:'')+(pledgeFiles(it).length?` · 서명본 ${pledgeFiles(it).length}건`:''); }
+function pledgeFiles(it){ const p=it&&it.pledge; return p&&Array.isArray(p.files)?p.files:[]; }
+function pledgeFilesHtml(it, ed){ return pledgeFiles(it).map((f,j)=>`<span><a href="https://drive.google.com/file/d/${f.id}/view" target="_blank" rel="noopener" title="${esc(f.by||'')} · ${f.at?fmtD(new Date(f.at)):''}">📄 ${esc(f.name||'서명본')}</a>${ed?`<button type="button" class="lkb" data-plgdel="${j}">삭제</button>`:''}</span>`).join(''); }
 function pledgeTag(it){ if(!pledgeOpen(it)) return ''; const p=pledgeOf(it), w=pledgeWaitDays(it);
   return p.st==='need' ? '<span class="tg tg-plg need" title="하자확약서를 아직 보내지 않았습니다">확약서 발송 전</span>'
     : `<span class="tg tg-plg" title="하자확약서 발송 ${esc(p.sentAt||'')} · 서명 대기">확약 대기${w!=null?' '+w+'일':''}</span>`; }
@@ -4687,7 +4693,8 @@ function pledgeSec(it){ const p=pledgeOf(it)||{}, w=pledgeWaitDays(it);
   return `<div class="dsec plg" id="secPlg" data-col="L"><h4>하자확약서 <span class="cap" style="font-weight:400">${p.st?esc(pledgeTx(it)):'필요한 건인지 먼저 고르세요'}</span></h4>
     <div class="seg sm" id="plgSt">${PLG.map(([k,l])=>`<button type="button" class="${p.st===k?'on':''}" data-plg="${k}">${l}</button>`).join('')}</div>
     ${p.st&&p.st!=='na'?`<div class="plg-d"><div class="field"><label>발송일</label><input type="date" class="inp" id="plgSent" value="${p.sentAt||''}" max="${ymd(TODAY)}" style="min-width:0;width:100%"></div>
-      <div class="field"><label>서명일</label><input type="date" class="inp" id="plgSigned" value="${p.signedAt||''}" max="${ymd(TODAY)}" style="min-width:0;width:100%"></div></div>`:''}
+      <div class="field"><label>서명일</label><input type="date" class="inp" id="plgSigned" value="${p.signedAt||''}" max="${ymd(TODAY)}" style="min-width:0;width:100%"></div></div>
+      <div class="plg-files"><label class="btn btn-line sm">＋ 서명본 첨부<input type="file" id="plgFile" accept="image/*,application/pdf" multiple hidden></label>${pledgeFilesHtml(it,true)||'<span class="cap">회신받은 확약서(사진 · PDF)를 올려 보관합니다</span>'}</div>`:''}
     ${p.st!=='na'?`<div class="plg-act"><button type="button" class="btn btn-line sm" id="plgCopy">안내문 복사</button>${CFG.pledgeUrl?'<button type="button" class="btn btn-line sm" id="plgLink">링크만 복사</button>':''}<button type="button" class="lkb" id="plgUrlSet">${CFG.pledgeUrl?'확약서 링크 바꾸기':'확약서 링크 등록'}</button></div>
       <p class="cap plg-url" style="margin-top:8px">${CFG.pledgeUrl?'확약서 링크 · '+esc(CFG.pledgeUrl):'확약서 링크가 등록되지 않았습니다 · 등록하면 안내문 끝에 자동으로 붙습니다'}</p>`:''}
     <p class="cap" style="margin-top:6px">${w!=null&&w>=3?`<b style="color:var(--warn-tx)">발송 후 ${w}일째 서명이 오지 않았습니다</b> · `:''}발송과 서명은 카톡 안내문과 확약서 링크로 하고, 여기에는 결과를 남깁니다 · 상태를 누르면 바로 저장됩니다</p></div>`; }
@@ -4706,12 +4713,37 @@ function bindPledge(it){ const box=document.getElementById('secPlg'); if(!box) r
   if(dg) dg.onchange=()=>{ const p=cur(), v=dg.value||''; if((p.signedAt||'')===v) return; const n={sentAt:'', signedAt:'', ...p, signedAt:v, ...who()};
     if(v) n.st='signed'; else if(p.st==='signed') n.st=p.sentAt?'sent':'need';
     dbCase(it.id,{pledge:n},`하자확약서 서명일 ${v||'지움'}`); };
+  const pf=document.getElementById('plgFile'); if(pf) pf.onchange=()=>{ const fs=[...pf.files]; pf.value=''; uploadPledge(it.id, fs); };
+  box.querySelectorAll('[data-plgdel]').forEach(b=>b.onclick=()=>{ const p=cur(), k=+b.dataset.plgdel, f=(p.files||[])[k]; if(!f) return;
+    if(!confirm(`「${f.name||'서명본'}」을 목록에서 뺄까요?\n드라이브에 올라간 파일은 지워지지 않습니다.`)) return;
+    dbCase(it.id,{pledge:{sentAt:'', signedAt:'', ...p, files:(p.files||[]).filter((_,j)=>j!==k), ...who()}},`하자확약서 서명본 삭제 · ${f.name||''}`); });
   const cp=document.getElementById('plgCopy'); if(cp) cp.onclick=()=>p6Copy(pledgeMemo(ITEMS.find(i=>i.id===it.id)||it),'확약서 안내문을 복사했습니다 — 카톡방에 붙여 넣으세요');
   const lk=document.getElementById('plgLink'); if(lk) lk.onclick=()=>p6Copy(CFG.pledgeUrl,'확약서 링크를 복사했습니다');
   const us=document.getElementById('plgUrlSet'); if(us) us.onclick=async()=>{ const v=prompt('확약서 링크 (모든 접수 건의 안내문 끝에 공통으로 붙습니다)', CFG.pledgeUrl||''); if(v===null) return; const u=v.trim();
     if(u && !/^https?:\/\//i.test(u)){ toast('http:// 또는 https:// 로 시작하는 주소를 넣어 주세요'); return; }
     if(!DB) return toast('저장소에 연결되지 않았습니다');
     try{ await DB.collection('config').doc('main').set({pledgeUrl:u},{merge:true}); toast(u?'확약서 링크를 저장했습니다':'확약서 링크를 지웠습니다'); }catch(e){ toast('저장 실패 · '+(e.code||e.message)); } };
+}
+/* 서명본 올리기 — 영수증과 같은 통로 · 사진은 압축, 그 밖(PDF)은 원본 10MB 이하 · 드라이브 접수번호 폴더 */
+async function uploadPledge(id, files){
+  if(!files || !files.length) return; const it0=ITEMS.find(i=>i.id===id); if(!it0) return; const add=[];
+  for(const f of files){
+    try{
+      toast(`서명본 올리는 중… ${f.name}`);
+      let data, mime, name;
+      if(/^image\//.test(f.type)){ data=await compressImg(f); mime='image/jpeg'; name=`${id}_확약서_${Date.now()}.jpg`; }
+      else { if(f.size>10*1024*1024) throw new Error('10MB 초과'); data=await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(f); });
+        mime=f.type||'application/pdf'; name=`${id}_확약서_${Date.now()}.${(f.name.split('.').pop()||'pdf')}`; }
+      const r=await fetch(PHOTO_API,{method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({token:PHOTO_TOKEN, site:it0.site, caseId:id, kind:'확약서', by:ME(), name, mime, data})});
+      const j=await r.json(); if(!j.ok) throw new Error(j.error||'업로드 실패');
+      add.push({id:j.id, name:f.name, at:iso(), by:ME()||''});
+    }catch(err){ toast(`서명본 업로드 실패 (${f.name}) · ${err.message}`); }
+  }
+  if(!add.length) return;
+  const it=ITEMS.find(i=>i.id===id)||it0, p=pledgeOf(it)||{}, n={sentAt:'', signedAt:'', ...p, files:[...(p.files||[]), ...add], by:ME()||'미지정', at:iso()};
+  let msg=`하자확약서 서명본 ${add.length}건 첨부`;
+  if(p.st!=='signed' && confirm(`서명본 ${add.length}건을 올렸습니다.\n상태를 「서명 완료」로 바꿀까요?`)){ n.st='signed'; if(!n.signedAt) n.signedAt=ymd(TODAY); msg+=` · 서명 완료 (${n.signedAt})`; }
+  await dbCase(id,{pledge:n},msg); toast(`서명본 ${add.length}건 저장`); fetchStorage();
 }
 
 window.addEventListener('hashchange',route); route();
