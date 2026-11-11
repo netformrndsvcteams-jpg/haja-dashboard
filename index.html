@@ -4634,6 +4634,122 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 @media (max-width:640px){ .bxopt,.bxrs{grid-template-columns:1fr} }
 </style>`);
 
+/* ════════════════════════════════════════════
+   하자 확약서 (2026-11-11) — 시공사 대상, 이폼사인 발송 · 상태 관리
+   저장 필드 (cases 문서, 다른 앱 연동용)
+     pledge        : 'sent' 발송함 | 'done' 회신 완료 | 'none' 대상 아님 | 없음(미발송)
+     pledgeSentAt  : 'YYYY-MM-DD' 발송일
+     pledgeDoneAt  : 'YYYY-MM-DD' 회신일
+     pledgeLink    : 이폼사인 문서 링크(선택)
+     pledgeBy      : 마지막으로 상태를 바꾼 사람
+   화면 상태(계산)
+     대상 외      : 2026-11-11 이전 접수 + 처리 완료(7단계) + 확약서 기록 없음
+     소장 지정 전 : 처리소장 미배정 → 발송 불가
+     발송 필요    : 처리소장 배정 + 미발송
+   회신 전에도 단계 이동은 막지 않음(경고만)
+   ════════════════════════════════════════════ */
+const PLEDGE_FROM = '2026-11-11';
+const PLEDGE_URL  = 'https://www.eformsign.com/?s=62Rq7';
+const PLEDGE_META = {
+  out:  {l:'대상 외',      c:'pl-out'},
+  none: {l:'대상 아님',    c:'pl-out'},
+  pre:  {l:'소장 지정 전', c:'pl-pre'},
+  need: {l:'발송 필요',    c:'pl-need'},
+  sent: {l:'발송함 · 회신 대기', c:'pl-sent'},
+  done: {l:'회신 완료',    c:'pl-done'},
+};
+function pledgeSt(it){
+  if(it.pledge==='done') return 'done';
+  if(it.pledge==='sent') return 'sent';
+  if(it.pledge==='none') return 'none';
+  if(it.st===7 && ymd(it.rcvAt instanceof Date?it.rcvAt:TODAY) < PLEDGE_FROM) return 'out';
+  if(!hdTx(it)) return 'pre';
+  return 'need';
+}
+const pledgeTag = it => { const k=pledgeSt(it); if(k==='out'||k==='none'||k==='pre') return ''; const m=PLEDGE_META[k];
+  return `<span class="pltg ${m.c}" title="하자 확약서 · ${m.l}">확약서 ${k==='sent'?'회신 대기':m.l}</span>`; };
+
+/* 목록 칩 */
+ICON.pN = ICON.pN || ICON.st6; ICON.pS = ICON.pS || ICON.wait;
+CHIPS.push({k:'pN', l:'확약서 발송 필요', f:i=>pledgeSt(i)==='need'});
+CHIPS.push({k:'pS', l:'확약서 회신 대기', f:i=>pledgeSt(i)==='sent'});
+
+/* 카드에 상태 표시 */
+(function(){
+  const _c = cardHtml;
+  cardHtml = function(it){ const h=_c.apply(this, arguments), t=pledgeTag(it); return t? h.replace('<span class="rt">', t+'<span class="rt">') : h; };
+})();
+
+/* 목록(표)에도 상태 표시 — 처리소장 칸 */
+(function(){
+  const _r = renderRows;
+  renderRows = function(list){ _r.apply(this, arguments);
+    try{ document.querySelectorAll('#rows tr[data-id]').forEach(tr=>{ const it=ITEMS.find(i=>i.id===tr.dataset.id), td=tr.children[3]; const t=it&&pledgeTag(it); if(t&&td) td.insertAdjacentHTML('beforeend', t); }); }catch(e){} };
+})();
+
+/* 상세 화면 확약서 칸 */
+function pledgeBox(it){
+  const k=pledgeSt(it), m=PLEDGE_META[k], ro=it.st===7;
+  const dates = `${it.pledgeSentAt?`<span>발송 <b>${it.pledgeSentAt.replace(/-/g,'.')}</b></span>`:''}${it.pledgeDoneAt?`<span>회신 <b>${it.pledgeDoneAt.replace(/-/g,'.')}</b></span>`:''}${it.pledgeBy?`<span class="cap">${esc(it.pledgeBy)}</span>`:''}`;
+  const link = it.pledgeLink? `<a href="${esc(it.pledgeLink)}" target="_blank" rel="noopener">이폼사인 문서 열기 ↗</a>` : '';
+  if(ro) return `<div class="dsec plbox" id="plBox"><h4>하자 확약서</h4><div class="plrow"><span class="pltg ${m.c}">${m.l}</span>${dates}${link}</div></div>`;
+  const warn = k==='need'&&it.st>=5 ? `<div class="alert warn" style="margin:8px 0 0">시공사 확약서가 아직 발송되지 않았습니다</div>`
+             : k==='sent'&&it.st>=5 ? `<div class="alert warn" style="margin:8px 0 0">확약서 사인본 회신 전입니다 — 회신 여부를 확인하세요</div>` : '';
+  return `<div class="dsec plbox" id="plBox"><h4>하자 확약서 <span class="cap" style="font-weight:400">받는 곳: 시공사 ${esc((SITES[it.site]||{}).co||'')}</span></h4>
+    <div class="plrow"><span class="pltg ${m.c}">${m.l}</span>${dates}</div>
+    ${k==='pre'?`<p class="cap" style="margin:8px 0 0">처리소장을 정한 뒤 발송할 수 있습니다</p>`:''}
+    <div class="plbtns">
+      <a class="btn btn-line sm" href="${PLEDGE_URL}" target="_blank" rel="noopener">이폼사인 열기 ↗</a>
+      ${k==='need'||k==='none'?`<button class="btn btn-pri sm" data-pl="sent" ${k==='need'?'':'disabled'}>발송함</button>`:''}
+      ${k==='sent'?`<button class="btn btn-pri sm" data-pl="done">회신 완료</button>`:''}
+      ${k==='pre'||k==='need'?`<button class="btn btn-ghost sm" data-pl="none">대상 아님</button>`:''}
+      ${k==='sent'||k==='done'||k==='none'?`<button class="btn btn-ghost sm" data-pl="reset">되돌리기</button>`:''}
+    </div>
+    <div class="pllink"><input class="inp" id="plLink" placeholder="이폼사인 문서 링크 (선택)" value="${esc(it.pledgeLink||'')}">${link}</div>
+    ${warn}
+  </div>`;
+}
+function bindPledge(it){
+  const box=document.getElementById('plBox'); if(!box) return;
+  box.querySelectorAll('[data-pl]').forEach(b=>b.onclick=async()=>{
+    const a=b.dataset.pl, by=ME()||'', d=ymd(TODAY); let p, msg;
+    if(a==='sent'){ p={pledge:'sent', pledgeSentAt:d, pledgeDoneAt:null}; msg='하자 확약서 발송 (시공사 · 이폼사인)'; }
+    else if(a==='done'){ p={pledge:'done', pledgeDoneAt:d, pledgeSentAt:it.pledgeSentAt||d}; msg='하자 확약서 회신 완료 (사인본 수령)'; }
+    else if(a==='none'){ if(!confirm('이 접수는 확약서 대상이 아닌 것으로 표시할까요?')) return; p={pledge:'none'}; msg='하자 확약서 대상 아님'; }
+    else { if(!confirm('확약서 상태를 처음(미발송)으로 되돌릴까요? 발송일·회신일 기록이 지워집니다.')) return; p={pledge:null, pledgeSentAt:null, pledgeDoneAt:null}; msg='하자 확약서 상태 되돌림'; }
+    p.pledgeBy=by;
+    try{ await dbCase(it.id, p, msg); toast(msg); }catch(e){}
+  });
+  const L=document.getElementById('plLink');
+  if(L) L.onchange=async()=>{ const v=L.value.trim(); if(v===(it.pledgeLink||'')) return;
+    if(v && !/^https?:\/\//.test(v)){ toast('http로 시작하는 링크를 넣어 주세요'); return; }
+    try{ await dbCase(it.id, {pledgeLink:v||null}, v?'하자 확약서 문서 링크 등록':'하자 확약서 문서 링크 삭제'); }catch(e){} };
+}
+(function(){
+  const _d = detail;
+  detail = function(id){
+    const r=_d.apply(this, arguments);
+    try{
+      const it=ITEMS.find(i=>i.id===id); if(!it || !drawer.classList.contains('on') || document.getElementById('plBox')) return r;
+      if(it.st===7 && pledgeSt(it)==='out') return r;
+      const html=pledgeBox(it);
+      const anchor=[...drawer.querySelectorAll('.dsec > h4')].find(h=>/배정 · 일정/.test(h.textContent));
+      if(anchor) anchor.parentElement.insertAdjacentHTML('afterend', html);
+      else { const col=drawer.querySelector('.dcol.dL')||drawer.querySelector('.dcol')||drawer.querySelector('.db'); if(col) col.insertAdjacentHTML('beforeend', html); }
+      bindPledge(it);
+    }catch(e){ console.warn('pledge', e); }
+    return r;
+  };
+})();
+document.head.insertAdjacentHTML('beforeend', `<style>
+.pltg{display:inline-block;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 9px;margin-left:6px;white-space:nowrap}
+.pl-pre{background:#eef1f5;color:#5a6a7e}.pl-need{background:#fdecec;color:#c42b2b}.pl-sent{background:#fff4e0;color:#9a5b00}.pl-done{background:#e6f6ec;color:#178a45}.pl-out{background:#f1f3f6;color:#8a97a8}
+.plbox .plrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:13px}.plbox .plrow .pltg{margin-left:0;font-size:13px;padding:4px 12px}
+.plbox .plbtns{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.plbox .pllink{display:flex;gap:10px;align-items:center;margin-top:10px}.plbox .pllink .inp{flex:1;min-width:0}.plbox .pllink a{white-space:nowrap;font-size:13px}
+.chip.c-pN{--k:#c42b2b;--kt:#fdecec}.chip.c-pS{--k:#9a5b00;--kt:#fff4e0}
+</style>`);
+
 document.getElementById('todayTag').textContent=TD+' 현재';
 /* 탭 */
 function route(){ const t=(location.hash||'#work').slice(1).split('/')[0];
