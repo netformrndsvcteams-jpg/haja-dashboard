@@ -1903,7 +1903,6 @@ function renderSummary(){
   /* 부담별 3항목 (2026-11-02 사용자 지정): 당사 부담(공동 부담 당사 몫·운영 전 노임 포함) / 당사 대납 / 기타(세대 복구비 — 시공소장 무상 처리 건에서 당사가 낸 복구비) */
   const bTypes = [['당사 부담',by('당사 부담')+by('공동 부담')+by('과거 이력')],['당사 대납',by('당사 대납')],['기타(세대 복구비)',by('시공소장 부담')]].filter(x=>x[1]>0);
   const T26 = segs.reduce((a,s)=>a+s[1],0);
-  const prevSame = allRecs().filter(r=>r.date.getFullYear()===CY-1 && r.date.getMonth()<=TODAY.getMonth()).reduce((a,r)=>a+(r.mat||0)-(r.ret||0)+ourOf(r),0) + matU(m=>m.date.getFullYear()===CY-1 && m.date.getMonth()<=TODAY.getMonth());
   const mon = Array.from({length:CM},(_,i)=>{ const a=rs26.filter(r=>r.date.getMonth()===i); return {l:(i+1)+'월', v:a.reduce((x,r)=>x+(r.mat||0)-(r.ret||0)+ourOf(r),0)+matU(m=>m.date.getFullYear()===CY&&m.date.getMonth()===i), cur:i===CM-1}; });
   const mMax=Math.max(...mon.map(m=>m.v),1), step=mMax>8e6?4e6:mMax>4e6?2e6:1e6, top=Math.ceil(mMax/step)*step, ticks=[]; for(let t=0;t<=top;t+=step) ticks.push(t);
   /* 유형 */
@@ -1922,7 +1921,7 @@ function renderSummary(){
 
     ${band('올해 하자비용',PL0,'당사 지출 = 자재비 + 노임 + 기타(장비대·세대 복구비 등)')}
     <div class="g2c wide-l">
-      <a class="card clk" href="#cost/burden"><div class="ch"><h3>당사 지출 <b class="num">${won(T26)}</b>원</h3><span class="cap">전년 같은 기간(1~${CM}월) ${won(prevSame)}원 대비 ${prevSame?((T26/prevSame-1)*100>=0?'+':'')+((T26/prevSame-1)*100).toFixed(1)+'%':'—'}</span></div>
+      <a class="card clk" href="#cost/burden"><div class="ch"><h3>당사 지출 <b class="num">${won(T26)}</b>원</h3></div>
         <div class="stack">${segs.filter(s=>s[1]>0).map(s=>`<i style="width:${s[1]/T26*100}%;background:${s[2]}" title="${s[0]} ${won(s[1])}원 (${pct(s[1],T26)})${s[3]?' · '+s[3]:''}"></i>`).join('')}</div>
         <div class="lgd">${segs.map(s=>`<span><i style="background:${s[2]}"></i>${s[0]} <b class="num">${won(s[1])}원</b> <em>${pct(s[1],T26)}</em></span>`).join('')}</div>
         </a>
