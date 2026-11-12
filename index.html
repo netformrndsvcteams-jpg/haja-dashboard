@@ -678,7 +678,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
     <a href="#work" class="on" data-t="work">접수·처리</a>
     <a href="#analysis" data-t="analysis">하자 리포트</a>
     <a href="#cost" data-t="cost">예산·지급</a>
-    <a href="#mat" data-t="mat">자재</a>
+    <a href="#mat" data-t="mat">자재 현황</a>
   </nav>
   <div class="nav-r">
     <span class="cap sync" id="sync">저장소 연결 중…</span><span class="cap stor" id="stor" hidden></span><label class="melb" for="me">작성자</label><select class="sel sm me" id="me" title="작성자 — 처리 이력에 이름이 남습니다"><option value="">작성자 선택</option></select><button class="btn btn-ghost gear" onclick="openSettings()" title="설정">⚙</button>
@@ -1509,7 +1509,7 @@ const MVIEWS = [['use','소모량·출고 현장','1f4e6','품목별 소모량 �
 const MF = {view:'use'};
 function renderMatNav(){
   const n=document.getElementById('mnav'); if(!n) return;
-  n.innerHTML = `<div class="cnav-h">자재</div>` + MVIEWS.map(([k,l,ic,d])=>`<a href="#mat/${k}" class="${MF.view===k?'on':''}"><span class="ni"><img class="e" src="${ICON[k==='ret'?'c_ret':'c_out']||ICON.c_ret}" alt=""></span><span><b>${l}</b><small>${d}</small></span></a>`).join('')
+  n.innerHTML = `<div class="cnav-h">자재 현황</div>` + MVIEWS.map(([k,l,ic,d])=>`<a href="#mat/${k}" class="${MF.view===k?'on':''}"><span class="ni"><img class="e" src="${ICON[k==='ret'?'c_ret':'c_out']||ICON.c_ret}" alt=""></span><span><b>${l}</b><small>${d}</small></span></a>`).join('')
     + `<div class="mnavb"><button class="btn btn-line sm" onclick="openMatUpload()"><img class="bi" src="${ICON.c_up}" alt="">ERP 출고 내역 올리기</button><button class="btn btn-line sm" onclick="openMatCfg()">현장 연결 · 단가표</button></div>`
     + `<p class="cnav-f">출처: 이카운트 하자 출고<br>(거래처 「하자」) 월 단위 업로드</p>`;
 }
@@ -4654,7 +4654,7 @@ function route(){ const t=(location.hash||'#work').slice(1).split('/')[0];
   if(t==='summary'){ renderSummary(); window.scrollTo(0,0); }
   if(t==='analysis') anaRoute((location.hash.split('/')[1])||'overview');
   if(t==='mat') matRoute((location.hash.split('/')[1])||'use');
-  const nm={summary:'전체 현황',analysis:'하자 리포트',cost:'예산·지급',mat:'자재'}[t]; if(nm) document.getElementById('phT').textContent=nm; }
+  const nm={summary:'전체 현황',analysis:'하자 리포트',cost:'예산·지급',mat:'자재 현황'}[t]; if(nm) document.getElementById('phT').textContent=nm; }
 /* ════════════════════════════════════════════
    하자확약서 (2026-11-11)
    · 접수 건마다 pledge = {st:'na'|'need'|'sent'|'signed', sentAt, signedAt, by, at} · 기록이 없으면 「미정」
