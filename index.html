@@ -1380,7 +1380,7 @@ function vBurden(){
     const bz=sum(a.filter(r=>r.b[1]==='보증'),ourOf), aj=sum(a.filter(r=>r.b[1]==='조정'),ourOf);
     const nPaid=a.filter(r=>ourOf(r)>0).length;   /* 비용 있음 = 당사가 실제로 노임·복구비를 지급한 건 · 비용 없음 = 회사 책임 구간이지만 지급 0원 */
     return {t,label,sub,n:a.length,nPaid,n0:a.length-nPaid,lab,rst,our,bz,aj,adjN:a.filter(r=>r.b[1]==='조정').length}; };
-  const R = [row('당사 부담','당사 부담',''), row('당사 대납','당사 대납','회수 없음'), row('공동 부담','공동 부담','당사 몫')];
+  const R = [row('당사 부담','당사 부담','당사 책임구간'), row('당사 대납','당사 대납','소장 몫 대신 지급'), row('공동 부담','공동 부담','당사 몫')];
   const shA = sum(by('공동 부담'),r=>r.sh||0);
   const bld = by('시공소장 부담'), tbd = ITEMS.filter(i=>i.st>=4&&i.st<7&&i.b&&i.b[0]==='부담 미정');
   const pastL = by('과거 이력').reduce((a,r)=>a+(r.lab||0),0), payA = R.reduce((a,r)=>a+r.our,0)+pastL, matUA = matU(m=>inP(m.date)), total = matA+matUA+payA;
