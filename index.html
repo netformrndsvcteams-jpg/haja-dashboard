@@ -1151,10 +1151,12 @@ const CVIEWS = [
 const PERIODS = [[String(CY),PL0],[String(CY-1),`${CY-1}년`],[String(CY-2),`${CY-2}년`],['all','전체 누적']];
 const inP = d => d && (CF.period==='all' || String(d.getFullYear())===CF.period);
 const pLabel = ()=> PERIODS.find(p=>p[0]===CF.period)[1];
+/* 기술자문 시스템에서 들여온 정산 전 현장(s.fc + 확인 대기)은 확인 대기 목록·건수에서 뺌 — 기술자문 시스템 잔금 계산서 발행 후 자동 등록 예정 (2026-11-16) */
+const fcHold = s => !!(s && s.wait && s.fc);
 const STATE = {over:['예산 초과','st-over'],risk:['초과 예상','st-risk'],ok:['예산 내','st-ok'],end:['보증 종료','st-end'],wait:['확인 대기','st-wait']};
 
 function renderCostNav(){
-  const waitN = Object.values(SITES).filter(s=>s.wait).length;
+  const waitN = Object.values(SITES).filter(s=>s.wait&&!fcHold(s)).length;
   document.getElementById('cnav').innerHTML = `<div class="cnav-h">예산·지급</div>` + CVIEWS.map(([k,l,ic,d])=>
     `<a href="#cost/${k}" class="${CF.view===k?'on':''}"><span class="ni"><img class="e" src="${ICON['c_'+k]}" alt=""></span><span><b>${l}${k==='sites'&&waitN?`<em class="nb">${waitN}</em>`:''}</b><small>${d}</small></span></a>`).join('')
     + `<p class="cnav-f">금액은 원 단위 전체 표기<br>집행 = 비용 확인을 마친 금액<br>(기안 진행·처리 완료)</p>`;
@@ -1187,7 +1189,7 @@ const stTag = st => `<span class="stt ${STATE[st.state][1]}">${STATE[st.state][0
 /* ── 1. 개요 ── */
 function vOverview(){
   const sts = Object.keys(SITES).map(siteStat);
-  const reg = sts.filter(x=>!x.s.wait), wait = sts.filter(x=>x.s.wait);
+  const reg = sts.filter(x=>!x.s.wait), wait = sts.filter(x=>x.s.wait&&!fcHold(x.s));
   const B = reg.reduce((a,x)=>a+x.s.budget,0), S = reg.reduce((a,x)=>a+x.spent,0);
   const over = reg.filter(x=>x.state==='over'), risk = reg.filter(x=>x.state==='risk');
   const years = [...new Set(sts.map(x=>cYear(x.s)))].sort();
@@ -1235,11 +1237,11 @@ function vSites(){
   let sts = Object.keys(SITES).map(siteStat);
   const years=[...new Set(sts.map(x=>cYear(x.s)))].sort();
   const cnt = k => sts.filter(x=>x.state===k).length;
-  const base = sts.filter(x=>(!CF.cy||String(cYear(x.s))===CF.cy)&&(!CF.cct||x.s.ct===CF.cct)&&(!CF.q||x.nm.includes(CF.q.trim())||(x.s.co||'').includes(CF.q.trim())));
+  const base = sts.filter(x=>!fcHold(x.s)&&(!CF.cy||String(cYear(x.s))===CF.cy)&&(!CF.cct||x.s.ct===CF.cct)&&(!CF.q||x.nm.includes(CF.q.trim())||(x.s.co||'').includes(CF.q.trim())));
   const list = base.filter(x=>!CF.cst||(CF.cst==='miss'?wMiss(x.s).length>0:x.state===CF.cst));
   const ord={wait:0,over:1,risk:2,ok:3,end:4};
   list.sort((a,b)=>ord[a.state]-ord[b.state] || (b.pace||0)-(a.pace||0));
-  const wait = sts.filter(x=>x.s.wait);
+  const wait = sts.filter(x=>x.s.wait&&!fcHold(x.s));
   const blocked = n => ITEMS.filter(i=>i.site===n && i.st<7).length;
   const D = CF.detail;
   const reg = list.filter(x=>!x.s.wait);
@@ -1883,7 +1885,7 @@ function renderSummary(){
   const el = document.getElementById('v-summary'); if(el.hidden) return;
   /* 지금 */
   const act = ITEMS.filter(i=>i.st<7), ov = act.filter(i=>over(i)>0), s6 = ITEMS.filter(i=>i.st===6), pay6 = s6.reduce((a,i)=>a+ourPay(i),0);
-  const wait = Object.entries(SITES).filter(([n,s])=>s.wait);
+  const wait = Object.entries(SITES).filter(([n,s])=>s.wait&&!fcHold(s));
   const sts = Object.keys(SITES).map(siteStat), reg = sts.filter(x=>!x.s.wait);
   const overS = reg.filter(x=>x.state==='over'), riskS = reg.filter(x=>x.state==='risk');
   const svA = AF.period, svG = AF.gong; AF.period='all'; AF.gong='';
@@ -1900,7 +1902,7 @@ function renderSummary(){
   /* 누적 · 준공연도 */
   const years = [...new Set(sts.map(x=>cYear(x.s)))].sort();
   const allA = anaRecs();
-  const yrows = years.map(y=>{ const g=reg.filter(x=>cYear(x.s)===y), gw=sts.filter(x=>x.s.wait&&cYear(x.s)===y);
+  const yrows = years.map(y=>{ const g=reg.filter(x=>cYear(x.s)===y), gw=sts.filter(x=>x.s.wait&&!fcHold(x.s)&&cYear(x.s)===y);
     const b=g.reduce((a,x)=>a+x.s.budget,0), sp=g.reduce((a,x)=>a+x.spent,0);
     const n=allA.filter(r=>cYear(SITES[r.site])===y).length;
     return {y,n:g.length,w:gw.length,b,sp,cnt:n,ov:g.filter(x=>x.state==='over').length,rk:g.filter(x=>x.state==='risk').length}; });
