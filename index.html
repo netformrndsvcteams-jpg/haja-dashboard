@@ -274,6 +274,13 @@ tr.new .idc{font-weight:700;color:var(--ink)}
 .vh-r{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .psel{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);font-weight:500}
 .psel .sel{min-width:160px;font-weight:600;color:var(--ink)}
+.cchk .rcrow td{padding-top:0!important;border-top:0!important}
+.rcth{display:flex;flex-wrap:wrap;gap:10px;padding:2px 0 8px}
+.rcth a{display:flex;flex-direction:column;align-items:center;gap:4px;width:84px;text-decoration:none;color:var(--ink2)}
+.rcth img,.rcth .rcpdf{width:84px;height:84px;object-fit:cover;border-radius:10px;border:1px solid var(--line,#dfe6ee);background:#f3f6fa}
+.rcth .rcpdf{display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#c42b2b}
+.rcth a:hover img,.rcth a:hover .rcpdf{border-color:#1a8cf0}
+.rcth .rcnm{max-width:84px;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .psel>span{font-weight:700;color:var(--ink)}
 .pseg{display:inline-flex;flex-wrap:wrap;gap:4px;background:#fff;border:1px solid var(--line,#dfe6ee);border-radius:12px;padding:4px}
 .pseg button{border:0;background:transparent;font:inherit;font-size:13px;font-weight:600;color:var(--ink2);padding:7px 14px;border-radius:9px;cursor:pointer;white-space:nowrap}
@@ -3242,7 +3249,7 @@ function costCheck(it, s){
     <dt>2차 피해</dt><dd>${it.dmg.length?it.dmg.length+'건':'없음'}</dd></dl>
     <table class="ct cchk"><tbody>
       ${row(`노임 <span class="cap">일당 ${won(it.labRate||0)} × ${it.labCnt||0}명</span>`, won(p.lab)+'원')}
-      ${ex.map(e=>row(`${esc(e.t==='기타'?(e.name||'기타'):e.t)} ${NO_RCPT.includes(e.t)?'':need(e)?(e.rcpt&&e.rcpt.length?`<span class="tg tg-ok">영수증 ${e.rcpt.length}</span>`:'<span class="tg tg-swap">영수증 없음</span>'):'<span class="cap">무상 처리 · 지급 대상 아님</span>'}`, won(e.amt)+'원')).join('')}
+      ${ex.map(e=>row(`${esc(e.t==='기타'?(e.name||'기타'):e.t)} ${NO_RCPT.includes(e.t)?'':need(e)?(e.rcpt&&e.rcpt.length?`<span class="tg tg-ok">영수증 ${e.rcpt.length}</span>`:'<span class="tg tg-swap">영수증 없음</span>'):'<span class="cap">무상 처리 · 지급 대상 아님</span>'}`, won(e.amt)+'원')+(e.rcpt&&e.rcpt.length?`<tr class="rcrow"><td colspan="2"><div class="rcth">${e.rcpt.map(r=>`<a href="https://drive.google.com/file/d/${encodeURIComponent(r.id)}/view" target="_blank" rel="noopener" title="${esc(r.name||'영수증')} — 눌러서 크게 보기">${/\.pdf$/i.test(r.name||'')?`<span class="rcpdf">PDF</span>`:`<img src="https://drive.google.com/thumbnail?id=${encodeURIComponent(r.id)}&sz=w240" alt="영수증 ${esc(r.name||'')}" loading="lazy">`}<span class="rcnm">${esc(r.name||'영수증')}</span></a>`).join('')}</div></td></tr>`:'')).join('')}
       ${row('<b>당사 지급 대상</b>', '<b>'+won(ourPay(it))+'원</b>', 'tot')}
     </tbody></table>
     ${miss.length?`<div class="alert warn" style="margin-top:10px"><b>영수증 없는 항목 ${miss.length}건</b> — ${miss.map(e=>esc(e.t==='기타'?(e.name||'기타'):e.t)).join(', ')} · 「전체 보기」에서 비용 칸에 첨부하거나 영업에 요청하세요</div>`:''}
