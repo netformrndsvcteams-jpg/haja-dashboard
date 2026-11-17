@@ -3180,9 +3180,12 @@ async function fcLoad(manual){
 async function fcLogin(){
   const idv=(document.getElementById('fcId').value||'').trim(), pw=document.getElementById('fcPw').value||'';
   const msg=document.getElementById('fcMsg'); if(!idv||!pw){ msg.textContent='아이디와 비밀번호를 넣어 주세요'; return; }
-  const email = idv.includes('@') ? idv : idv+'@crosscheck.com';
+  /* 기술자문 시스템 로그인 화면과 같게 — 이름 또는 아이디, 비밀번호 PIN 4자리는 앞에 00을 붙임 (전체 조회 가능한 관리·대금 계정만) */
+  const FC_IDS = {'이지연':'ljy','송보람':'songboram','주현진':'jhj','김경미':'kkm','김성민':'ksm-admin','최영옥':'cyo'};
+  if(/[가-힣]/.test(idv) && !FC_IDS[idv]){ msg.textContent='전체 현장을 볼 수 있는 기술자문 관리 계정(이지연·송보람·주현진·김경미·김성민·최영옥)으로 로그인해 주세요'; return; }
+  const uid = FC_IDS[idv] || idv, email = uid.includes('@') ? uid : uid+'@crosscheck.com', pass = /^\d{4}$/.test(pw) ? '00'+pw : pw;
   msg.textContent='로그인 중…';
-  try{ if(!FCAPP) fcInit(); await FCAPP.auth().signInWithEmailAndPassword(email, pw); FCI={}; }
+  try{ if(!FCAPP) fcInit(); await FCAPP.auth().signInWithEmailAndPassword(email, pass); FCI={}; }
   catch(e){ const c=e.code||''; msg.textContent = /invalid-credential|wrong-password|user-not-found|invalid-email/.test(c) ? '아이디 또는 비밀번호가 맞지 않습니다'
     : /referer|blocked/.test(c) ? '기술자문 시스템이 이 주소의 접속을 아직 허용하지 않았습니다' : /too-many/.test(c) ? '시도가 많아 잠시 막혔습니다 · 몇 분 뒤 다시 시도해 주세요' : '로그인 실패 · '+c; }
 }
@@ -3227,8 +3230,8 @@ function openFCImport(){
     const login = FC.st==='login' || FC.st==='idle' || (FC.st==='err' && !FC.user);
     openDrawer(head+`<div class="db"><div class="dsec" id="fcBox">${login?`
         <h4>기술자문 시스템 로그인</h4><p class="cap" style="margin-bottom:10px">전체 현장을 읽으려면 기술자문 관리자 계정으로 로그인해 주세요 · 이 브라우저에서는 로그인이 유지됩니다 · 하자 대시보드는 기술자문 시스템을 읽기만 합니다</p>
-        <div class="g2"><div class="field"><label for="fcId">아이디</label><input class="inp" id="fcId" autocomplete="username" placeholder="예) ljy"></div>
-        <div class="field"><label for="fcPw">비밀번호</label><input class="inp" id="fcPw" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')fcLogin()"></div></div>
+        <div class="g2"><div class="field"><label for="fcId">이름 또는 아이디</label><input class="inp" id="fcId" autocomplete="username" placeholder="예) 이지연"></div>
+        <div class="field"><label for="fcPw">비밀번호 (PIN 4자리)</label><input class="inp" id="fcPw" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')fcLogin()"></div></div>
         <p class="cap" id="fcMsg" style="margin-top:8px;color:var(--warn-tx)"></p>`
       : FC.st==='loading' ? '<p class="cap">기술자문 시스템 읽는 중… 잠시 후 다시 눌러 주세요</p>'
       : `<div class="alert warn"><b>기술자문 시스템을 읽지 못했습니다</b> — ${esc(FC.err)}</div><button class="btn btn-line sm" style="margin-top:12px" onclick="fcLoad(true)">다시 읽기</button>`}</div></div>
