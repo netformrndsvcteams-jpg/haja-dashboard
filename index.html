@@ -1255,6 +1255,7 @@ function vSites(){
         <button type="button" onclick="this.closest('details').open=false;openMatCfg()"><span class="bi"></span>현장 연결 · 단가표</button>
         <button type="button" onclick="this.closest('details').open=false;openLaborUpload()"><img class="bi" src="${ICON.c_subpay}" alt="">과거 노임 불러오기</button></div></details>
       <button class="btn btn-line" onclick="openSiteForm()">＋ 현장 등록</button>
+      <button class="btn btn-pri" onclick="openFCImport()"><img class="bi" src="${ICON.c_link}" alt="">기술자문 완료 현장 가져오기${(()=>{ const n=fcCount(); return n?` <span class="ppn">${n}</span>`:(FC.st==='login'?' <small style="opacity:.8">(로그인)</small>':''); })()}</button>
       <button class="btn btn-pri" onclick="openPPImport()"><img class="bi" src="${ICON.c_link}" alt="">pour-pay 완료 현장 가져오기${(()=>{ try{ const n=PP.st==='ok'?ppScan().pend.length:0; return n?` <span class="ppn">${n}</span>`:''; }catch(e){ return ''; } })()}</button>`)
   + ppBanner()
   + ''
@@ -2089,7 +2090,7 @@ function listen(){
   const on = (col,key) => DB.collection(col).onSnapshot(s=>{ const o={}; s.forEach(d=>o[d.id]=d.data()); RAW[key]=o; LOADED[key]=1; rebuild(); },
     e=>setSync('읽기 오류 · '+(e.code||e.message),'err'));
   on('sites','sites'); on('cases','cases'); on('mats','mats'); on('hist','hist');
-  dirListen(); ppInit();
+  dirListen(); ppInit(); fcInit();
   DB.collection('config').doc('mat').onSnapshot(d=>{ const x=d.exists?d.data():{}; MCFG.alias=x.alias||{}; MCFG.price=x.price||null; rebuild(); }, ()=>{});
   DB.collection('config').doc('main').onSnapshot(d=>{
     const c = d.exists ? d.data() : {};
@@ -3142,6 +3143,153 @@ function siteBox(name){
 }
 
 /* ── 현장·예산 화면 알림 ── */
+/* ════════════════════════════════════════════
+   기술자문 시스템(fee-cross-check) 완료 현장 가져오기 (2026-11-17)
+   - 읽기 전용 · 기술자문 계정 로그인(브라우저에 유지) · 저장은 하자 대시보드에만
+   - 대상: 기술자문(직영)·복합 계약(컨설팅계약 제외) · 테스트·계약해지 제외 · 준공 + 잔금 계산서 발행일
+   - 확정매출 = 실청구 요청 금액(paymentInfo.billableAmount)
+   - 문서번호(s.fc)로 연결된 확인 대기 현장은 그 현장을 정식 등록으로 전환, 없으면 「현장명(직영)」으로 신규 등록
+   - 배지로 알리고 담당자가 확인한 뒤 가져오기 (자동 등록 아님)
+   ════════════════════════════════════════════ */
+const FC_CONFIG = {
+  apiKey: "AIzaSyDislEERjDuFQJWREuVTZoxnUvGpPtFQQA",
+  authDomain: "fee-cross-check.firebaseapp.com",
+  projectId: "fee-cross-check",
+  appId: "1:861950133108:web:b6fec24fa9019d67942221"
+};
+const FC = {st:'idle', at:null, err:'', user:'', list:[]};
+let FCAPP = null, FCI = null;
+function fcInit(){
+  try{
+    if(typeof firebase==='undefined' || !firebase.auth || !firebase.firestore){ FC.st='err'; FC.err='모듈을 불러오지 못했습니다'; return; }
+    FCAPP = FCAPP || firebase.initializeApp(FC_CONFIG, 'fc');
+    FCAPP.auth().onAuthStateChanged(u=>{ FC.user = u ? (u.email||'') : ''; if(u) fcLoad(); else { FC.st='login'; FC.list=[]; rerender(); } });
+  }catch(e){ FC.st='err'; FC.err=e.code||e.message; }
+}
+async function fcLoad(manual){
+  if(!FCAPP) return fcInit();
+  FC.st='loading'; if(manual) rerender();
+  try{
+    const snap = await FCAPP.firestore().collection('projects').get();
+    FC.list = snap.docs.map(d=>({...d.data(), _id:d.id}));
+    FC.st='ok'; FC.at=new Date(); FC.err='';
+    if(manual) toast(`기술자문 시스템 읽기 완료 · 프로젝트 ${FC.list.length}건`);
+  }catch(e){ FC.st='err'; FC.err=e.code||e.message; if(manual) toast('기술자문 시스템 읽기 실패 · '+FC.err); }
+  rerender(); if(FCI && drawer.classList.contains('on') && document.getElementById('fcBox')) openFCImport();
+}
+async function fcLogin(){
+  const idv=(document.getElementById('fcId').value||'').trim(), pw=document.getElementById('fcPw').value||'';
+  const msg=document.getElementById('fcMsg'); if(!idv||!pw){ msg.textContent='아이디와 비밀번호를 넣어 주세요'; return; }
+  const email = idv.includes('@') ? idv : idv+'@crosscheck.com';
+  msg.textContent='로그인 중…';
+  try{ if(!FCAPP) fcInit(); await FCAPP.auth().signInWithEmailAndPassword(email, pw); FCI={}; }
+  catch(e){ const c=e.code||''; msg.textContent = /invalid-credential|wrong-password|user-not-found|invalid-email/.test(c) ? '아이디 또는 비밀번호가 맞지 않습니다'
+    : /referer|blocked/.test(c) ? '기술자문 시스템이 이 주소의 접속을 아직 허용하지 않았습니다' : /too-many/.test(c) ? '시도가 많아 잠시 막혔습니다 · 몇 분 뒤 다시 시도해 주세요' : '로그인 실패 · '+c; }
+}
+async function fcLogout(){ try{ await FCAPP.auth().signOut(); }catch(e){} FC.st='login'; FC.list=[]; closeDrawer(); toast('기술자문 시스템 로그아웃'); rerender(); }
+
+/* 대상 판정 · 값 변환 */
+const fcIsTarget = p => !p.isTest && p.status!=='contract_terminated' && p.contractDocumentType!=='consulting_contract' && p.consultingType!=='컨설팅계약';
+const fcComp = p => { const si=p.siteInfo||{}; return si.isCompleted && /^\d{4}-\d{2}-\d{2}/.test(si.completionDate||'') ? si.completionDate.slice(0,10) : ''; };
+const fcInv  = p => { const f=((p.paymentInfo||{}).finalPayment)||{}; return /^\d{4}-\d{2}-\d{2}/.test(f.invoiceDate||'') ? f.invoiceDate.slice(0,10) : ''; };
+function fcWy(p){ const m=String(p.warrantyPeriod||'').match(/(\d+(?:\.\d+)?)/); if(!m) return null; const n=Number(m[1]); return /개월/.test(p.warrantyPeriod)? Math.round(n/12) : n; }
+function fcBlds(p){ const si=p.siteInfo||{}; let L=toArr(si.siteManagers).map(m=>typeof m==='string'?m:(m&&m.name)||'');
+  if(!L.length && si.siteManagerName) L=String(si.siteManagerName).split(/[·,\/]/).map(x=>x.replace(/^[^)]*\)/,''));
+  return [...new Set(L.map(x=>String(x).replace(/소장님?|\s+/g,'').trim()).filter(Boolean))]; }
+function fcGong(p){ const si=p.siteInfo||{}, G=[...String(si.siteManagerName||'').matchAll(/([^\s·,)]+)\)/g)].map(m=>m[1]);
+  const t=String(p.targetWorkType||''); if(!G.length){ if(/슬라브/.test(t)) G.push('슬라브'); if(/금속기와/.test(t)) G.push('금속기와'); if(/재도장|도장/.test(t)) G.push('재도장'); if(/아스팔트|슁글/.test(t)) G.push('아스팔트슁글'); }
+  return [...new Set(G)].join('·')||'기타'; }
+function fcRow(p){
+  const nm=String(p.aptName||'').trim(), rev=Number((p.paymentInfo||{}).billableAmount)||0;
+  return {id:p._id, nm, name:nm+'(직영)', co:String(p.companyName||'').replace(/\(주\)|㈜|주식회사/g,'').trim(), ct:'기술자문', comp:fcComp(p), inv:fcInv(p), wy:fcWy(p), rev,
+    blds:fcBlds(p), gong:fcGong(p), addr:p.aptAddress||'', composite:toArr(p.consultingTrades).length>0};
+}
+function fcScan(){
+  const byFc={}; Object.values(SITES).forEach(s=>{ if(s.fc) byFc[s.fc]=s; });
+  const tg = FC.list.filter(fcIsTarget), done = tg.filter(p=>fcComp(p) && fcInv(p)).map(fcRow);
+  const waitNoInv = tg.filter(p=>fcComp(p) && !fcInv(p) && byFc[p._id] && byFc[p._id].wait).length;
+  const pend=[], chg=[];
+  done.forEach(r=>{
+    const s=byFc[r.id];
+    if(s && !s.wait){ if(r.rev && Number(s.rev)!==r.rev) chg.push({r, site:s.name, a:Number(s.rev)||0, b:r.rev}); return; }
+    if(s){ r.match=s.name; r.matchWait=true; }
+    else if(SITES[r.name]) r.conflict=`하자 현장 「${r.name}」이 이미 있습니다${SITES[r.name].fc?' (다른 기술자문 문서와 연결)':''} — 현장 이름을 확인해 주세요`;
+    pend.push(r);
+  });
+  return {pend, chg, done, waitNoInv};
+}
+const fcIssues = r => { const e=[]; if(r.conflict) e.push('이름 중복'); if(!r.blds.length) e.push('시공소장'); if(!(r.rev>0)) e.push('확정매출'); return e; };
+
+/* 가져오기 서랍 */
+function openFCImport(){
+  const head=`<div class="dh"><div class="k">기술자문 시스템 연동 · 읽기 전용</div><h3>기술자문 완료 현장 가져오기</h3><div class="m">기술자문(직영)·복합 계약 중 준공되고 잔금 계산서가 발행된 현장을 하자 현장으로 등록합니다 · 확정매출 = 실청구 요청 금액</div><button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>`;
+  if(FC.st!=='ok'){
+    const login = FC.st==='login' || FC.st==='idle' || (FC.st==='err' && !FC.user);
+    openDrawer(head+`<div class="db"><div class="dsec" id="fcBox">${login?`
+        <h4>기술자문 시스템 로그인</h4><p class="cap" style="margin-bottom:10px">전체 현장을 읽으려면 기술자문 관리자 계정으로 로그인해 주세요 · 이 브라우저에서는 로그인이 유지됩니다 · 하자 대시보드는 기술자문 시스템을 읽기만 합니다</p>
+        <div class="g2"><div class="field"><label for="fcId">아이디</label><input class="inp" id="fcId" autocomplete="username" placeholder="예) ljy"></div>
+        <div class="field"><label for="fcPw">비밀번호</label><input class="inp" id="fcPw" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')fcLogin()"></div></div>
+        <p class="cap" id="fcMsg" style="margin-top:8px;color:var(--warn-tx)"></p>`
+      : FC.st==='loading' ? '<p class="cap">기술자문 시스템 읽는 중… 잠시 후 다시 눌러 주세요</p>'
+      : `<div class="alert warn"><b>기술자문 시스템을 읽지 못했습니다</b> — ${esc(FC.err)}</div><button class="btn btn-line sm" style="margin-top:12px" onclick="fcLoad(true)">다시 읽기</button>`}</div></div>
+      <div class="df">${FC.user?`<button class="btn btn-ghost" style="margin-right:auto" onclick="fcLogout()">로그아웃</button>`:''}<button class="btn btn-ghost" onclick="closeDrawer()">닫기</button>${login?'<button class="btn btn-pri" onclick="fcLogin()">로그인</button>':''}</div>`);
+    return;
+  }
+  const sc=fcScan();
+  FCI={rows:sc.pend.map(r=>({...r, blds:[...r.blds], on:!fcIssues(r).length})), chg:sc.chg};
+  drawFCImport(sc);
+}
+function drawFCImport(sc){
+  sc = sc || fcScan();
+  const R=FCI.rows, sel=R.filter(r=>r.on), bad=sel.filter(r=>fcIssues(r).length);
+  const wyOpt = v => `<option value="">미입력</option>${wyList(v).map(y=>`<option ${v==y?'selected':''} value="${y}">${y}년</option>`).join('')}`;
+  openDrawer(`<div class="dh"><div class="k">기술자문 시스템 연동 · 읽기 전용 · ${esc(FC.user.split('@')[0])}</div><h3>기술자문 완료 현장 가져오기</h3>
+      <div class="m">준공 + 잔금 계산서 발행 ${sc.done.length}곳 · 마지막 읽기 ${FC.at?hhmm(FC.at):'—'} · 확정매출 = 실청구 요청 금액(정산 확정 계약금액 − 현장경비)</div>
+      <button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
+    <div class="db" id="fcBox">
+    ${sc.waitNoInv?`<div class="dsec"><p class="cap">기술자문에서 들여온 확인 대기 현장 중 ${sc.waitNoInv}곳은 아직 잔금 계산서가 없어 가져오지 않습니다 — 발행되면 여기에 나타납니다.</p></div>`:''}
+    ${FCI.chg.length?`<div class="dsec"><h4>확정매출이 바뀐 현장 ${FCI.chg.length}곳 <span class="cap" style="font-weight:400">누르기 전에는 반영되지 않습니다</span></h4>
+      <div class="uptbl"><table class="ct"><thead><tr><th>현장</th><th class="amt">하자 대시보드</th><th class="amt">기술자문</th><th style="width:80px"></th></tr></thead><tbody>${FCI.chg.map((c,k)=>`<tr><td>${esc(c.site)}</td><td class="amt">${won(c.a)}</td><td class="amt"><b>${won(c.b)}</b></td><td><button class="btn btn-line sm" onclick="fcApplyChg(${k})">반영</button></td></tr>`).join('')}</tbody></table></div></div>`:''}
+    <div class="dsec"><h4>가져올 현장 ${R.length}곳</h4>
+      ${R.length?`<p class="cap" style="margin-bottom:10px">빨간 칸은 기술자문 시스템에 값이 없는 항목입니다 · 시공소장은 채워야 등록됩니다</p>
+      <div class="uptbl pptbl"><table class="ct"><thead><tr><th style="width:34px"><input type="checkbox" aria-label="모두 선택" ${sel.length===R.length?'checked':''} onchange="FCI.rows.forEach(r=>r.on=this.checked);drawFCImport()"></th><th>현장 · 시공사</th><th style="width:110px">준공일</th><th style="width:100px">보증</th><th class="amt" style="width:130px">확정매출</th><th class="amt" style="width:120px">하자예산</th><th style="width:150px">시공소장</th><th style="width:90px">잔금 계산서</th></tr></thead><tbody>
+      ${R.map((r,k)=>`<tr class="${r.on?'':'off'}"><td><input type="checkbox" aria-label="선택" ${r.on?'checked':''} onchange="FCI.rows[${k}].on=this.checked;drawFCImport()"></td>
+        <td><b>${esc(r.match||r.name)}</b>${r.composite?' <span class="tg tg-swap">복합</span>':''}<small class="d2">${esc(r.co||'시공사 없음')}${r.match?` · <b style="color:var(--sky)">확인 대기 현장을 정식 등록으로 전환</b>`:' · 새 현장'}${r.conflict?` · <b style="color:var(--warn-tx)">${esc(r.conflict)}</b>`:''}</small></td>
+        <td>${r.comp.replace(/-/g,'.')}</td>
+        <td><select class="sel mini ${r.wy?'':'bad'}" aria-label="보증기간" onchange="FCI.rows[${k}].wy=Number(this.value)||null;drawFCImport()">${wyOpt(r.wy)}</select></td>
+        <td class="amt ${r.rev>0?'':'neg'}">${won(r.rev)}</td>
+        <td class="amt">${won(budgetOf(r.rev,r.ct))}</td>
+        <td>${r.blds.length?esc(r.blds.join(', ')):`<input class="inp mini bad" list="dlWpF" placeholder="이름" aria-label="시공소장" onchange="FCI.rows[${k}].blds=this.value.split(/\\s*,\\s*/).filter(Boolean);if(!fcIssues(FCI.rows[${k}]).length)FCI.rows[${k}].on=true;drawFCImport()">`}</td>
+        <td>${r.inv.slice(2).replace(/-/g,'.')}</td></tr>`).join('')}
+      </tbody></table><datalist id="dlWpF">${WORKERS.map(w=>`<option value="${esc(w)}">`).join('')}</datalist></div>`
+      :'<p class="empty">새로 가져올 완료 현장이 없습니다</p>'}
+    </div></div>
+    <div class="df"><button class="btn btn-ghost" style="margin-right:auto" onclick="fcLogout()">로그아웃</button><button class="btn btn-line" onclick="fcLoad(true)">다시 읽기</button>${bad.length?`<span class="cap" style="color:var(--warn-tx)">선택한 ${bad.length}곳에 빈 칸이 있습니다</span>`:''}<button class="btn btn-ghost" onclick="closeDrawer()">닫기</button><button class="btn btn-pri" ${sel.length&&!bad.length?'':'disabled'} onclick="fcCommit()">${sel.length}곳 가져오기</button></div>`);
+  drawer.classList.add('wide');
+}
+async function fcCommit(){
+  const ok=FCI.rows.filter(r=>r.on && !fcIssues(r).length); if(!ok.length) return;
+  if(!confirm(`기술자문 완료 현장 ${ok.length}곳을 하자 현장으로 등록합니다.\n하자예산 ${won(ok.reduce((a,r)=>a+budgetOf(r.rev,r.ct),0))}원이 편성됩니다.`)) return;
+  try{
+    const bt=DB.batch();
+    ok.forEach(r=>{ const nm=r.match||r.name, ex=SITES[nm];
+      const data={name:nm, co:r.co, ct:'기술자문', comp:r.comp||null, wy:r.wy||null, rev:r.rev, gong:r.gong, blds:r.blds, bld:r.blds.join(', '), addr:r.addr,
+        fc:r.id, fcNm:r.nm, fcSnap:{amt:r.rev, comp:r.comp, settled:true, inv:r.inv}, wait:false, updatedAt:iso()};
+      if(!ex){ data.createdAt=iso(); data.wStartBasis='준공일'; data.reg=ymd(TODAY); }
+      bt.set(DB.collection('sites').doc(sid(nm)), data, {merge:true}); });
+    await bt.commit();
+  }catch(e){ toast('등록 실패 · '+(e.code||e.message)); return; }
+  closeDrawer(); toast(`기술자문 완료 현장 ${ok.length}곳 등록 · 하자예산 ${won(ok.reduce((a,r)=>a+budgetOf(r.rev,r.ct),0))}원 편성`);
+}
+async function fcApplyChg(k){
+  const c=FCI.chg[k]; if(!c) return;
+  if(!confirm(`「${c.site}」 확정매출을 ${won(c.a)}원 → ${won(c.b)}원으로 바꿉니다.`)) return;
+  try{ await DB.collection('sites').doc(sid(c.site)).set({rev:c.b, fcSnap:{...((RAW.sites[sid(c.site)]||{}).fcSnap||{}), amt:c.b}, updatedAt:iso()},{merge:true}); }
+  catch(e){ toast('반영 실패 · '+(e.code||e.message)); return; }
+  FCI.chg.splice(k,1); toast('확정매출 반영'); drawFCImport();
+}
+const fcCount = () => { try{ if(FC.st!=='ok') return 0; const s=fcScan(); return s.pend.length+s.chg.length; }catch(e){ return 0; } };
+
 function ppBanner(){ return ppBanner0(); }   /* 준공일·보증기간 미입력 안내 박스는 필터 칩 「준공일 미입력」으로 대체 (2026-10-28) */
 function ppBanner0(){
   if(PP.st!=='ok') return PP.st==='err'?`<div class="banner soft"><img class="bi2" src="${ICON.c_link}" alt=""><div><b>pour-pay에 연결하지 못했습니다</b><span>${esc(PP.err)} · 완료 현장 가져오기를 쓰려면 pour-pay 연결이 필요합니다. 기존 등록 현장과 접수는 그대로 쓸 수 있습니다.</span></div><button class="btn btn-line" onclick="ppLoad(true)">다시 읽기</button></div>`:'';
