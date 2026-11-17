@@ -2805,7 +2805,7 @@ function drawPPImport(sc){
   sc = sc || ppScan();
   const yr={}; sc.done.forEach(r=>{ const y=(r.comp||'').slice(0,4)||'준공일 없음'; yr[y]=(yr[y]||0)+1; });
   const R=PPI.rows, sel=R.filter(r=>r.on), bad=sel.filter(r=>rowIssues(r).length);
-  const wyOpt = v => `<option value="">미입력</option>${wyList(v).map(y=>`<option ${v==y?'selected':''} value="${y}">${y}년</option>`).join('')}`;
+  const wyOpt = r => `<option value="">미입력</option><option value="none" ${r.wNone?'selected':''}>해당 없음 (보증 없음)</option>${wyList(r.wy).map(y=>`<option ${!r.wNone&&r.wy==y?'selected':''} value="${y}">${y}년</option>`).join('')}`;
   openDrawer(`<div class="dh"><div class="k">pour-pay 연동 · 읽기 전용</div><h3>완료 현장 가져오기</h3>
       <div class="m">pour-pay에서 공정률 100% · 잔금 계산서 발행된 컨설팅 현장 ${sc.done.length}곳 · 마지막 읽기 ${PP.at?hhmm(PP.at):'—'} · 확정매출 = 컨설팅 총액(총 공사금액 − 노무비 − 기타경비)</div>
       <button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
@@ -2822,7 +2822,7 @@ function drawPPImport(sc){
         <td><b>${esc(r.nm)}</b>${r.composite?' <span class="tg tg-swap">복합</span>':''}<small class="d2">${esc(r.co||'시공사 없음')}${r.match&&!(r.cand&&r.cand.length)?` · <b style="color:var(--sky)">${r.matchWait?'확인 대기 현장':'기존 등록 현장'} 「${esc(r.match)}」에 연결</b>`:''}${(r.cand&&r.cand.length)?`<select class="sel mini ppcand" onchange="ppPick(${k},this.value)"><option value="" ${!r.match?'selected':''} ${r.exact?'disabled':''}>${r.exact?'새 현장 (같은 이름 현장이 있어 불가)':'새 현장으로 등록'}</option>${r.cand.map(n=>`<option value="${esc(n)}" ${r.match===n?'selected':''}>연결 → ${esc(ppCandTx(n))}</option>`).join('')}</select>`:''}${(r.cand&&r.cand.length&&!r.match)?`<span class="warn">비슷한 현장이 있습니다 — 같은 공사면 연결을 고르세요</span>`:''}${r.conflict?`<br><b class="warn" style="color:var(--warn-tx)">이름 중복 — ${esc(r.conflict)} · pour-pay에서 현장명을 구분(예: (2))한 뒤 다시 읽으세요</b>`:''}</small></td>
         <td>${r.ct}</td>
         <td>${!/^\d{4}-\d{2}-\d{2}$/.test(r.comp||'')?`<input type="date" class="inp mini bad" title="비워 두고 등록해도 됩니다" onchange="PPI.rows[${k}].comp=this.value;ppFix(${k})">`:r.comp.replace(/-/g,'.')}</td>
-        <td><select class="sel mini ${r.wy?'':'bad'}" onchange="PPI.rows[${k}].wy=Number(this.value)||null;ppFix(${k})">${wyOpt(r.wy)}</select></td>
+        <td><select class="sel mini ${r.wy||r.wNone?'':'bad'}" onchange="wySet(PPI.rows[${k}],this.value);ppFix(${k})">${wyOpt(r)}</select></td>
         <td class="amt ${r.rev>0?'':'neg'}">${won(r.rev)}${r.rev>0?'':'<small class="d2">마이너스 현장</small>'}</td>
         <td class="amt">${won(budgetOf(r.rev,r.ct))}${r.rev>0?'':'<small class="d2">0원 편성</small>'}</td>
         <td>${r.blds.length?esc(r.blds.join(', ')):`<input class="inp mini bad" list="dlWp" placeholder="이름" onchange="PPI.rows[${k}].blds=this.value.split(/\\s*,\\s*/).filter(Boolean);ppFix(${k})">`}</td>
@@ -2833,13 +2833,15 @@ function drawPPImport(sc){
     <div class="df">${bad.length?`<span class="cap" style="margin-right:auto;color:var(--warn-tx)">선택한 ${bad.length}곳에 빈 칸이 있습니다</span>`:''}<button class="btn btn-ghost" onclick="closeDrawer()">닫기</button><button class="btn btn-pri" ${sel.length&&!bad.length?'':'disabled'} onclick="ppCommit()">${sel.length?`${sel.length}곳 등록 · 예산 ${won(sel.reduce((a,r)=>a+budgetOf(r.rev,r.ct),0))}원`:'등록'}</button></div>`);
   drawer.classList.add('wide');
 }
+/* 보증기간 선택 — 「해당 없음」은 하자보증 없는 현장(wNone) (2026-11-17) */
+function wySet(r, v){ if(v==='none'){ r.wNone=true; r.wy=null; } else { r.wNone=false; r.wy=Number(v)||null; } }
 function ppFix(k){ const r=PPI.rows[k]; if(!rowIssues(r).length) r.on=true; drawPPImport(); }
 async function ppCommit(){
   const ok=PPI.rows.filter(r=>r.on && !rowIssues(r).length); if(!ok.length) return;
   try{
     for(let i=0;i<ok.length;i+=300){ const bt=DB.batch();
       ok.slice(i,i+300).forEach(r=>{ const nm=r.match||r.nm, ex=SITES[nm];
-        const data={name:nm, co:r.co, ct:r.ct, comp:r.comp||null, wy:r.wy||null, rev:r.rev, gong:r.gong, area:r.area, blds:r.blds, bld:r.blds.join(', '), addr:r.addr,
+        const data={name:nm, co:r.co, ct:r.ct, comp:r.comp||null, wy:r.wNone?null:(r.wy||null), wNone:!!r.wNone, rev:r.rev, gong:r.gong, area:r.area, blds:r.blds, bld:r.blds.join(', '), addr:r.addr,
           pp:r.id, ppNm:r.nm, ppDone:r.done||null, ppSnap:r.snap, wait:false, updatedAt:iso()};
         if(!ex){ data.createdAt=iso(); data.wStartBasis='준공일'; }
         bt.set(DB.collection('sites').doc(sid(nm)), data, {merge:true}); });
@@ -3205,7 +3207,7 @@ function fcGong(p){ const si=p.siteInfo||{}, G=[...String(si.siteManagerName||''
   return [...new Set(G)].join('·')||'기타'; }
 function fcRow(p){
   const nm=String(p.aptName||'').trim(), rev=Number((p.paymentInfo||{}).billableAmount)||0;
-  return {id:p._id, nm, name:nm+'(직영)', co:String(p.companyName||'').replace(/\(주\)|㈜|주식회사/g,'').trim(), ct:'기술자문', comp:fcComp(p), inv:fcInv(p), wy:fcWy(p), rev,
+  return {id:p._id, nm, name:nm+'(직영)', co:String(p.companyName||'').replace(/\(주\)|㈜|주식회사/g,'').trim(), ct:'기술자문', comp:fcComp(p), inv:fcInv(p), wy:fcWy(p), wNone:/해당|없음/.test(String(p.warrantyPeriod||'')), rev,
     blds:fcBlds(p), gong:fcGong(p), addr:p.aptAddress||'', composite:toArr(p.consultingTrades).length>0};
 }
 function fcScan(){
@@ -3246,7 +3248,7 @@ function openFCImport(){
 function drawFCImport(sc){
   sc = sc || fcScan();
   const R=FCI.rows, sel=R.filter(r=>r.on), bad=sel.filter(r=>fcIssues(r).length);
-  const wyOpt = v => `<option value="">미입력</option>${wyList(v).map(y=>`<option ${v==y?'selected':''} value="${y}">${y}년</option>`).join('')}`;
+  const wyOpt = r => `<option value="">미입력</option><option value="none" ${r.wNone?'selected':''}>해당 없음 (보증 없음)</option>${wyList(r.wy).map(y=>`<option ${!r.wNone&&r.wy==y?'selected':''} value="${y}">${y}년</option>`).join('')}`;
   openDrawer(`<div class="dh"><div class="k">기술자문 시스템 연동 · 읽기 전용 · ${esc(FC.user.split('@')[0])}</div><h3>기술자문 완료 현장 가져오기</h3>
       <div class="m">준공 + 잔금 계산서 발행 ${sc.done.length}곳 · 마지막 읽기 ${FC.at?hhmm(FC.at):'—'} · 확정매출 = 실청구 요청 금액(정산 확정 계약금액 − 현장경비)</div>
       <button class="x" aria-label="닫기" onclick="closeDrawer()">×</button></div>
@@ -3260,7 +3262,7 @@ function drawFCImport(sc){
       ${R.map((r,k)=>`<tr class="${r.on?'':'off'}"><td><input type="checkbox" aria-label="선택" ${r.on?'checked':''} onchange="FCI.rows[${k}].on=this.checked;drawFCImport()"></td>
         <td><b>${esc(r.match||r.name)}</b>${r.composite?' <span class="tg tg-swap">복합</span>':''}<small class="d2">${esc(r.co||'시공사 없음')}${r.match?` · <b style="color:var(--sky)">확인 대기 현장을 정식 등록으로 전환</b>`:' · 새 현장'}${r.conflict?` · <b style="color:var(--warn-tx)">${esc(r.conflict)}</b>`:''}</small></td>
         <td>${r.comp.replace(/-/g,'.')}</td>
-        <td><select class="sel mini ${r.wy?'':'bad'}" aria-label="보증기간" onchange="FCI.rows[${k}].wy=Number(this.value)||null;drawFCImport()">${wyOpt(r.wy)}</select></td>
+        <td><select class="sel mini ${r.wy||r.wNone?'':'bad'}" aria-label="보증기간" onchange="wySet(FCI.rows[${k}],this.value);drawFCImport()">${wyOpt(r)}</select></td>
         <td class="amt ${r.rev>0?'':'neg'}">${won(r.rev)}</td>
         <td class="amt">${won(budgetOf(r.rev,r.ct))}</td>
         <td>${r.blds.length?esc(r.blds.join(', ')):`<input class="inp mini bad" list="dlWpF" placeholder="이름" aria-label="시공소장" onchange="FCI.rows[${k}].blds=this.value.split(/\\s*,\\s*/).filter(Boolean);if(!fcIssues(FCI.rows[${k}]).length)FCI.rows[${k}].on=true;drawFCImport()">`}</td>
@@ -3277,7 +3279,7 @@ async function fcCommit(){
   try{
     const bt=DB.batch();
     ok.forEach(r=>{ const nm=r.match||r.name, ex=SITES[nm];
-      const data={name:nm, co:r.co, ct:'기술자문', comp:r.comp||null, wy:r.wy||null, rev:r.rev, gong:r.gong, blds:r.blds, bld:r.blds.join(', '), addr:r.addr,
+      const data={name:nm, co:r.co, ct:'기술자문', comp:r.comp||null, wy:r.wNone?null:(r.wy||null), wNone:!!r.wNone, rev:r.rev, gong:r.gong, blds:r.blds, bld:r.blds.join(', '), addr:r.addr,
         fc:r.id, fcNm:r.nm, fcSnap:{amt:r.rev, comp:r.comp, settled:true, inv:r.inv}, wait:false, updatedAt:iso()};
       if(!ex){ data.createdAt=iso(); data.wStartBasis='준공일'; data.reg=ymd(TODAY); }
       bt.set(DB.collection('sites').doc(sid(nm)), data, {merge:true}); });
