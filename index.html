@@ -271,6 +271,7 @@ tr.new .idc{font-weight:700;color:var(--ink)}
 .vh{display:flex;align-items:flex-end;gap:16px;margin-bottom:18px}
 .vh h2{font-size:24px;font-weight:700;display:flex;align-items:center;gap:10px}
 .vh .cap{margin-top:4px;font-size:13px}
+.impgrp{display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .vh-r{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .psel{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);font-weight:500}
 .psel .sel{min-width:160px;font-weight:600;color:var(--ink)}
@@ -1255,9 +1256,9 @@ function vSites(){
         <button type="button" onclick="this.closest('details').open=false;openMatCfg()"><span class="bi"></span>현장 연결 · 단가표</button>
         <button type="button" onclick="this.closest('details').open=false;openLaborUpload()"><img class="bi" src="${ICON.c_subpay}" alt="">과거 노임 불러오기</button></div></details>
       <button class="btn btn-line" onclick="openSiteForm()">＋ 현장 등록</button>
-      <button class="btn btn-pri" onclick="openFCImport()"><img class="bi" src="${ICON.c_link}" alt="">기술자문 완료 현장 가져오기${(()=>{ const n=fcCount(); return n?` <span class="ppn">${n}</span>`:(FC.st==='login'?' <small style="opacity:.8">(로그인)</small>':''); })()}</button>
-      <button class="btn btn-pri" onclick="openPPImport()"><img class="bi" src="${ICON.c_link}" alt="">pour-pay 완료 현장 가져오기${(()=>{ try{ const n=PP.st==='ok'?ppScan().pend.length:0; return n?` <span class="ppn">${n}</span>`:''; }catch(e){ return ''; } })()}</button>`)
-  + ppBanner()
+      <span class="impgrp"><button class="btn btn-pri" title="기술자문 시스템에서 준공·잔금 계산서 발행 현장을 가져옵니다" onclick="openFCImport()"><img class="bi" src="${ICON.c_link}" alt="">기술자문 완료 현장${(()=>{ const n=fcCount(); return n?` <span class="ppn">${n}</span>`:(FC.st==='login'?' <small style="opacity:.8">(로그인)</small>':''); })()}</button>
+      <button class="btn btn-pri" title="pour-pay에서 공정률 100%·잔금 계산서 발행 컨설팅 현장을 가져옵니다" onclick="openPPImport()"><img class="bi" src="${ICON.c_link}" alt="">pour-pay 완료 현장${(()=>{ try{ const n=PP.st==='ok'?ppScan().pend.length:0; return n?` <span class="ppn">${n}</span>`:''; }catch(e){ return ''; } })()}</button></span>`)
+  + ''
   + ''
   + `<div class="tools">
       <select class="sel" onchange="CF.cy=this.value;renderCost()"><option value="">준공연도 전체</option>${years.map(y=>`<option ${CF.cy==y?'selected':''} value="${y}">${yLab(y,' 준공')}</option>`).join('')}</select>
