@@ -271,7 +271,7 @@ tr.new .idc{font-weight:700;color:var(--ink)}
 .vh{display:flex;align-items:flex-end;gap:16px;margin-bottom:18px}
 .vh h2{font-size:24px;font-weight:700;display:flex;align-items:center;gap:10px}
 .vh .cap{margin-top:4px;font-size:13px}
-.impgrp{display:inline-flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.impgrp{display:inline-flex;gap:8px;flex-wrap:nowrap}
 .vh-r{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .psel{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);font-weight:500}
 .psel .sel{min-width:160px;font-weight:600;color:var(--ink)}
@@ -4101,7 +4101,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   .wrap{padding:4px 12px 48px}
   .sec-h{flex-wrap:wrap;gap:6px 10px}.sec-h h2{white-space:nowrap;font-size:19px}.sec-h .r{margin-left:0;width:100%}
   .cwrap{padding:12px 12px 48px;gap:12px}
-  .vh{flex-direction:column;align-items:stretch;gap:10px}.vh h2{white-space:nowrap;font-size:19px}.vh-r{flex-wrap:wrap;justify-content:flex-start;gap:6px}
+  .vh{flex-direction:column;align-items:stretch;gap:10px}.vh h2{white-space:nowrap;font-size:19px}.vh-r{flex-wrap:wrap;justify-content:flex-start;gap:6px} .impgrp{flex-wrap:wrap}
   .kpis{grid-template-columns:1fr!important}
   .entry{min-height:0;padding:16px 18px}.entry b{font-size:20px}.entry .ico{width:52px;height:52px;top:auto;bottom:14px}.entry small{display:none}
 }
