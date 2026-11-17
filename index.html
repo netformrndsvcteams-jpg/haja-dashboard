@@ -3195,6 +3195,7 @@ async function fcLogin(){
 async function fcLogout(){ try{ await FCAPP.auth().signOut(); }catch(e){} FC.st='login'; FC.list=[]; closeDrawer(); toast('기술자문 시스템 로그아웃'); rerender(); }
 
 /* 대상 판정 · 값 변환 */
+/* 보증기간: 기술자문 시스템에서 비어 있으면 하자보증 해당 없음으로 봄 (2026-11-18 사용자 결정) */
 const fcIsTarget = p => !p.isTest && p.status!=='contract_terminated' && p.contractDocumentType!=='consulting_contract' && p.consultingType!=='컨설팅계약';
 const fcComp = p => { const si=p.siteInfo||{}; return si.isCompleted && /^\d{4}-\d{2}-\d{2}/.test(si.completionDate||'') ? si.completionDate.slice(0,10) : ''; };
 const fcInv  = p => { const f=((p.paymentInfo||{}).finalPayment)||{}; return /^\d{4}-\d{2}-\d{2}/.test(f.invoiceDate||'') ? f.invoiceDate.slice(0,10) : ''; };
@@ -3207,7 +3208,7 @@ function fcGong(p){ const si=p.siteInfo||{}, G=[...String(si.siteManagerName||''
   return [...new Set(G)].join('·')||'기타'; }
 function fcRow(p){
   const nm=String(p.aptName||'').trim(), rev=Number((p.paymentInfo||{}).billableAmount)||0;
-  return {id:p._id, nm, name:nm+'(직영)', co:String(p.companyName||'').replace(/\(주\)|㈜|주식회사/g,'').trim(), ct:'기술자문', comp:fcComp(p), inv:fcInv(p), wy:fcWy(p), wNone:/해당|없음/.test(String(p.warrantyPeriod||'')), rev,
+  return {id:p._id, nm, name:nm+'(직영)', co:String(p.companyName||'').replace(/\(주\)|㈜|주식회사/g,'').trim(), ct:'기술자문', comp:fcComp(p), inv:fcInv(p), wy:fcWy(p), wNone:!fcWy(p) && (!String(p.warrantyPeriod||'').trim() || /해당|없음/.test(String(p.warrantyPeriod))), rev,
     blds:fcBlds(p), gong:fcGong(p), addr:p.aptAddress||'', composite:toArr(p.consultingTrades).length>0};
 }
 function fcScan(){
