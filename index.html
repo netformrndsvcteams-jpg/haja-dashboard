@@ -834,6 +834,8 @@ function passBase(i){
 function visible(){
   return ITEMS.filter(i=>{
     if(!passBase(i)) return false;
+    /* 검색어가 있으면 단계·칩·완료 여부와 관계없이 찾은 건을 모두 보임 (2026-11-18) */
+    if(F.q && F.q.trim()) return true;
     if(F.stage){ if(i.st!==F.stage) return false; } else if(i.st===7 && !F.all) return false;
     if(F.chip){ const c=CHIPS.find(c=>c.k===F.chip); if(!c.f(i)) return false; }
     return true;
@@ -844,7 +846,8 @@ function renderChips(list){
   let h = CHIPS.map(c=>{ const n=base.filter(c.f).length;
     return `<button class="chip c-${c.k} ${F.chip===c.k?'on':''}" data-chip="${c.k}" aria-pressed="${F.chip===c.k}"><span class="ci">${EI(c.k)}</span>${c.l} <b>${n}</b></button>`; }).join('');
   const filt = F.stage||F.chip;
-  h += `<span class="cnt">${F.stage?`${F.stage}단계 ${STAGES[F.stage]} · `:F.all?'1~7단계 전체 · ':'진행 중 전체 · '}${list.length}건 · 기한 넘긴 일수 순${filt?` · <button class="clear" data-clear>필터 해제</button>`:''}</span>`;
+  const qOn = F.q && F.q.trim();
+  h += `<span class="cnt">${qOn?`검색 「${F.q.trim().replace(/[<>&"]/g,'')}」 · 1~7단계 전체 · `:F.stage?`${F.stage}단계 ${STAGES[F.stage]} · `:F.all?'1~7단계 전체 · ':'진행 중 전체 · '}${list.length}건 · 기한 넘긴 일수 순${filt?` · <button class="clear" data-clear>필터 해제</button>`:''}</span>`;
   document.getElementById('chips').innerHTML = h + viewTg();
 }
 
