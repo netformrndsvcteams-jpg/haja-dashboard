@@ -354,15 +354,16 @@ small.w{display:block;font-size:11px;color:#b88a00;font-weight:600}
 .yb i.x{background:linear-gradient(90deg,#ffc34d,var(--warn));border-radius:0 999px 999px 0;margin-left:2px}
 .yb i.s.ov{border-radius:999px 0 0 999px}
 /* 소진 막대 */
-.bm{width:100%;min-width:140px}
-.bm-t{position:relative;height:8px;border-radius:999px;background:var(--s2)}
-.bm-t i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:linear-gradient(90deg,#7cc8ff,var(--sky))}
-.bm-t i.rk{background:linear-gradient(90deg,#ffd76a,#ffb020)}
-.bm-t i.ov{background:linear-gradient(90deg,#ffc34d,var(--warn))}
-.bm-t u{position:absolute;top:-3px;bottom:-3px;border-left:1.5px dashed #9aa6b4}
-.bm-t s{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1.5px;background:var(--ink);border-radius:2px}
-.bm-l{display:flex;justify-content:space-between;font-size:11.5px;margin-top:5px;color:var(--ink3);font-variant-numeric:tabular-nums}
-.bm-l b{color:var(--ink);font-weight:700}
+.bm{width:100%;min-width:180px;display:grid;grid-template-columns:26px 1fr auto;gap:4px 7px;align-items:center;font-size:11.5px;font-variant-numeric:tabular-nums}
+.bm .k{color:var(--ink3)}
+.bm .t{height:7px;border-radius:999px;background:var(--s2);overflow:hidden}
+.bm .t i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#7cc8ff,var(--sky))}
+.bm .t i.rk{background:linear-gradient(90deg,#ffd76a,#ffb020)}
+.bm .t i.ov{background:linear-gradient(90deg,#ffc34d,var(--warn))}
+.bm .t i.el{background:#b8c2ce}
+.bm .v{text-align:right;font-weight:700;color:var(--ink);white-space:nowrap;min-width:56px}
+.bm .v.o{color:var(--warn-tx)}
+.bm .v.g{font-weight:500;color:var(--ink2)}
 .bm.wide{min-width:220px}
 /* 주의 현장 */
 .watch{display:flex;flex-direction:column;gap:8px}
@@ -1184,12 +1185,14 @@ function renderCost(){
 function kpi(ic,label,val,sub,cls=''){ return `<div class="kpi ${cls}"><span class="ki"><img class="e" src="${ICON[ic]}" alt=""></span><div><small>${label}</small><b class="num">${val}</b>${sub?`<em>${sub}</em>`:''}</div></div>`; }
 function burnMeter(st, wide=false){
   if(st.burn===null) return '<span class="cap">산정 불가</span>';
-  const w = Math.min(st.burn,1.5)/1.5*100, mk = Math.min(st.el,1)*(100/1.5);
-  /* 100% 이상은 「7.8배 사용」으로 — 784% 같은 표기가 한눈에 안 읽힘 (2026-11-19) */
+  /* 예산·보증을 두 줄 막대로 분리, 세로선 없음 (2026-11-19) — 한 막대에 선 2개를 겹치니 어느 선이 무엇인지 헷갈림
+     100% 이상은 「7.8배 사용」 — 784% 같은 표기가 한눈에 안 읽힘 */
   const use = st.burn>=1 ? `${(Math.floor(st.burn*10)/10).toFixed(1)}배 사용` : `${pct(st.spent,st.s.budget)} 사용`;
-  return `<div class="bm ${wide?'wide':''}" title="예산 ${use} · 보증 ${(st.el*100).toFixed(1)}% 경과">
-    <div class="bm-t"><i class="${st.burn>1?'ov':st.pace>1&&st.el<1?'rk':''}" style="width:${w}%"></i><u style="left:${100/1.5}%"></u><s style="left:${mk}%"></s></div>
-    <div class="bm-l"><b>${use}</b><span>보증 ${(st.el*100).toFixed(0)}% 경과</span></div></div>`;
+  const el = st.el==null ? null : Math.max(0,Math.min(st.el,1));
+  const cls = st.burn>1?'ov':st.pace>1&&st.el<1?'rk':'';
+  return `<div class="bm ${wide?'wide':''}" title="예산 ${use}${el==null?'':` · 보증 ${(st.el*100).toFixed(1)}% 경과`}">
+    <span class="k">예산</span><span class="t"><i class="${cls}" style="width:${Math.min(st.burn,1)*100}%"></i></span><span class="v ${st.burn>=1?'o':''}">${use}</span>
+    <span class="k">보증</span><span class="t"><i class="el" style="width:${el==null?0:el*100}%"></i></span><span class="v g">${el==null?'—':Math.round(el*100)+'% 경과'}</span></div>`;
 }
 const stTag = st => `<span class="stt ${STATE[st.state][1]}">${STATE[st.state][0]}</span>`;
 
@@ -1234,7 +1237,7 @@ function vOverview(){
         ${stTag(x)}
         ${burnMeter(x,true)}
         <span class="wr amt"><small>잔여</small><b class="${x.s.budget-x.spent<0?'neg':''}">${won(x.s.budget-x.spent)}원</b></span></button>`).join('')||'<p class="empty">주의 현장이 없습니다</p>'}</div>
-      <p class="cap note">막대 안의 세로 점선 = 예산 100% · 진한 세로선 = 보증기간 경과 위치. 집행 막대가 경과 위치보다 앞서 있으면 예산을 빠르게 쓰고 있다는 뜻입니다.</p>
+      <p class="cap note">예산 막대는 100%가 끝(넘으면 주황으로 꽉 참) · 보증 막대는 보증기간이 지난 비율. 예산 막대가 보증 막대보다 길면 기간보다 예산을 빠르게 쓰고 있다는 뜻입니다.</p>
     </div>`;
 }
 
@@ -1276,7 +1279,7 @@ function vSites(){
       <th>현장 · 업체</th><th style="width:118px">계약유형</th><th style="width:136px">준공 · 보증</th>
       <th class="amt" style="width:118px">확정매출액(원)</th><th class="amt" style="width:108px">하자예산(원)</th>
       ${D?'<th class="amt" style="width:112px">자재비(원)<small>출고−회수</small></th><th class="amt" style="width:104px">노임(원)</th><th class="amt" style="width:96px">복구비(원)</th>':''}
-      <th class="amt" style="width:108px">집행(원)</th><th style="width:150px">예산 사용 · 보증 경과</th><th class="amt" style="width:108px">잔여(원)</th><th style="width:86px">상태</th><th style="width:86px"></th></tr></thead><tbody>
+      <th class="amt" style="width:108px">집행(원)</th><th style="width:190px">예산 사용 · 보증 경과</th><th class="amt" style="width:108px">잔여(원)</th><th style="width:86px">상태</th><th style="width:86px"></th></tr></thead><tbody>
     ${list.map(x=>{ const s=x.s;
       if(s.wait) return `<tr class="wait-row"><td><span class="site">${x.nm}<small>${s.co} · 시공소장 ${s.bld||'—'}</small></span></td><td>${s.ct?`${s.ct}<small class="d2">적용률 ${(rate(s.ct)*100).toFixed(1)}%</small>`:'<span class="cap">미등록</span>'}</td>
         <td>${compCell(x)}</td>
