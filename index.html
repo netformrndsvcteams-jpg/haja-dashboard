@@ -366,7 +366,7 @@ small.w{display:block;font-size:11px;color:#b88a00;font-weight:600}
 .bm.wide{min-width:220px}
 /* 주의 현장 */
 .watch{display:flex;flex-direction:column;gap:8px}
-.wrow{display:grid;grid-template-columns:minmax(220px,1.3fr) 90px minmax(220px,1.4fr) 120px 150px;gap:18px;align-items:center;text-align:left;padding:14px 18px;border-radius:var(--r-m);background:var(--s1);border:1.5px solid transparent;transition:border-color .12s,background .12s}
+.wrow{display:grid;grid-template-columns:minmax(220px,1.3fr) 90px minmax(220px,1.4fr) 150px;gap:18px;align-items:center;text-align:left;padding:14px 18px;border-radius:var(--r-m);background:var(--s1);border:1.5px solid transparent;transition:border-color .12s,background .12s}
 .wrow:hover{border-color:var(--sky-20);background:#fff}
 .wn b{display:block;font-weight:700;font-size:14.5px}.wn small{font-size:12px;color:var(--ink3)}
 .wp small,.wr small{display:block;font-size:11.5px;color:var(--ink3)}
@@ -1185,9 +1185,11 @@ function kpi(ic,label,val,sub,cls=''){ return `<div class="kpi ${cls}"><span cla
 function burnMeter(st, wide=false){
   if(st.burn===null) return '<span class="cap">산정 불가</span>';
   const w = Math.min(st.burn,1.5)/1.5*100, mk = Math.min(st.el,1)*(100/1.5);
-  return `<div class="bm ${wide?'wide':''}" title="소진 ${pct(st.spent,st.s.budget)} · 기간 경과 ${(st.el*100).toFixed(1)}%">
+  /* 100% 이상은 「7.8배 사용」으로 — 784% 같은 표기가 한눈에 안 읽힘 (2026-11-19) */
+  const use = st.burn>=1 ? `${(Math.floor(st.burn*10)/10).toFixed(1)}배 사용` : `${pct(st.spent,st.s.budget)} 사용`;
+  return `<div class="bm ${wide?'wide':''}" title="예산 ${use} · 보증 ${(st.el*100).toFixed(1)}% 경과">
     <div class="bm-t"><i class="${st.burn>1?'ov':st.pace>1&&st.el<1?'rk':''}" style="width:${w}%"></i><u style="left:${100/1.5}%"></u><s style="left:${mk}%"></s></div>
-    <div class="bm-l"><b>${pct(st.spent,st.s.budget)}</b><span>기간 ${(st.el*100).toFixed(0)}%</span></div></div>`;
+    <div class="bm-l"><b>${use}</b><span>보증 ${(st.el*100).toFixed(0)}% 경과</span></div></div>`;
 }
 const stTag = st => `<span class="stt ${STATE[st.state][1]}">${STATE[st.state][0]}</span>`;
 
@@ -1226,12 +1228,11 @@ function vOverview(){
       <p class="cap note">행을 누르면 그 준공연도 현장 목록(현장·예산)으로 이동합니다. 확인 대기 현장은 확정매출액·계약유형이 없어 예산 합계에서 빠져 있습니다.</p>
     </div>
     <div class="card">
-      <div class="ch"><h3>주의 현장</h3><span class="cap">예산 초과 · 현재 속도로 보증 종료 시 초과 예상 · 예상 소진율 높은 순 · 준공 1년 미만은 예상치 「—」(초과 예상 판정 제외)</span></div>
+      <div class="ch"><h3>주의 현장</h3><span class="cap">예산 초과 · 현재 속도로 보증 종료 시 초과 예상 · 사용 속도 빠른 순 · 준공 1년 미만은 초과 예상 판정 제외</span></div>
       <div class="watch">${watch.map(x=>`<button class="wrow" onclick="CF.q='${x.nm}';CF.cy='';CF.cst='';location.hash='#cost/sites'">
         <span class="wn"><b>${x.nm}</b><small>${x.s.co} · ${x.s.ct} · 보증 ${x.yr}년차</small></span>
         ${stTag(x)}
         ${burnMeter(x,true)}
-        <span class="wp"><small>보증 종료 시 예상</small><b class="${x.pace>1?'neg':''}">${x.pace==null?'—':(x.pace*100).toFixed(0)+'%'}</b></span>
         <span class="wr amt"><small>잔여</small><b class="${x.s.budget-x.spent<0?'neg':''}">${won(x.s.budget-x.spent)}원</b></span></button>`).join('')||'<p class="empty">주의 현장이 없습니다</p>'}</div>
       <p class="cap note">막대 안의 세로 점선 = 예산 100% · 진한 세로선 = 보증기간 경과 위치. 집행 막대가 경과 위치보다 앞서 있으면 예산을 빠르게 쓰고 있다는 뜻입니다.</p>
     </div>`;
@@ -1275,7 +1276,7 @@ function vSites(){
       <th>현장 · 업체</th><th style="width:118px">계약유형</th><th style="width:136px">준공 · 보증</th>
       <th class="amt" style="width:118px">확정매출액(원)</th><th class="amt" style="width:108px">하자예산(원)</th>
       ${D?'<th class="amt" style="width:112px">자재비(원)<small>출고−회수</small></th><th class="amt" style="width:104px">노임(원)</th><th class="amt" style="width:96px">복구비(원)</th>':''}
-      <th class="amt" style="width:108px">집행(원)</th><th style="width:150px">소진율 · 기간 경과</th><th class="amt" style="width:108px">잔여(원)</th><th style="width:86px">상태</th><th style="width:86px"></th></tr></thead><tbody>
+      <th class="amt" style="width:108px">집행(원)</th><th style="width:150px">예산 사용 · 보증 경과</th><th class="amt" style="width:108px">잔여(원)</th><th style="width:86px">상태</th><th style="width:86px"></th></tr></thead><tbody>
     ${list.map(x=>{ const s=x.s;
       if(s.wait) return `<tr class="wait-row"><td><span class="site">${x.nm}<small>${s.co} · 시공소장 ${s.bld||'—'}</small></span></td><td>${s.ct?`${s.ct}<small class="d2">적용률 ${(rate(s.ct)*100).toFixed(1)}%</small>`:'<span class="cap">미등록</span>'}</td>
         <td>${compCell(x)}</td>
