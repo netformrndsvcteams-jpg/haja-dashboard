@@ -1270,12 +1270,12 @@ function ovCards(){
   const c2 = `<div class="card ovc"><div class="ch"><h3>대납 상위 시공소장</h3><span class="ptag g">전체 누적</span><a class="go" href="#cost/subpay">대납 누적 ›</a></div>
     ${top.length?`<div class="ovrk">${top.map(([b,v],k)=>`<span class="n">${k+1}</span><span class="nm" title="${esc(b)}">${esc(b)}</span><span class="bar"><i style="width:${v.a/mx*100}%"></i></span><span class="a">${won(v.a)}<small>${v.n}건</small></span>`).join('')}</div>`:'<p class="empty">대납 기록이 없습니다</p>'}
     <div class="ovfoot"><span>대납 합계 <b>${won(sum(sp,ourOf))}원</b> · ${sp.length}건</span><span>시공소장 부재 <b>${sp.filter(r=>r.b[2]==='시공소장 부재').length}건</b></span></div></div>`;
-  const Y = {}; MATS.forEach(m=>{ const y=m.date.getFullYear(); if(!y) return; const o=Y[y]=Y[y]||{v:0,out:0,ret:0,ms:new Set()}; o.v+=m.amt; if(m.amt>=0) o.out+=m.amt; else o.ret-=m.amt; o.ms.add(m.date.getMonth()); });
+  const Y = {}; MATS.forEach(m=>{ const y=m.date.getFullYear(); if(!y) return; const o=Y[y]=Y[y]||{v:0,out:0,ret:0,ss:new Set()}; o.v+=m.amt; if(m.amt>=0) o.out+=m.amt; else o.ret-=m.amt; o.ss.add(m.site||m.raw); });
   const ys = Object.keys(Y).map(Number).sort().slice(-5), ymx = Math.max(1,...ys.map(y=>Y[y].v));
   const tS = {}; MATS.filter(m=>inY(m.date)).forEach(m=>{ const k=m.site||m.raw; tS[k]=(tS[k]||0)+m.amt; }); const tp = Object.entries(tS).sort((a,b)=>b[1]-a[1])[0];
   const c3 = `<div class="card ovc"><div class="ch"><h3>연도별 하자 자재비</h3><span class="ptag g">출고 − 회수</span><a class="go" href="#mat/use">자재 현황 ›</a></div>
-    ${ys.length?`<div class="ovyb">${ys.map(y=>{ const o=Y[y], cur=y===CY, part=!cur&&o.ms.size<12;
-      return `<div class="col ${cur?'cur':''}" title="${y}년 · 출고 ${won(o.out)}원 − 회수 ${won(o.ret)}원 = ${won(o.v)}원${part?` · ${o.ms.size}개월 자료`:''}"><b>${(o.v/1e6).toFixed(1)}${cur?'<small>진행 중</small>':part?'<small>일부 월</small>':''}</b><i style="height:${Math.max(0,o.v)/ymx*100}%"></i><span>${y}</span></div>`; }).join('')}</div>
+    ${ys.length?`<div class="ovyb">${ys.map(y=>{ const o=Y[y], cur=y===CY;
+      return `<div class="col ${cur?'cur':''}" title="${y}년 · 출고 ${won(o.out)}원 − 회수 ${won(o.ret)}원 = ${won(o.v)}원 · 출고 현장 ${o.ss.size}곳"><b>${(o.v/1e6).toFixed(1)}<small>${o.ss.size}곳 출고${cur?' · 진행 중':''}</small></b><i style="height:${Math.max(0,o.v)/ymx*100}%"></i><span>${y}</span></div>`; }).join('')}</div>
     <div class="ovunit">단위: 백만 원 · 막대에 올리면 출고·회수 금액</div>`:'<p class="empty">자재 출고 자료가 없습니다</p>'}
     <div class="ovfoot"><span>올해 최다 현장</span><b>${tp?`${esc(tp[0])} · ${won(tp[1])}원`:'—'}</b></div></div>`;
   return `<div class="ovg3">${c1}${c2}${c3}</div>`;
@@ -3894,7 +3894,7 @@ function matYearCard(){
     ${r.map(x=>`<tr><td><b>${x.y}년</b></td><td class="amt">${x.n}곳</td><td class="amt">${won(x.reg)}</td><td class="amt">${won(x.un)}</td><td class="amt"><b>${won(x.all)}</b></td><td class="amt">${pct(x.un,x.all)}</td></tr>`).join('')}
     </tbody></table></div>`;
 }
-const _vOverview = vOverview; vOverview = function(){ return _vOverview() + matYearCard(); };
+/* 개요 아래 「연도별 하자 자재비」 표는 개요 요약 카드 ③과 중복이라 뺌 (2026-11-19) */
 
 /* ════════════════════════════════════════════
    단계별 지연 사유 · 시공소장별 하자 누적 (2026-10-25)
