@@ -366,12 +366,30 @@ small.w{display:block;font-size:11px;color:#b88a00;font-weight:600}
 .bm .v.g{font-weight:500;color:var(--ink2)}
 .bm.wide{min-width:220px}
 /* 주의 현장 */
-.watch{display:flex;flex-direction:column;gap:8px}
-.wrow{display:grid;grid-template-columns:minmax(220px,1.3fr) 90px minmax(220px,1.4fr) 150px;gap:18px;align-items:center;text-align:left;padding:14px 18px;border-radius:var(--r-m);background:var(--s1);border:1.5px solid transparent;transition:border-color .12s,background .12s}
-.wrow:hover{border-color:var(--sky-20);background:#fff}
-.wn b{display:block;font-weight:700;font-size:14.5px}.wn small{font-size:12px;color:var(--ink3)}
-.wp small,.wr small{display:block;font-size:11.5px;color:var(--ink3)}
-.wp b,.wr b{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+/* 개요 요약 카드 3개 */
+.ovg3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:18px}
+.ovg3>.card{margin-bottom:0;display:flex;flex-direction:column}
+.ovc .ch{flex-wrap:nowrap}.ovc .ch h3{white-space:nowrap}.ovc .go{margin-left:auto;font-size:12.5px;font-weight:600;color:var(--sky-d);text-decoration:none;white-space:nowrap}
+.ptag.g{color:var(--ink2);border-color:var(--line2)}
+.ovbig{font-size:22px;font-weight:800}.ovbig small{font-size:13px;font-weight:600;color:var(--ink2);margin-left:2px}
+.ovstack{display:flex;height:12px;border-radius:999px;overflow:hidden;margin:12px 0;background:var(--s2)}.ovstack i{display:block;height:100%}
+.ovleg{display:grid;grid-template-columns:10px 1fr auto auto;gap:7px 8px;align-items:center;font-size:13px}
+.ovleg i{width:10px;height:10px;border-radius:3px}.ovleg small{color:var(--ink3);font-size:11.5px}
+.ovleg .a{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}.ovleg .p{text-align:right;color:var(--ink3);font-size:12px;min-width:34px}
+.ovfoot{margin-top:auto;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink2);display:flex;justify-content:space-between;gap:10px}
+.ovfoot b{color:var(--ink)}.ovg3 .ovrk,.ovg3 .ovleg,.ovg3 .ovyb{margin-bottom:14px}
+.ovrk{display:grid;grid-template-columns:16px minmax(56px,90px) 1fr auto;gap:9px 8px;align-items:center;font-size:13px}
+.ovrk .n{color:var(--ink3);font-weight:700}.ovrk .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ovrk .bar{height:8px;border-radius:999px;background:var(--s2);overflow:hidden}.ovrk .bar i{display:block;height:100%;background:linear-gradient(90deg,#ffc34d,var(--warn))}
+.ovrk .a{text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}.ovrk .a small{font-weight:500;color:var(--ink3);margin-left:4px;font-size:11.5px}
+.ovyb{display:flex;align-items:flex-end;gap:12px;height:170px;padding:0 4px 0;border-bottom:1px solid var(--line);margin-bottom:30px!important}
+.ovyb .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;position:relative}
+.ovyb .col i{display:block;width:100%;max-width:46px;border-radius:8px 8px 0 0;background:var(--sky)}
+.ovyb .col.cur i{background:repeating-linear-gradient(135deg,#9fd3ff 0 6px,#bfe2ff 6px 12px)}
+.ovyb .col b{font-size:13px;font-weight:800;margin-bottom:5px;font-variant-numeric:tabular-nums;text-align:center}
+.ovyb .col b small{display:block;font-size:10.5px;font-weight:500;color:var(--ink3)}
+.ovyb .col span{position:absolute;bottom:-22px;font-size:12px;color:var(--ink2)}
+.ovunit{font-size:11.5px;color:var(--ink3);text-align:right;margin-bottom:10px}
 /* 툴바 */
 .tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:14px}
 .tools .inp{min-width:220px}
@@ -473,7 +491,7 @@ b.big{font-size:20px;color:var(--sky-d)}
 .upsum{display:flex;gap:6px;margin:16px 0 8px}
 .uptbl{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:var(--r-m)}
 .uptbl .ct thead th{position:sticky;top:0}
-@media (max-width:1280px){.cwrap{grid-template-columns:1fr}.cnav{position:static;display:flex;flex-wrap:wrap;gap:4px}.cnav-h,.cnav-f{display:none}.kpis{grid-template-columns:repeat(2,1fr)}.g2c,.g2c.wide-l,.flow3{grid-template-columns:1fr}.wrow{grid-template-columns:1fr 1fr}}
+@media (max-width:1280px){.cwrap{grid-template-columns:1fr}.cnav{position:static;display:flex;flex-wrap:wrap;gap:4px}.cnav-h,.cnav-f{display:none}.kpis{grid-template-columns:repeat(2,1fr)}.g2c,.g2c.wide-l,.flow3{grid-template-columns:1fr}.ovg3{grid-template-columns:1fr}}
 
 .tcard.scroll{overflow-x:auto}
 .tcard.scroll thead th{position:static}
@@ -1209,12 +1227,13 @@ function vOverview(){
     return {y,n:g.length,w:gw.length,b,sp,ov:g.filter(x=>x.state==='over').length,rk:g.filter(x=>x.state==='risk').length,end:g.filter(x=>x.el>=1).length};
   });
   const maxB = Math.max(...rows.map(r=>Math.max(r.b,r.sp)),1);
-  const watch = over.concat(risk).sort((a,b)=>b.pace-a.pace);
+  /* 「주의 현장」 KPI·박스 삭제 → 기안 진행 중 KPI + 요약 카드 3개 (2026-11-19) */
+  const s6p = ITEMS.filter(i=>i.st===6 && payNeeded(i)), dN = new Set(s6p.map(i=>SITES[i.site].co)).size, pay6 = s6p.reduce((a,i)=>a+ourPay(i),0);
   return head('개요',TD+' 현재','준공연도 기준 · 그해 준공한 현장의 하자예산을 합쳐 연도별 예산으로 봅니다. 기간 선택과 무관한 보증기간 누적 값입니다.')
   + `<div class="kpis">
       ${kpi('c_budget','하자예산 합계',won(B)+'원',`정식 등록 ${reg.length}곳 · 컨설팅 3% / 기술자문 1.5%`)}
       ${kpi('c_spent','집행 누적',won(S)+'원',`소진율 ${pct(S,B)} · 잔여 ${won(B-S)}원`)}
-      ${kpi('c_alert','주의 현장',`${over.length+risk.length}곳`,`예산 초과 ${over.length} · 초과 예상 ${risk.length}`,'warn')}
+      ${kpi('st6','기안 진행 중',`${dN}건`,`곧 나갈 돈 ${won(pay6)}원 · 접수 ${s6p.length}건`).replace('<div class="kpi ','<div onclick="location.hash=\'#cost/pay\'" style="cursor:pointer" title="기안·지급으로 이동" class="kpi ')}
       ${kpi('c_wait','확인 대기 현장',`${wait.length}곳`,`간이 등록 · 하자예산 미편성`,'yel')}
     </div>
     <div class="card">
@@ -1230,15 +1249,36 @@ function vOverview(){
       </tbody><tfoot><tr><td>합계</td><td class="amt">${reg.length}곳</td><td class="amt">${won(B)}</td><td class="amt">${won(S)}</td><td class="amt">${pct(S,B)}</td><td></td><td class="amt">${won(B-S)}</td><td></td></tr></tfoot></table>
       <p class="cap note">행을 누르면 그 준공연도 현장 목록(현장·예산)으로 이동합니다. 확인 대기 현장은 확정매출액·계약유형이 없어 예산 합계에서 빠져 있습니다.</p>
     </div>
-    <div class="card">
-      <div class="ch"><h3>주의 현장</h3><span class="cap">예산 초과 · 현재 속도로 보증 종료 시 초과 예상 · 사용 속도 빠른 순 · 준공 1년 미만은 초과 예상 판정 제외</span></div>
-      <div class="watch">${watch.map(x=>`<button class="wrow" onclick="CF.q='${x.nm}';CF.cy='';CF.cst='';location.hash='#cost/sites'">
-        <span class="wn"><b>${x.nm}</b><small>${x.s.co} · ${x.s.ct} · 보증 ${x.yr}년차</small></span>
-        ${stTag(x)}
-        ${burnMeter(x,true)}
-        <span class="wr amt"><small>잔여</small><b class="${x.s.budget-x.spent<0?'neg':''}">${won(x.s.budget-x.spent)}원</b></span></button>`).join('')||'<p class="empty">주의 현장이 없습니다</p>'}</div>
-      <p class="cap note">예산 막대는 100%가 끝(넘으면 주황으로 꽉 참) · 보증 막대는 보증기간이 지난 비율. 예산 막대가 보증 막대보다 길면 기간보다 예산을 빠르게 쓰고 있다는 뜻입니다.</p>
-    </div>`;
+    ${ovCards()}`;
+}
+
+/* 개요 요약 카드 — ① 당사 지출 구성(올해) ② 대납 상위 시공소장(전체 누적) ③ 연도별 하자 자재비 (2026-11-19) */
+function ovCards(){
+  const inY = d => d && d.getFullYear()===CY, sum=(a,f)=>a.reduce((x,r)=>x+f(r),0);
+  const rs = allRecs(), ry = rs.filter(r=>inY(r.date)), by = t=>ry.filter(r=>r.b[0]===t);
+  const matY = sum(ry,r=>(r.mat||0)-(r.ret||0)) + matU(m=>inY(m.date));
+  const seg = [['자재','',matY,'#7cc8ff'],['당사 부담','노임·복구비',sum(by('당사 부담'),ourOf),'#1a9cff'],['당사 대납','노임·복구비',sum(by('당사 대납'),ourOf),'#ff9500'],['공동 부담','당사 몫',sum(by('공동 부담'),ourOf),'#b8c2ce'],['과거 이력','노임',sum(by('과거 이력'),r=>r.lab||0),'#dfe5ec']].filter((x,k)=>k<4||x[2]>0);
+  const tot = seg.reduce((a,x)=>a+x[2],0), bldN = by('시공소장 부담').length;
+  const c1 = `<div class="card ovc"><div class="ch"><h3>당사 지출 구성</h3><span class="ptag">${CY}년</span><a class="go" href="#cost/burden">부담 판정 ›</a></div>
+    <div class="ovbig num">${won(tot)}<small>원</small></div>
+    <div class="ovstack">${seg.map(x=>tot&&x[2]>0?`<i style="width:${x[2]/tot*100}%;background:${x[3]}" title="${x[0]} ${won(x[2])}원"></i>`:'').join('')}</div>
+    <div class="ovleg">${seg.map(x=>`<i style="background:${x[3]}"></i><span>${x[0]}${x[1]?` <small>${x[1]}</small>`:''}</span><span class="a">${won(x[2])}</span><span class="p">${tot?Math.round(x[2]/tot*100):0}%</span>`).join('')}</div>
+    <div class="ovfoot"><span>시공소장 부담으로 처리</span><b>${bldN}건 · 당사 0원</b></div></div>`;
+  const sp = rs.filter(r=>r.b[0]==='당사 대납'), g={};
+  sp.forEach(r=>{ const b=(SITES[r.site]||{}).bld||'(미등록)'; g[b]=g[b]||{n:0,a:0}; g[b].n++; g[b].a+=ourOf(r); });
+  const top = Object.entries(g).sort((x,y)=>y[1].a-x[1].a).slice(0,5), mx = top.length?top[0][1].a||1:1;
+  const c2 = `<div class="card ovc"><div class="ch"><h3>대납 상위 시공소장</h3><span class="ptag g">전체 누적</span><a class="go" href="#cost/subpay">대납 누적 ›</a></div>
+    ${top.length?`<div class="ovrk">${top.map(([b,v],k)=>`<span class="n">${k+1}</span><span class="nm" title="${esc(b)}">${esc(b)}</span><span class="bar"><i style="width:${v.a/mx*100}%"></i></span><span class="a">${won(v.a)}<small>${v.n}건</small></span>`).join('')}</div>`:'<p class="empty">대납 기록이 없습니다</p>'}
+    <div class="ovfoot"><span>대납 합계 <b>${won(sum(sp,ourOf))}원</b> · ${sp.length}건</span><span>시공소장 부재 <b>${sp.filter(r=>r.b[2]==='시공소장 부재').length}건</b></span></div></div>`;
+  const Y = {}; MATS.forEach(m=>{ const y=m.date.getFullYear(); if(!y) return; const o=Y[y]=Y[y]||{v:0,out:0,ret:0,ms:new Set()}; o.v+=m.amt; if(m.amt>=0) o.out+=m.amt; else o.ret-=m.amt; o.ms.add(m.date.getMonth()); });
+  const ys = Object.keys(Y).map(Number).sort().slice(-5), ymx = Math.max(1,...ys.map(y=>Y[y].v));
+  const tS = {}; MATS.filter(m=>inY(m.date)).forEach(m=>{ const k=m.site||m.raw; tS[k]=(tS[k]||0)+m.amt; }); const tp = Object.entries(tS).sort((a,b)=>b[1]-a[1])[0];
+  const c3 = `<div class="card ovc"><div class="ch"><h3>연도별 하자 자재비</h3><span class="ptag g">출고 − 회수</span><a class="go" href="#mat/use">자재 현황 ›</a></div>
+    ${ys.length?`<div class="ovyb">${ys.map(y=>{ const o=Y[y], cur=y===CY, part=!cur&&o.ms.size<12;
+      return `<div class="col ${cur?'cur':''}" title="${y}년 · 출고 ${won(o.out)}원 − 회수 ${won(o.ret)}원 = ${won(o.v)}원${part?` · ${o.ms.size}개월 자료`:''}"><b>${(o.v/1e6).toFixed(1)}${cur?'<small>진행 중</small>':part?'<small>일부 월</small>':''}</b><i style="height:${Math.max(0,o.v)/ymx*100}%"></i><span>${y}</span></div>`; }).join('')}</div>
+    <div class="ovunit">단위: 백만 원 · 막대에 올리면 출고·회수 금액</div>`:'<p class="empty">자재 출고 자료가 없습니다</p>'}
+    <div class="ovfoot"><span>올해 최다 현장</span><b>${tp?`${esc(tp[0])} · ${won(tp[1])}원`:'—'}</b></div></div>`;
+  return `<div class="ovg3">${c1}${c2}${c3}</div>`;
 }
 
 /* ── 2. 현장·예산 ── */
