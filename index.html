@@ -719,6 +719,7 @@ a.card.clk:hover{border-color:var(--sky-20)}
   </div>
 </header>
 <div class="setup" id="setupNote" hidden></div>
+<div class="setup" id="autoNote" hidden></div>
 
 <div id="v-work">
   <select id="fRecv" hidden><option value="">전체</option></select>
@@ -2201,6 +2202,7 @@ function _rebuild(){
   setSync(all ? `저장됨 · ${hhmm(new Date())}${orphan?` · 현장 없는 접수 ${orphan}건`:''}` : '불러오는 중…', all?'ok':'');
   setupNotice();
   rerender();
+  if(all) autoAdv();
 }
 function rerender(){
   const t=(location.hash||'#work').slice(1).split('/')[0];
@@ -2223,10 +2225,54 @@ function setupNotice(){
   el.innerHTML = `<b>처음 설정이 필요합니다</b><span>${miss.length?`⚙ 설정에서 ${miss.filter(m=>m!=='소장 명단').join('·')||''}${miss.includes('소장 명단')?' · 소장 명단은 pour-pay에서 자동으로 들어옵니다 (⚙ 설정 › 소장)':''}. `:''}${noSite?'예산·지급 › 현장·예산에서 「pour-pay 완료 현장 가져오기」로 현장을 등록하세요 (pour-pay에 없는 과거 현장은 엑셀 일괄 등록).':''}</span><button class="btn btn-yel sm" onclick="openSettings()">설정 열기</button>`;
 }
 
+/* ── 단계 자동넘김 (2026-11-23) ──
+   2→3 처리중 : 처리소장 지정 + 방문예정일이 오늘 이전·당일
+   3→4 보수 완료 : 처리완료일이 오늘 이전·당일
+   · 되돌린 건은 autoHold에 그때 값을 기억 → 그 값이 바뀌어야 다시 자동 대상
+   · 기능 반영(AUTO_FROM) 전부터 조건을 채운 채 멈춰 있던 건은 자동으로 옮기지 않고 「확인 후 넘기기」로 안내 */
+const AUTO_FROM = '2026-11-23';
+const autoKey = (it,st) => st===2 ? hdsOf(it).join('/')+'|'+(it.visitAt||'') : st===3 ? (it.doneAt||'') : '';
+function autoCond(it){
+  const today=ymd(TODAY);
+  if(it.st===2 && hdsOf(it).length && it.visitAt && it.visitAt<=today) return {to:3, d:it.visitAt, why:'처리소장 배정 · 방문예정일 '+it.visitAt};
+  if(it.st===3 && it.doneAt && it.doneAt<=today) return {to:4, d:it.doneAt, why:'처리완료일 '+it.doneAt};
+  return null;
+}
+function autoCands(){
+  return ITEMS.map(it=>{ const c=autoCond(it); if(!c) return null;
+    if(it.autoHold && it.autoHold.st===it.st && it.autoHold.k===autoKey(it,it.st)) return null;
+    return {it, ...c}; }).filter(Boolean);
+}
+const AUTO_DONE = new Set();
+function autoMove(x){
+  AUTO_DONE.add(x.it.id+'>'+x.to);
+  return dbCase(x.it.id,{st:x.to, stAt:iso(), ...(x.to>=4&&!x.it.doneAt?{doneAt:ymd(TODAY)}:{}), autoHold:null},
+    `${x.it.st}→${x.to}단계 ${STAGES[x.to]} (자동 · ${x.why})`).catch(()=>{});
+}
+function autoAdv(){
+  if(!DB) return;
+  const L = autoCands().filter(x=>!AUTO_DONE.has(x.it.id+'>'+x.to));
+  const now = L.filter(x=>x.d>=AUTO_FROM), old = L.filter(x=>x.d<AUTO_FROM);
+  now.forEach(x=>{ autoMove(x); toast(`${x.it.id} → ${x.to}단계 ${STAGES[x.to]} (자동)`); });
+  const el=document.getElementById('autoNote'); if(!el) return;
+  el.hidden = !old.length;
+  if(old.length){
+    el.innerHTML = `<b>단계 자동넘김 확인</b><span>조건을 채운 채 멈춰 있는 ${old.length}건 — ${old.slice(0,4).map(x=>`${x.it.id} ${esc(x.it.site)} (${x.it.st}→${x.to})`).join(', ')}${old.length>4?` 외 ${old.length-4}건`:''}</span><button class="btn btn-pri sm" id="autoOld">확인 후 넘기기</button><button class="btn btn-line sm" id="autoOldX">나중에</button>`;
+    document.getElementById('autoOld').onclick=()=>{
+      if(!confirm(`아래 ${old.length}건을 다음 단계로 넘길까요?\n\n`+old.map(x=>`${x.it.id} ${x.it.site} · ${x.it.st}→${x.to}단계 ${STAGES[x.to]} (${x.why})`).join('\n'))) return;
+      old.forEach(autoMove); el.hidden=true; toast(`${old.length}건 다음 단계로 넘김`); };
+    document.getElementById('autoOldX').onclick=()=>{ el.hidden=true; old.forEach(x=>AUTO_DONE.add(x.it.id+'>'+x.to)); };
+  }
+}
+
 /* ── 저장 도우미 ── */
 async function dbCase(id, patch, msg){
   if(!DB) return toast('저장소에 연결되지 않았습니다');
   const data = {...patch, updatedAt: iso()}; if(msg) data.log = logEntry(msg);
+  /* 단계 자동넘김 — 되돌릴 때 그 시점의 조건 값을 기억(값이 바뀌어야 다시 자동 대상), 앞으로 넘길 때는 해제 (2026-11-23) */
+  if(patch.st!=null && !('autoHold' in patch)){ const cur=ITEMS.find(i=>i.id===id);
+    if(cur && patch.st<cur.st) data.autoHold = (patch.st===2||patch.st===3) ? {st:patch.st, k:autoKey(cur,patch.st)} : null;
+    else if(cur && patch.st>cur.st && cur.autoHold) data.autoHold = null; }
   try{ await DB.collection('cases').doc(id).set(data, {merge:true}); }catch(e){ toast('저장 실패 · '+(e.code||e.message)); throw e; }
 }
 async function nextId(){
@@ -2310,7 +2356,7 @@ function detail(id){
         ${con&&(con.contactName||con.contactPhone)?`<dt>시공사 담당</dt><dd>${esc(con.contactName||'')} <span class="cap">${esc(con.contactPhone||'')}</span></dd>`:''}
         <dt>처리소장</dt><dd>${st<7?hdPicker(it, wOpts):esc(hdTx(it)||'미배정')+(swapped(it)?' <span class="tg tg-swap">교체</span>':'')}</dd>
         ${st<7||it.visitAt?`<dt>방문 예정일</dt><dd>${st<7?`<input type="date" class="inp" id="visitAt" value="${it.visitAt||''}" style="min-width:0;width:180px">`:it.visitAt.replace(/-/g,'.')}</dd>`:''}
-        </dl><div id="swapMsg"></div>
+        </dl>${st===2?'<p class="cap">처리소장과 방문예정일이 있으면 방문예정일 당일에 3단계 처리중으로 자동으로 넘어갑니다</p>':''}<div id="swapMsg"></div>
       </div>`:''}
 
       ${show([1,2,3])||pledgeOpen(it)?pledgeSec(it):''}
@@ -2322,6 +2368,9 @@ function detail(id){
 
       ${show([2,3,4])&&delayHtml(it)?`<div class="dsec" data-col="R" data-alt="L" style="padding-top:0">${delayHtml(it)}</div>`:''}
 
+      ${st===3&&!ALL?`<div class="dsec"><h4>보수 완료</h4>
+        <div class="field"><label>처리완료일</label><input type="date" class="inp" id="doneD" value="${it.doneAt||''}" style="min-width:0;width:180px"></div>
+        <p class="cap">입력하면 4단계 보수 완료로 자동으로 넘어갑니다 · 앞날짜로 적으면 그날 넘어갑니다</p></div>`:''}
       ${show([4])?`<div class="dsec"><h4>보수 결과</h4>
         <div class="field"><label>처리완료일</label><input type="date" class="inp" id="doneD" value="${it.doneAt||''}" style="min-width:0;width:180px"></div>
         <div class="field"><label>하자 원인</label>
