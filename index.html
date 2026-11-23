@@ -661,6 +661,14 @@ a.card.clk:hover{border-color:var(--sky-20)}
 .recl{display:flex;flex-direction:column;gap:6px;font-size:13px}.recl label{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer}.recl label:has(input:checked){border-color:var(--sky);background:var(--bg2,#f6f8fb)}
 .dmgadd{display:grid;grid-template-columns:120px 1fr 1fr auto;gap:6px;margin-top:8px}
 .dmgadd .inp,.dmgadd .sel{min-width:0;height:36px}
+/* 진행 내용 입력: 여러 줄 입력창(길면 자동으로 늘어남) · 휴대폰에서는 날짜·추가 위, 내용 칸 아래 전체 폭 (2026-11-23) */
+.nta{height:40px;min-height:40px;padding:9px 14px;line-height:1.45;resize:none;overflow:hidden;font:inherit;display:block}
+@media (max-width:640px){
+  .noteadd{grid-template-columns:1fr auto}.noteadd #nD{grid-column:1;grid-row:1}.noteadd #nAdd{grid-column:2;grid-row:1}
+  .noteadd #nT{grid-column:1/-1;grid-row:2;min-height:64px}
+  .dmgadd{grid-template-columns:1fr auto}.dmgadd #dT{grid-column:1;grid-row:1}.dmgadd #dAdd{grid-column:2;grid-row:1}
+  .dmgadd #dL{grid-column:1/-1;grid-row:2}.dmgadd #dF{grid-column:1/-1;grid-row:3}
+}
 .bopt .radio{display:flex;gap:8px;align-items:baseline;padding:8px 0;font-size:13.5px;flex-wrap:wrap}
 .adjbox{background:var(--s1);border-radius:var(--r-m);padding:14px 14px 2px;margin:6px 0 12px}
 .logl{list-style:none;display:flex;flex-direction:column;gap:6px;font-size:12.5px;max-height:220px;overflow:auto}
@@ -2363,7 +2371,7 @@ function detail(id){
 
       ${show([2,3,4])?`<div class="dsec" data-col="R" data-alt="L"><h4>진행 내용</h4>
         <ol class="notes" id="nList">${notesLi(it.notes)}</ol>
-        <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><input class="inp" id="nT" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"><button class="btn btn-line sm" id="nAdd">추가</button></div><p class="cap" id="nStat" style="margin-top:6px">다 쓴 뒤 「추가」나 Enter를 누르면 저장됩니다</p>
+        <div class="noteadd"><input type="date" class="inp" id="nD" value="${ymd(TODAY)}"><textarea class="inp nta" id="nT" rows="1" placeholder="예: 박성은 소장님 10/7~9 3일간 투입 예정"></textarea><button class="btn btn-line sm" id="nAdd">추가</button></div><p class="cap" id="nStat" style="margin-top:6px">다 쓴 뒤 「추가」나 Enter를 누르면 저장됩니다</p>
       </div>`:''}
 
       ${show([2,3,4])&&delayHtml(it)?`<div class="dsec" data-col="R" data-alt="L" style="padding-top:0">${delayHtml(it)}</div>`:''}
@@ -2482,8 +2490,9 @@ function detail(id){
       let first=false; if(k>=0) a[k]={...a[k], d, txt:t}; else { dAt=iso(); first=true; a.push({d, txt:t, by:ME()||'', at:dAt}); }
       try{ await dbCase(id,{notes:a}, first?`진행 내용 추가 · ${d}`:null); it.notes=a; refreshNotes(it); if(ns) ns.textContent=`자동 저장됨 · ${hhmm(new Date())}`; }catch(e){} };
     /* 자동 저장 삭제 (2026-11-03 사용자 요청) — 생각하며 쓰는 중에 저장되지 않도록 「추가」·Enter를 눌렀을 때만 저장 */
-    nt.oninput=()=>{ if(ns) ns.textContent=nt.value.trim()?'아직 저장 전 · 「추가」나 Enter를 누르면 저장됩니다':'다 쓴 뒤 「추가」나 Enter를 누르면 저장됩니다'; };
-    const next=async()=>{ if(!nt.value.trim()){ toast('진행 내용을 입력하세요'); nt.focus(); return; } await save(); nt.value=''; dAt=null; if(ns) ns.textContent=`저장됨 · ${hhmm(new Date())} · 다음 내용을 입력하세요`; nt.focus(); };
+    const fit=()=>{ nt.style.height='auto'; nt.style.height=nt.scrollHeight+2+'px'; };
+    nt.oninput=()=>{ fit(); if(ns) ns.textContent=nt.value.trim()?'아직 저장 전 · 「추가」나 Enter를 누르면 저장됩니다':'다 쓴 뒤 「추가」나 Enter를 누르면 저장됩니다'; };
+    const next=async()=>{ if(!nt.value.trim()){ toast('진행 내용을 입력하세요'); nt.focus(); return; } await save(); nt.value=''; fit(); dAt=null; if(ns) ns.textContent=`저장됨 · ${hhmm(new Date())} · 다음 내용을 입력하세요`; nt.focus(); };
     nt.onkeydown=e=>{ if(e.key==='Enter' && !e.isComposing){ e.preventDefault(); next(); } };
     const na=$('nAdd'); if(na){ na.onmousedown=e=>e.preventDefault(); na.onclick=next; }
   }
